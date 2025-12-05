@@ -1,6 +1,6 @@
 {
   "name": "mindclone-studio",
-  "version": "11.0.1",
+  "version": "11.0.2",
   "description": "Neutral Ally AI Companion Platform",
   "main": "api/chat.ts",
   "dependencies": {
