@@ -1,9 +1,4 @@
 {
-  "buildCommand": "npm install",
-  "installCommand": "npm install",
-  "env": {
-    "NODE_ENV": "production"
-  },
   "functions": {
     "api/chat.js": {
       "memory": 1024,
