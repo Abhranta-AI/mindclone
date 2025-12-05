@@ -4,7 +4,7 @@
   "description": "Neutral Ally AI Companion Platform",
   "main": "api/chat.ts",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.24.0",  },
+    "@anthropic-ai/sdk": "^0.24.0", 
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "^5.0.0"
