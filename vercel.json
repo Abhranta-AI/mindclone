@@ -1,13 +1,11 @@
 {
   "buildCommand": "npm install",
   "installCommand": "npm install",
-  "outputDirectory": ".",
-  "devCommand": "npm start",
   "env": {
     "NODE_ENV": "production"
   },
   "functions": {
-    "api/**/*.js": {
+    "api/chat.js": {
       "memory": 1024,
       "maxDuration": 60
     }
