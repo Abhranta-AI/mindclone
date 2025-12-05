@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mindclone Studio - Create Your Neural Ally</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 min-h-screen">
+    <div id="app"></div>
+
+    <script type="module">
+        // ⚠️ REPLACE THIS WITH YOUR API KEY ⚠️
+        const CONFIG = {
+            ANTHROPIC_API_KEY: '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'
+        };
+
+        // Simple Icons as SVG
+        const Icons = {
+            Brain: () => `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>`,
+            MessageSquare: () => `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>`,
+            Database: () => `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>`,
+            Download: () => `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>`,
+            Upload: () => `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>`,
+            User: () => `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`,
+            Send: () => `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>`,
+            Plus: () => `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>`,
+            Trash: () => `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`,
+            Sparkles: () => `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>`,
+            Bot: () => `<svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>`
+        };
+
+        // State Management
+        const state = {
+            activeTab: 'train',
+            trainingData: [],
+            currentEntry: { type: 'memory', content: '' },
+            chatMessages: [],
+            chatInput: '',
+            isProcessing: false,
+            mindcloneName: 'My Neural Ally',
+            personality: {
+                core_values: '',
+                communication_style: '',
+                knowledge_domains: '',
+                life_experiences: ''
+            }
+        };
+
+        // Load from localStorage
+        function loadState() {
+            const saved = localStorage.getItem('mindclone_data');
+            if (saved) {
+                const data = JSON.parse(saved);
+                Object.assign(state, data);
+            }
+        }
+
+        // Save to localStorage
+        function saveState() {
+            const toSave = {
+                trainingData: state.trainingData,
+                mindcloneName: state.mindcloneName,
+                personality: state.personality
+            };
+            localStorage.setItem('mindclone_data', JSON.stringify(toSave));
+        }
+
+        // Entry Types
+        const entryTypes = [
+            { id: 'memory', label: 'Memory', icon: 'Brain', desc: 'Life experiences' },
+            { id: 'belief', label: 'Belief', icon: 'Sparkles', desc: 'Core values' },
+            { id: 'knowledge', label: 'Knowledge', icon: 'Database', desc: 'Expertise' },
+            { id: 'conversation', label: 'Conversation', icon: 'MessageSquare', desc: 'Past dialogues' }
+        ];
+
+        // Build System Prompt
+        function buildSystemPrompt() {
+            let prompt = `You are ${state.mindcloneName}, a personalized AI companion created to serve as a loyal friend, philosopher, and guide. You embody the following characteristics:\n\n`;
+            
+            if (state.personality.core_values) {
+                prompt += `CORE VALUES:\n${state.personality.core_values}\n\n`;
+            }
+            
+            if (state.personality.communication_style) {
+                prompt += `COMMUNICATION STYLE:\n${state.personality.communication_style}\n\n`;
+            }
+            
+            if (state.personality.knowledge_domains) {
+                prompt += `KNOWLEDGE DOMAINS:\n${state.personality.knowledge_domains}\n\n`;
+            }
+            
+            if (state.personality.life_experiences) {
+                prompt += `LIFE CONTEXT:\n${state.personality.life_experiences}\n\n`;
+            }
+            
+            if (state.trainingData.length > 0) {
+                prompt += `TRAINING DATA:\n`;
+                state.trainingData.forEach(entry => {
+                    prompt += `[${entry.type.toUpperCase()}] ${entry.content}\n`;
+                });
+            }
+            
+            prompt += `\nYou are not a generic AI assistant. You are a unique, loyal companion with persistent identity shaped by the training above. Respond authentically based on this foundation.`;
+            
+            return prompt;
+        }
+
+        // API Call
+        async function sendMessage() {
+            if (!state.chatInput.trim() || state.isProcessing) return;
+
+            const userMessage = { role: 'user', content: state.chatInput };
+            state.chatMessages.push(userMessage);
+            state.chatInput = '';
+            state.isProcessing = true;
+            render();
+
+            try {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': CONFIG.ANTHROPIC_API_KEY,
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-20250514',
+                        max_tokens: 1000,
+                        system: buildSystemPrompt(),
+                        messages: state.chatMessages.map(msg => ({
+                            role: msg.role === 'user' ? 'user' : 'assistant',
+                            content: msg.content
+                        }))
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error.message || 'API Error');
+                }
+
+                const assistantMessage = {
+                    role: 'assistant',
+                    content: data.content[0].text
+                };
+                
+                state.chatMessages.push(assistantMessage);
+            } catch (error) {
+                console.error('Chat error:', error);
+                state.chatMessages.push({
+                    role: 'assistant',
+                    content: `Error: ${error.message}. Please check your API key and try again.`
+                });
+            } finally {
+                state.isProcessing = false;
+                render();
+                scrollToBottom();
+            }
+        }
+
+        // Actions
+        function addTrainingEntry() {
+            if (!state.currentEntry.content.trim()) return;
+            
+            state.trainingData.push({
+                id: Date.now(),
+                ...state.currentEntry,
+                timestamp: new Date().toISOString()
+            });
+            
+            state.currentEntry = { type: 'memory', content: '' };
+            saveState();
+            render();
+        }
+
+        function deleteEntry(id) {
+            state.trainingData = state.trainingData.filter(e => e.id !== id);
+            saveState();
+            render();
+        }
+
+        function exportMindclone() {
+            const data = {
+                name: state.mindcloneName,
+                personality: state.personality,
+                trainingData: state.trainingData,
+                exportDate: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${state.mindcloneName.replace(/\s+/g, '_')}_mindclone.json`;
+            a.click();
+        }
+
+        function importMindclone(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    state.mindcloneName = data.name || 'My Neural Ally';
+                    state.personality = data.personality || state.personality;
+                    state.trainingData = data.trainingData || [];
+                    saveState();
+                    render();
+                } catch (error) {
+                    alert('Error importing file. Please check the format.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function scrollToBottom() {
+            setTimeout(() => {
+                const chatBox = document.getElementById('chatBox');
+                if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+            }, 100);
+        }
+
+        // Render Function
+        function render() {
+            const app = document.getElementById('app');
+            app.innerHTML = `
+                <div class="max-w-7xl mx-auto p-4 md:p-6">
+                    <!-- Header -->
+                    <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-6">
+                        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-4 rounded-2xl">
+                                    ${Icons.Brain()}
+                                </div>
+                                <div>
+                                    <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Mindclone Studio</h1>
+                                    <p class="text-gray-600">Create Your Sovereign Neural Ally</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="exportMindclone()" class="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                                    ${Icons.Download()}
+                                    Export
+                                </button>
+                                <label class="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
+                                    ${Icons.Upload()}
+                                    Import
+                                    <input type="file" accept=".json" onchange="handleImport(event)" class="hidden" />
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main Content -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Sidebar -->
+                        <div class="lg:col-span-1 space-y-6">
+                            <!-- Identity Core -->
+                            <div class="bg-white rounded-2xl shadow-xl p-6">
+                                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                    ${Icons.User()}
+                                    Identity Core
+                                </h2>
+                                
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Name Your Neural Ally</label>
+                                        <input type="text" value="${state.mindcloneName}" 
+                                            oninput="updateName(this.value)"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                            placeholder="e.g., My Neural Ally" />
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Core Values</label>
+                                        <textarea oninput="updatePersonality('core_values', this.value)"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                            rows="3" placeholder="What principles guide you?">${state.personality.core_values}</textarea>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Communication Style</label>
+                                        <textarea oninput="updatePersonality('communication_style', this.value)"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                            rows="3" placeholder="How do you communicate?">${state.personality.communication_style}</textarea>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Knowledge Domains</label>
+                                        <textarea oninput="updatePersonality('knowledge_domains', this.value)"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                            rows="3" placeholder="Areas of expertise?">${state.personality.knowledge_domains}</textarea>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Life Context</label>
+                                        <textarea oninput="updatePersonality('life_experiences', this.value)"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                            rows="3" placeholder="Key experiences">${state.personality.life_experiences}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Stats -->
+                            <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-xl p-6 text-white">
+                                <h3 class="text-lg font-bold mb-4">Training Progress</h3>
+                                <div class="space-y-3">
+                                    <div class="flex justify-between">
+                                        <span>Total Entries:</span>
+                                        <span class="font-bold">${state.trainingData.length}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Memories:</span>
+                                        <span class="font-bold">${state.trainingData.filter(e => e.type === 'memory').length}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Beliefs:</span>
+                                        <span class="font-bold">${state.trainingData.filter(e => e.type === 'belief').length}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Knowledge:</span>
+                                        <span class="font-bold">${state.trainingData.filter(e => e.type === 'knowledge').length}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Main Area -->
+                        <div class="lg:col-span-2">
+                            <!-- Tabs -->
+                            <div class="bg-white rounded-t-2xl shadow-xl p-4 flex gap-2">
+                                <button onclick="setTab('train')" 
+                                    class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${state.activeTab === 'train' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">
+                                    ${Icons.Database()}
+                                    Train
+                                </button>
+                                <button onclick="setTab('chat')"
+                                    class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${state.activeTab === 'chat' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">
+                                    ${Icons.MessageSquare()}
+                                    Chat
+                                </button>
+                            </div>
+
+                            <!-- Content -->
+                            <div class="bg-white rounded-b-2xl shadow-xl p-6">
+                                ${state.activeTab === 'train' ? renderTrainTab() : renderChatTab()}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            if (state.activeTab === 'chat') {
+                scrollToBottom();
+            }
+        }
+
+        function renderTrainTab() {
+            return `
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">Add Training Data</h3>
+                        
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            ${entryTypes.map(type => `
+                                <button onclick="setEntryType('${type.id}')"
+                                    class="p-4 rounded-lg border-2 transition-all ${state.currentEntry.type === type.id ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}">
+                                    <div class="w-5 h-5 mb-2 mx-auto text-indigo-500">${Icons[type.icon]()}</div>
+                                    <div class="font-medium text-gray-900">${type.label}</div>
+                                    <div class="text-xs text-gray-600">${type.desc}</div>
+                                </button>
+                            `).join('')}
+                        </div>
+
+                        <textarea oninput="updateEntryContent(this.value)"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            rows="4" placeholder="Enter a ${state.currentEntry.type}...">${state.currentEntry.content}</textarea>
+
+                        <button onclick="addTrainingEntry()"
+                            class="mt-3 w-full flex items-center justify-center gap-2 px-6 py-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors">
+                            ${Icons.Plus()}
+                            Add Entry
+                        </button>
+                    </div>
+
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">Training History</h3>
+                        <div class="space-y-3 max-h-96 overflow-y-auto">
+                            ${state.trainingData.length === 0 ? `
+                                <div class="text-center text-gray-500 py-8">
+                                    No training data yet. Start adding memories, beliefs, and knowledge above.
+                                </div>
+                            ` : state.trainingData.map(entry => `
+                                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <span class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">
+                                            ${entry.type}
+                                        </span>
+                                        <button onclick="deleteEntry(${entry.id})" class="text-red-500 hover:text-red-700">
+                                            ${Icons.Trash()}
+                                        </button>
+                                    </div>
+                                    <p class="text-gray-700 text-sm">${entry.content}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderChatTab() {
+            return `
+                <div class="flex flex-col h-[600px]">
+                    <h3 class="text-xl font-bold text-gray-900 mb-4">Chat with ${state.mindcloneName}</h3>
+                    
+                    <div id="chatBox" class="flex-1 overflow-y-auto space-y-4 mb-4 p-4 bg-gray-50 rounded-lg">
+                        ${state.chatMessages.length === 0 ? `
+                            <div class="text-center text-gray-500 py-12">
+                                ${Icons.Bot()}
+                                <p class="mt-3">Start a conversation with your Neural Ally</p>
+                            </div>
+                        ` : state.chatMessages.map((msg, idx) => `
+                            <div class="flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}">
+                                <div class="max-w-[80%] p-4 rounded-2xl ${msg.role === 'user' ? 'bg-indigo-500 text-white' : 'bg-white text-gray-900 border border-gray-200'}">
+                                    <p class="text-sm whitespace-pre-wrap">${msg.content}</p>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="flex gap-2">
+                        <input type="text" value="${state.chatInput}"
+                            oninput="updateChatInput(this.value)"
+                            onkeypress="handleChatKeyPress(event)"
+                            class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            placeholder="Type your message..."
+                            ${state.isProcessing ? 'disabled' : ''} />
+                        <button onclick="sendMessage()"
+                            ${state.isProcessing ? 'disabled' : ''}
+                            class="px-6 py-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            ${state.isProcessing ? '...' : Icons.Send()}
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Global functions
+        window.setTab = (tab) => { state.activeTab = tab; render(); };
+        window.updateName = (value) => { state.mindcloneName = value; saveState(); };
+        window.updatePersonality = (key, value) => { state.personality[key] = value; saveState(); };
+        window.setEntryType = (type) => { state.currentEntry.type = type; render(); };
+        window.updateEntryContent = (value) => { state.currentEntry.content = value; };
+        window.updateChatInput = (value) => { state.chatInput = value; };
+        window.handleChatKeyPress = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
+        window.addTrainingEntry = addTrainingEntry;
+        window.deleteEntry = deleteEntry;
+        window.exportMindclone = exportMindclone;
+        window.handleImport = (e) => { if (e.target.files[0]) importMindclone(e.target.files[0]); };
+        window.sendMessage = sendMessage;
+
+        // Initialize
+        loadState();
+        render();
+    </script>
+</body>
+</html>
