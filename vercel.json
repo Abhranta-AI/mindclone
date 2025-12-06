@@ -38,6 +38,10 @@
       "dest": "/api/link-settings.js"
     },
     {
+      "src": "^/api/link/settings$",
+      "dest": "/api/link-settings.js"
+    },
+    {
       "src": "^/api/analytics$",
       "dest": "/api/analytics.js"
     },
