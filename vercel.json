@@ -54,6 +54,10 @@
       "dest": "/settings.html"
     },
     {
+      "src": "^/repair$",
+      "dest": "/repair.html"
+    },
+    {
       "src": "^/([a-z][a-z0-9_]{2,19})$",
       "dest": "/link.html?username=$1"
     },

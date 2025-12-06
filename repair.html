@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repair Username - Mindclone Studio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            background: #0d0d0d;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #999;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .repair-btn {
+            width: 100%;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .repair-btn:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+
+        .repair-btn:disabled {
+            background: #333;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status.success {
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            color: #4CAF50;
+            display: block;
+        }
+
+        .status.error {
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            color: #f44336;
+            display: block;
+        }
+
+        .status.info {
+            background: rgba(33, 150, 243, 0.1);
+            border: 1px solid rgba(33, 150, 243, 0.3);
+            color: #2196F3;
+            display: block;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #4CAF50;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Repair Username</h1>
+        <p>Click the button below to repair your username data. This will sync your claimed username with your user profile.</p>
+
+        <button id="repairBtn" class="repair-btn">Repair Username</button>
+
+        <div id="status" class="status"></div>
+
+        <a href="/settings" class="back-link">← Back to Settings</a>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD8cB5O_zTKHJO0Mh65L_PGNQUf5W7Nvp8",
+            authDomain: "mindclone-studio.firebaseapp.com",
+            projectId: "mindclone-studio",
+            storageBucket: "mindclone-studio.firebasestorage.app",
+            messagingSenderId: "433301044671",
+            appId: "1:433301044671:web:d17ad5ef9d9aab8d41bc09"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        const repairBtn = document.getElementById('repairBtn');
+        const status = document.getElementById('status');
+
+        function showStatus(message, type) {
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        // Check auth state
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                showStatus('Please sign in first. Redirecting to settings...', 'error');
+                setTimeout(() => {
+                    window.location.href = '/settings';
+                }, 2000);
+            }
+        });
+
+        // Repair button click
+        repairBtn.addEventListener('click', async () => {
+            const user = auth.currentUser;
+
+            if (!user) {
+                showStatus('Not signed in! Please go to settings and sign in first.', 'error');
+                return;
+            }
+
+            repairBtn.disabled = true;
+            repairBtn.textContent = 'Repairing...';
+            showStatus('Repairing username data...', 'info');
+
+            try {
+                const idToken = await user.getIdToken();
+
+                const response = await fetch('/api/repair-username', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ idToken })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.repaired) {
+                    showStatus(`✅ Success! Username "${data.username}" has been repaired. Redirecting to settings in 3 seconds...`, 'success');
+                    setTimeout(() => {
+                        window.location.href = '/settings';
+                    }, 3000);
+                } else {
+                    showStatus(data.message || 'No repair needed', 'info');
+                    repairBtn.disabled = false;
+                    repairBtn.textContent = 'Repair Username';
+                }
+            } catch (error) {
+                console.error('Repair error:', error);
+                showStatus('❌ Error: ' + error.message, 'error');
+                repairBtn.disabled = false;
+                repairBtn.textContent = 'Repair Username';
+            }
+        });
+    </script>
+</body>
+</html>
