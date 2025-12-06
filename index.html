@@ -361,6 +361,7 @@
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // Your Firebase configuration
         const firebaseConfig = {
@@ -377,6 +378,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
+        const db = getFirestore(app);
 
         // DOM Elements
         const authScreen = document.getElementById('authScreen');
@@ -396,6 +398,66 @@
 
         // System prompt
         const systemPrompt = "You are Mindclone, a personal AI companion. Be friendly, helpful, and conversational. Keep your responses concise and natural.";
+
+        // Firestore Helper Functions
+        async function saveMessageToFirestore(userId, role, content) {
+            try {
+                const messagesRef = collection(db, 'users', userId, 'messages');
+                const docRef = await addDoc(messagesRef, {
+                    role: role,
+                    content: content,
+                    timestamp: serverTimestamp()
+                });
+                console.log('Message saved:', docRef.id);
+                return docRef.id;
+            } catch (error) {
+                console.error('Error saving message:', error);
+                return null;
+            }
+        }
+
+        async function loadConversationHistory(userId) {
+            try {
+                const messagesRef = collection(db, 'users', userId, 'messages');
+                const q = query(messagesRef, orderBy('timestamp', 'asc'));
+
+                const querySnapshot = await getDocs(q);
+                const messages = [];
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    messages.push({
+                        role: data.role,
+                        content: data.content,
+                        timestamp: data.timestamp
+                    });
+                });
+
+                console.log(`Loaded ${messages.length} messages from Firestore`);
+                return messages;
+            } catch (error) {
+                console.error('Error loading messages:', error);
+                return [];
+            }
+        }
+
+        function showLoadingIndicator() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'loadingHistory';
+            loadingDiv.className = 'message ai';
+            loadingDiv.innerHTML = `
+                <div class="message-avatar">🧠</div>
+                <div class="message-content">
+                    <div class="loading"></div> Loading your conversation history...
+                </div>
+            `;
+            chatMessages.appendChild(loadingDiv);
+        }
+
+        function removeLoadingIndicator() {
+            const loadingDiv = document.getElementById('loadingHistory');
+            if (loadingDiv) loadingDiv.remove();
+        }
 
         // Auth State Observer
         onAuthStateChanged(auth, (user) => {
@@ -429,9 +491,12 @@
         signOutBtn.addEventListener('click', async () => {
             try {
                 await signOut(auth);
-                conversationHistory = [];
+                conversationHistory = []; // Clear in-memory array
+                chatMessages.innerHTML = ''; // Clear UI
+                // Note: Firestore data remains intact
             } catch (error) {
                 console.error('Sign out error:', error);
+                alert('Failed to sign out. Please try again.');
             }
         });
 
@@ -443,7 +508,7 @@
         }
 
         // Show Chat Interface
-        function showChatInterface(user) {
+        async function showChatInterface(user) {
             authScreen.classList.add('hidden');
             userProfile.classList.remove('hidden');
             chatInterface.classList.remove('hidden');
@@ -453,9 +518,46 @@
             userName.textContent = user.displayName || 'User';
             userEmail.textContent = user.email;
 
-            // Add welcome message if this is a new session
-            if (conversationHistory.length === 0) {
-                addMessage('ai', `Hey there! Nice to meet you, ${user.displayName?.split(' ')[0] || 'friend'}! I'm your Mindclone - think of me as a personal AI companion who's here to get to know you and chat about whatever's on your mind. What's going on with you today? And feel free to tell me what I should call you!`);
+            // Clear existing UI
+            chatMessages.innerHTML = '';
+
+            // Show loading indicator
+            showLoadingIndicator();
+
+            try {
+                // Load conversation history from Firestore
+                const messages = await loadConversationHistory(user.uid);
+
+                if (messages.length > 0) {
+                    // Populate conversationHistory array
+                    conversationHistory = messages.map(msg => ({
+                        role: msg.role,
+                        content: msg.content
+                    }));
+
+                    // Display all messages in UI
+                    messages.forEach(msg => {
+                        addMessage(msg.role === 'assistant' ? 'ai' : msg.role, msg.content);
+                    });
+                } else {
+                    // No history - show welcome message
+                    const welcomeMessage = `Hey there! Nice to meet you, ${user.displayName?.split(' ')[0] || 'friend'}! I'm your Mindclone - think of me as a personal AI companion who's here to get to know you and chat about whatever's on your mind. What's going on with you today? And feel free to tell me what I should call you!`;
+                    addMessage('ai', welcomeMessage);
+
+                    // Save welcome message
+                    conversationHistory.push({
+                        role: 'assistant',
+                        content: welcomeMessage
+                    });
+                    await saveMessageToFirestore(user.uid, 'assistant', welcomeMessage);
+                }
+            } catch (error) {
+                console.error('Error loading conversation:', error);
+                // Show welcome message on error
+                const welcomeMessage = `Hey there! Nice to meet you, ${user.displayName?.split(' ')[0] || 'friend'}! I'm your Mindclone - think of me as a personal AI companion who's here to get to know you and chat about whatever's on your mind. What's going on with you today! And feel free to tell me what I should call you!`;
+                addMessage('ai', welcomeMessage);
+            } finally {
+                removeLoadingIndicator();
             }
         }
 
@@ -485,6 +587,13 @@
             const message = chatInput.value.trim();
             if (!message) return;
 
+            // Get current user
+            const currentUser = auth.currentUser;
+            if (!currentUser) {
+                console.error('No user signed in');
+                return;
+            }
+
             // Add user message to UI
             addMessage('user', message);
             chatInput.value = '';
@@ -494,6 +603,9 @@
                 role: 'user',
                 content: message
             });
+
+            // Save user message to Firestore (non-blocking)
+            saveMessageToFirestore(currentUser.uid, 'user', message);
 
             // Disable input while processing
             chatInput.disabled = true;
@@ -524,12 +636,23 @@
                         role: 'assistant',
                         content: data.content
                     });
+
+                    // Save AI response to Firestore (non-blocking)
+                    saveMessageToFirestore(currentUser.uid, 'assistant', data.content);
                 } else {
                     throw new Error(data.error || 'Failed to get response');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                addMessage('ai', 'Sorry, I encountered an error. Please try again.');
+                const errorMessage = 'Sorry, I encountered an error. Please try again.';
+                addMessage('ai', errorMessage);
+
+                // Save error message
+                conversationHistory.push({
+                    role: 'assistant',
+                    content: errorMessage
+                });
+                saveMessageToFirestore(currentUser.uid, 'assistant', errorMessage);
             } finally {
                 // Re-enable input
                 chatInput.disabled = false;
