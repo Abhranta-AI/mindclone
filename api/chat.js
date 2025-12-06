@@ -35,6 +35,9 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    console.log('🔍 DEBUG: All environment variables:', Object.keys(process.env));
+console.log('🔍 DEBUG: GEMINI_API_KEY exists?', !!process.env.GEMINI_API_KEY);
+console.log('🔍 DEBUG: GEMINI_API_KEY value:', process.env.GEMINI_API_KEY ? 'EXISTS' : 'UNDEFINED');
     // Check if API key exists
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
