@@ -572,9 +572,16 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <script>
-        // Get username from URL
+        // Get username from URL path or query parameter
         const urlParams = new URLSearchParams(window.location.search);
-        const username = urlParams.get('username');
+        let username = urlParams.get('username'); // Try query parameter first (for direct link.html access)
+
+        // If no query parameter, extract from path (e.g., mindclone.link/alok)
+        if (!username) {
+            const path = window.location.pathname;
+            const pathParts = path.split('/').filter(p => p);
+            username = pathParts[0]; // Get first path segment
+        }
 
         // DOM Elements
         const loadingContainer = document.getElementById('loadingContainer');
