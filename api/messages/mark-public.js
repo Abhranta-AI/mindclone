@@ -1,13 +1,8 @@
 // Message privacy API - toggle isPublic field on messages
-const admin = require('firebase-admin');
+const { initializeFirebaseAdmin, admin } = require('../_firebase-admin');
 
 // Initialize Firebase Admin SDK
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
-  });
-}
-
+initializeFirebaseAdmin();
 const db = admin.firestore();
 
 // Verify Firebase ID token

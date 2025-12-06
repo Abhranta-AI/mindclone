@@ -1,13 +1,8 @@
 // Username management API - check availability, claim, and release usernames
-const admin = require('firebase-admin');
+const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
 
 // Initialize Firebase Admin SDK
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
-  });
-}
-
+initializeFirebaseAdmin();
 const db = admin.firestore();
 
 // Reserved usernames that cannot be claimed
