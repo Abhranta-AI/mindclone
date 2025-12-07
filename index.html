@@ -1067,7 +1067,7 @@
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, getDocs, onSnapshot, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // Your Firebase configuration
         const firebaseConfig = {
@@ -1107,6 +1107,7 @@
         // Conversation history
         let conversationHistory = [];
         let activityData = [];
+        let activityListener = null; // Real-time listener unsubscribe function
 
         // System prompt
         const systemPrompt = "You are Mindclone, a personal AI companion. Be friendly, helpful, and conversational. Keep your responses concise and natural.";
@@ -1371,12 +1372,217 @@
             }
         }
 
+        // Set up real-time activity listener
+        function setupActivityListener() {
+            if (!auth.currentUser) return;
+
+            // Clean up existing listener
+            if (activityListener) {
+                activityListener();
+                activityListener = null;
+            }
+
+            try {
+                const userId = auth.currentUser.uid;
+                const visitorsRef = collection(db, 'users', userId, 'visitors');
+                const q = query(visitorsRef, orderBy('lastVisit', 'desc'), limit(20));
+
+                console.log('[Activity] Setting up real-time listener...');
+
+                // Listen to visitor changes
+                activityListener = onSnapshot(q, async (snapshot) => {
+                    console.log('[Activity] Snapshot received:', snapshot.size, 'visitors');
+
+                    const changes = snapshot.docChanges();
+
+                    // Process changes
+                    for (const change of changes) {
+                        const visitorId = change.doc.id;
+                        const visitorData = change.doc.data();
+
+                        if (change.type === 'added' || change.type === 'modified') {
+                            console.log('[Activity] Visitor updated:', visitorId);
+
+                            // Get last 2 messages for this visitor
+                            try {
+                                const messagesRef = collection(db, 'users', userId, 'visitors', visitorId, 'messages');
+                                const messagesQuery = query(messagesRef, orderBy('timestamp', 'desc'), limit(2));
+                                const messagesSnapshot = await getDocs(messagesQuery);
+
+                                let lastMessage = null;
+                                let lastResponse = null;
+
+                                if (!messagesSnapshot.empty) {
+                                    const messages = messagesSnapshot.docs.map(doc => ({
+                                        id: doc.id,
+                                        ...doc.data()
+                                    }));
+
+                                    // Find last user message and AI response
+                                    for (const msg of messages) {
+                                        if (msg.role === 'user' && !lastMessage) {
+                                            lastMessage = msg.content;
+                                        } else if (msg.role === 'assistant' && !lastResponse) {
+                                            lastResponse = msg.content;
+                                        }
+                                    }
+                                }
+
+                                // Use fallback from visitor data
+                                if (!lastMessage && visitorData.lastMessage) {
+                                    lastMessage = visitorData.lastMessage;
+                                }
+
+                                // Update or add activity item
+                                if (lastMessage) {
+                                    updateActivityItem(visitorId, {
+                                        visitorId: visitorId,
+                                        lastMessage: lastMessage,
+                                        lastResponse: lastResponse,
+                                        lastTimestamp: visitorData.lastVisit,
+                                        isNew: change.type === 'modified' // Mark as new if modified (new message)
+                                    });
+                                }
+                            } catch (error) {
+                                console.error('[Activity] Error fetching messages for visitor:', visitorId, error);
+                            }
+                        } else if (change.type === 'removed') {
+                            // Remove activity item
+                            removeActivityItem(visitorId);
+                        }
+                    }
+
+                    // Update count
+                    updateActivityCount();
+                }, (error) => {
+                    console.error('[Activity] Listener error:', error);
+                });
+
+                console.log('[Activity] Real-time listener active');
+            } catch (error) {
+                console.error('[Activity] Error setting up listener:', error);
+            }
+        }
+
+        // Update or add activity item in the feed
+        function updateActivityItem(visitorId, activity) {
+            // Check if item already exists
+            let existingItem = activityList.querySelector(`[data-visitor-id="${visitorId}"]`);
+
+            if (existingItem) {
+                // Update existing item
+                const timeAgo = formatTimeAgo(activity.lastTimestamp);
+                const visitorName = `visitor_${visitorId.substring(0, 6)}`;
+
+                existingItem.innerHTML = `
+                    <div class="activity-item-header">
+                        <div class="activity-item-visitor">
+                            <span>👤</span>
+                            <span>${visitorName}</span>
+                        </div>
+                        <div class="activity-item-time">${timeAgo}</div>
+                    </div>
+                    <div class="activity-item-message">"${truncateText(activity.lastMessage, 60)}"</div>
+                    ${activity.lastResponse ? `<div class="activity-item-response">🔮 ${truncateText(activity.lastResponse, 60)}</div>` : ''}
+                `;
+
+                // Re-attach click listener (lost after innerHTML update)
+                existingItem.onclick = () => {
+                    console.log('Clicked visitor:', visitorId);
+                    // TODO: Phase 4 - Implement click-to-expand conversations
+                };
+
+                // Add "new" class and animate
+                if (activity.isNew) {
+                    existingItem.classList.add('new');
+                    // Remove "new" class after 5 seconds
+                    setTimeout(() => {
+                        existingItem.classList.remove('new');
+                    }, 5000);
+                }
+
+                // Move to top if it's a new message
+                if (activity.isNew && existingItem !== activityList.firstChild) {
+                    activityList.removeChild(existingItem);
+                    activityList.insertBefore(existingItem, activityList.firstChild);
+                }
+            } else {
+                // Create new item
+                const item = createActivityItem(
+                    activity.visitorId,
+                    activity.lastMessage,
+                    activity.lastResponse,
+                    activity.lastTimestamp,
+                    activity.isNew
+                );
+
+                // Add to top of list
+                if (activityList.firstChild) {
+                    activityList.insertBefore(item, activityList.firstChild);
+                } else {
+                    activityList.appendChild(item);
+                }
+
+                // Show list, hide empty state
+                activityList.style.display = 'flex';
+                activityEmpty.style.display = 'none';
+
+                // Remove "new" class after 5 seconds
+                if (activity.isNew) {
+                    setTimeout(() => {
+                        item.classList.remove('new');
+                    }, 5000);
+                }
+            }
+        }
+
+        // Remove activity item from the feed
+        function removeActivityItem(visitorId) {
+            const item = activityList.querySelector(`[data-visitor-id="${visitorId}"]`);
+            if (item) {
+                item.remove();
+            }
+
+            // Check if list is empty
+            if (activityList.children.length === 0) {
+                activityList.style.display = 'none';
+                activityEmpty.style.display = 'flex';
+            }
+        }
+
+        // Update activity count
+        function updateActivityCount() {
+            const now = Date.now();
+            const items = activityList.querySelectorAll('.activity-item');
+            let todayCount = 0;
+
+            items.forEach(item => {
+                const visitorId = item.dataset.visitorId;
+                const activity = activityData.find(a => a.visitorId === visitorId);
+                if (activity) {
+                    const time = activity.lastTimestamp?.seconds ? activity.lastTimestamp.seconds * 1000 : now;
+                    if ((now - time) < 86400000) { // 24 hours
+                        todayCount++;
+                    }
+                }
+            });
+
+            activityCount.textContent = `${todayCount} today`;
+        }
+
         // Show Auth Screen
         function showAuthScreen() {
             sidebarAuth.classList.remove('hidden');
             sidebarProfile.classList.add('hidden');
             chatInterface.classList.add('hidden');
             activityFeed.classList.add('hidden');
+
+            // Clean up activity listener
+            if (activityListener) {
+                activityListener();
+                activityListener = null;
+                console.log('[Activity] Listener cleaned up');
+            }
 
             // Show sidebar on mobile when signed out
             if (sidebar) {
@@ -1422,6 +1628,9 @@
             // Show and load activity feed
             activityFeed.classList.remove('hidden');
             await loadActivityFeed();
+
+            // Set up real-time listener for activity feed
+            setupActivityListener();
 
             // Clear existing UI
             chatMessages.innerHTML = '';
