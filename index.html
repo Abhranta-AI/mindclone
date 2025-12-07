@@ -3605,7 +3605,11 @@ For example:
 
             // Check if user is approving/editing a draft
             if (workflowState.waitingForApproval) {
-                if (lowerMsg === 'approve' || lowerMsg === 'approved' || lowerMsg === 'yes' || lowerMsg === 'looks good') {
+                if (lowerMsg === 'approve' || lowerMsg === 'approved' || lowerMsg === 'yes' ||
+                    lowerMsg === 'looks good' || lowerMsg === 'good' || lowerMsg === 'ok' ||
+                    lowerMsg === 'okay' || lowerMsg === 'fine' || lowerMsg === 'perfect' ||
+                    lowerMsg === 'great' || lowerMsg === 'sounds good' || lowerMsg === 'that works' ||
+                    lowerMsg === 'works for me') {
                     // Reset approval state
                     workflowState.waitingForApproval = false;
                     workflowState.currentDraft = null;
