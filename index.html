@@ -1401,6 +1401,20 @@
                 sendMessage();
             }
         });
+
+        // Fix for Safari iOS keyboard covering input
+        chatInput.addEventListener('focus', () => {
+            setTimeout(() => {
+                chatInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        });
+
+        // Scroll to bottom when keyboard appears (iOS Safari)
+        window.visualViewport?.addEventListener('resize', () => {
+            if (document.activeElement === chatInput) {
+                chatInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
     </script>
 </body>
 </html>
