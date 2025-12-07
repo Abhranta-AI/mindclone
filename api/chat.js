@@ -73,7 +73,7 @@ module.exports = async (req, res) => {
         // Search for relevant memories
         const memorySearchResult = await mem0.search(lastUserMessage.content, {
           user_id: userId,
-          limit: 10
+          limit: 50
         });
 
         if (memorySearchResult && memorySearchResult.results) {
@@ -89,8 +89,8 @@ module.exports = async (req, res) => {
         // Continue without memories if Mem0 fails
       }
     } else {
-      // If no Mem0, use last 50 messages as fallback
-      contextWindow = messages.slice(-50);
+      // If no Mem0, use last 200 messages as fallback
+      contextWindow = messages.slice(-200);
     }
 
     // Convert conversation history to Gemini format
