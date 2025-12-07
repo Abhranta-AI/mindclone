@@ -1356,7 +1356,11 @@
         }
 
         .message.ai .message-content {
-            border-radius: 18px 18px 18px 4px; /* WhatsApp-style tail on bottom left */
+            border-radius: 0; /* Remove border radius for full width */
+            background: transparent; /* Remove background box */
+            border: none; /* Remove border */
+            max-width: 100%; /* Full width */
+            padding: 20px 0; /* Remove horizontal padding, keep vertical spacing */
         }
 
         .chat-input-container {
@@ -1829,6 +1833,10 @@
 
             .message-content {
                 max-width: 85%;
+            }
+
+            .message.ai .message-content {
+                max-width: 100%; /* Keep AI messages full width on mobile */
             }
 
             /* Fix chat input for Safari iOS */
