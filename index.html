@@ -287,8 +287,10 @@
             }
         }
 
+        /* User messages - right aligned, no avatar (WhatsApp style) */
         .message.user {
-            flex-direction: row-reverse;
+            flex-direction: row;
+            justify-content: flex-end;
         }
 
         .message-avatar {
@@ -307,9 +309,9 @@
             border: 2px solid #333;
         }
 
+        /* Hide user avatar (WhatsApp style - you don't need to see your own pic) */
         .message.user .message-avatar {
-            background: white;
-            color: black;
+            display: none;
         }
 
         .message-content {
@@ -327,6 +329,11 @@
             background: white;
             color: black;
             border: none;
+            border-radius: 18px 18px 4px 18px; /* WhatsApp-style tail on bottom right */
+        }
+
+        .message.ai .message-content {
+            border-radius: 18px 18px 18px 4px; /* WhatsApp-style tail on bottom left */
         }
 
         .chat-input-container {
