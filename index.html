@@ -20,18 +20,524 @@
             overflow: hidden;
         }
 
+        /* ==================== LANDING PAGE ==================== */
+        .landing-page {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(ellipse at top, #1a1a2e 0%, #0d0d0d 50%, #000000 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            overflow: hidden;
+        }
+
+        /* Animated gradient background effect */
+        .landing-page::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(138, 43, 226, 0.08) 0%, transparent 50%);
+            animation: gradientShift 20s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(10%, 10%); }
+        }
+
+        .landing-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            animation: landingFadeIn 1.2s ease;
+        }
+
+        @keyframes landingFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .landing-logo {
+            margin-bottom: 40px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .logo-glow {
+            font-size: 120px;
+            filter: drop-shadow(0 0 40px rgba(138, 43, 226, 0.6))
+                    drop-shadow(0 0 80px rgba(138, 43, 226, 0.4));
+            animation: logoFloat 4s ease-in-out infinite;
+        }
+
+        @keyframes logoFloat {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        .landing-title {
+            font-size: 72px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ffffff 0%, #a8a8a8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -2px;
+        }
+
+        .landing-tagline {
+            font-size: 24px;
+            color: #999;
+            margin-bottom: 60px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .landing-sign-in-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            background: white;
+            color: black;
+            padding: 20px 48px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 40px rgba(255, 255, 255, 0.1),
+                        0 0 80px rgba(138, 43, 226, 0.3);
+        }
+
+        .landing-sign-in-btn:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 20px 60px rgba(255, 255, 255, 0.15),
+                        0 0 100px rgba(138, 43, 226, 0.5);
+        }
+
+        .landing-sign-in-btn:active {
+            transform: translateY(-2px) scale(1.01);
+        }
+
+        .landing-sign-in-btn .google-icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        /* ==================== APP HEADER ==================== */
+        .app-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: #0d0d0d;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .app-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-logo {
+            font-size: 32px;
+            animation: logoFloat 4s ease-in-out infinite;
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: white;
+            letter-spacing: -0.5px;
+        }
+
+        .app-header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-icon-btn {
+            position: relative;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+
+        .header-icon-btn:hover {
+            background: #1a1a1a;
+        }
+
+        .activity-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #4CAF50;
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        .header-user-menu {
+            position: relative;
+        }
+
+        .header-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #333;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .header-avatar:hover {
+            border-color: #4CAF50;
+            transform: scale(1.05);
+        }
+
+        .header-dropdown {
+            position: absolute;
+            top: calc(100% + 12px);
+            right: 0;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            min-width: 260px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            animation: dropdownSlideIn 0.2s ease;
+        }
+
+        @keyframes dropdownSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header-dropdown-header {
+            padding: 16px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .dropdown-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+        }
+
+        .dropdown-user-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .dropdown-user-name {
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .dropdown-user-email {
+            color: #999;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .dropdown-divider {
+            border: none;
+            border-top: 1px solid #333;
+            margin: 0;
+        }
+
+        .header-dropdown-item {
+            width: 100%;
+            padding: 12px 16px;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            transition: background 0.3s ease;
+            text-decoration: none;
+        }
+
+        .header-dropdown-item:last-child {
+            border-radius: 0 0 12px 12px;
+        }
+
+        .header-dropdown-item:hover {
+            background: #2a2a2a;
+        }
+
+        .dropdown-icon {
+            font-size: 18px;
+        }
+
+        /* ==================== ACTIVITY MODAL ==================== */
+        .activity-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9998;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .activity-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+        }
+
+        @supports not (backdrop-filter: blur(8px)) {
+            .activity-modal-overlay {
+                background: rgba(0, 0, 0, 0.95);
+            }
+        }
+
+        .activity-modal-content {
+            position: relative;
+            z-index: 1;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+            animation: modalSlideUp 0.3s ease;
+        }
+
+        @keyframes modalSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .activity-modal-header {
+            padding: 24px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .activity-modal-title {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .activity-icon {
+            font-size: 32px;
+        }
+
+        .activity-modal-title h2 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: white;
+        }
+
+        .activity-link {
+            color: #4CAF50;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: opacity 0.3s ease;
+        }
+
+        .activity-link:hover {
+            opacity: 0.8;
+        }
+
+        .modal-close-btn {
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 40px;
+            cursor: pointer;
+            line-height: 1;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close-btn:hover {
+            background: #2a2a2a;
+            color: white;
+        }
+
+        .activity-modal-stats {
+            display: flex;
+            gap: 16px;
+            padding: 24px;
+            border-bottom: 1px solid #333;
+        }
+
+        .stat-card {
+            flex: 1;
+            background: #2a2a2a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #4CAF50;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .activity-modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .modal-activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .modal-activity-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .modal-activity-empty .empty-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .modal-activity-empty h3 {
+            font-size: 20px;
+            margin-bottom: 12px;
+            color: white;
+        }
+
+        .modal-activity-empty p {
+            color: #999;
+            font-size: 14px;
+            margin-bottom: 24px;
+            max-width: 300px;
+        }
+
+        .btn-primary {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
         .app-container {
             display: flex;
             height: 100vh;
             width: 100vw;
         }
 
-        /* Sidebar */
+        /* Sidebar - Hidden by default */
         .sidebar {
             width: 220px;
             background: #1a1a1a;
             border-left: 1px solid #333;
-            display: flex;
+            display: none;
             flex-direction: column;
             overflow-y: auto;
             order: 2;
@@ -728,6 +1234,13 @@
             flex-direction: column;
             background: #0d0d0d;
             overflow: hidden;
+            width: 100%;
+        }
+
+        /* Add top padding when header is visible */
+        .main-content.with-header {
+            margin-top: 64px;
+            height: calc(100vh - 64px);
         }
 
         /* Chat Interface */
@@ -1140,7 +1653,79 @@
             display: none;
         }
 
+        /* ==================== ACCESSIBILITY ==================== */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* ==================== MOBILE RESPONSIVE ==================== */
         @media (max-width: 768px) {
+            /* Landing page mobile */
+            .landing-title {
+                font-size: 48px;
+            }
+
+            .landing-tagline {
+                font-size: 18px;
+                margin-bottom: 50px;
+            }
+
+            .logo-glow {
+                font-size: 80px;
+            }
+
+            .landing-sign-in-btn {
+                padding: 16px 36px;
+                font-size: 16px;
+            }
+
+            /* Header mobile */
+            .header-title {
+                display: none;
+            }
+
+            .app-header {
+                padding: 0 16px;
+                height: 56px;
+            }
+
+            .main-content.with-header {
+                margin-top: 56px;
+                height: calc(100vh - 56px);
+            }
+
+            /* Header dropdown full-width on mobile */
+            .header-dropdown {
+                left: 0;
+                right: 0;
+                top: 100%;
+                border-radius: 0 0 16px 16px;
+                min-width: 100%;
+            }
+
+            /* Activity modal full-screen */
+            .activity-modal-content {
+                width: 100%;
+                height: 100%;
+                max-height: 100vh;
+                border-radius: 0;
+            }
+
+            .activity-modal-stats {
+                padding: 16px;
+            }
+
+            .stat-value {
+                font-size: 24px;
+            }
+
+            /* Original mobile styles below */
             .app-container {
                 flex-direction: column;
                 height: 100vh;
@@ -1257,6 +1842,100 @@
     </style>
 </head>
 <body>
+    <!-- Landing Page (Centered Auth Screen) -->
+    <div id="landingPage" class="landing-page hidden">
+        <div class="landing-content">
+            <div class="landing-logo">
+                <div class="logo-glow">🔮</div>
+            </div>
+            <h1 class="landing-title">Mindclone</h1>
+            <p class="landing-tagline">Your Personal AI Companion</p>
+            <button id="landingSignInBtn" class="landing-sign-in-btn">
+                <svg class="google-icon" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Sign in with Google
+            </button>
+        </div>
+    </div>
+
+    <!-- App Header (Shown after authentication) -->
+    <header id="appHeader" class="app-header hidden">
+        <div class="app-header-left">
+            <div class="header-logo">🔮</div>
+            <div class="header-title">Mindclone</div>
+        </div>
+        <div class="app-header-right">
+            <button id="activityBtn" class="header-icon-btn" aria-label="View activity feed" aria-haspopup="dialog" title="Activity Feed">
+                <span class="activity-icon">🔗</span>
+                <span id="activityBadge" class="activity-badge hidden">0</span>
+            </button>
+            <div class="header-user-menu">
+                <img id="headerAvatar" class="header-avatar" src="" alt="User Avatar">
+                <div id="headerDropdown" class="header-dropdown hidden">
+                    <div class="header-dropdown-header">
+                        <img id="headerDropdownAvatar" class="dropdown-avatar" src="" alt="User Avatar">
+                        <div class="dropdown-user-info">
+                            <div id="headerDropdownName" class="dropdown-user-name"></div>
+                            <div id="headerDropdownEmail" class="dropdown-user-email"></div>
+                        </div>
+                    </div>
+                    <hr class="dropdown-divider">
+                    <a href="/settings" class="header-dropdown-item">
+                        <span class="dropdown-icon">⚙️</span>
+                        <span>Settings</span>
+                    </a>
+                    <button id="headerSignOutBtn" class="header-dropdown-item">
+                        <span class="dropdown-icon">🚪</span>
+                        <span>Sign Out</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Activity Feed Modal -->
+    <div id="activityModal" class="activity-modal hidden">
+        <div class="activity-modal-overlay"></div>
+        <div class="activity-modal-content">
+            <div class="activity-modal-header">
+                <div class="activity-modal-title">
+                    <span class="activity-icon">🔗</span>
+                    <div>
+                        <h2>Live Link Activity</h2>
+                        <a href="#" id="activityModalLink" target="_blank" class="activity-link">View Your Link →</a>
+                    </div>
+                </div>
+                <button id="activityModalClose" class="modal-close-btn" aria-label="Close modal">×</button>
+            </div>
+            <div class="activity-modal-stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="modalActivityCount">0</div>
+                    <div class="stat-label">Today</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="modalTotalCount">0</div>
+                    <div class="stat-label">All Time</div>
+                </div>
+            </div>
+            <div class="activity-modal-body">
+                <div id="modalActivityList" class="modal-activity-list">
+                    <!-- Activity items rendered here -->
+                </div>
+                <!-- Empty state -->
+                <div id="modalActivityEmpty" class="modal-activity-empty hidden">
+                    <div class="empty-icon">🔗</div>
+                    <h3>No Activity Yet</h3>
+                    <p>Enable your Public Link to see visitor conversations</p>
+                    <a href="/settings" class="btn-primary">Go to Settings</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="app-container">
         <!-- Mobile Header (WhatsApp style - only visible on mobile) -->
         <div id="mobileHeader" class="mobile-header hidden">
@@ -2061,9 +2740,24 @@
 
         // Show Auth Screen
         function showAuthScreen() {
-            sidebarAuth.classList.remove('hidden');
-            sidebarProfile.classList.add('hidden');
+            // Show landing page
+            const landingPage = document.getElementById('landingPage');
+            if (landingPage) {
+                landingPage.classList.remove('hidden');
+            }
+
+            // Hide app header
+            const appHeader = document.getElementById('appHeader');
+            if (appHeader) {
+                appHeader.classList.add('hidden');
+            }
+
+            // Hide chat interface
             chatInterface.classList.add('hidden');
+
+            // Hide sidebar components
+            sidebarAuth.classList.add('hidden');
+            sidebarProfile.classList.add('hidden');
             activityFeed.classList.add('hidden');
 
             // Clean up activity listener
@@ -2073,12 +2767,7 @@
                 console.log('[Activity] Listener cleaned up');
             }
 
-            // Show sidebar on mobile when signed out
-            if (sidebar) {
-                sidebar.classList.remove('mobile-hidden');
-            }
-
-            // Hide mobile header when signed out
+            // Hide mobile header
             const mobileHeader = document.getElementById('mobileHeader');
             if (mobileHeader) {
                 mobileHeader.classList.add('hidden');
@@ -2087,44 +2776,69 @@
 
         // Show Chat Interface
         async function showChatInterface(user) {
-            sidebarAuth.classList.add('hidden');
-            sidebarProfile.classList.remove('hidden');
-            chatInterface.classList.remove('hidden');
-
-            // Hide sidebar on mobile when signed in
-            if (sidebar) {
-                sidebar.classList.add('mobile-hidden');
+            // Hide landing page
+            const landingPage = document.getElementById('landingPage');
+            if (landingPage) {
+                landingPage.classList.add('hidden');
             }
 
-            // Update user profile
+            // Show app header
+            const appHeader = document.getElementById('appHeader');
+            if (appHeader) {
+                appHeader.classList.remove('hidden');
+            }
+
+            // Show chat interface
+            chatInterface.classList.remove('hidden');
+
+            // Add with-header class to main-content for proper spacing
+            const mainContent = document.querySelector('.main-content');
+            if (mainContent) {
+                mainContent.classList.add('with-header');
+            }
+
+            // Hide sidebar components (not needed with header layout)
+            sidebarAuth.classList.add('hidden');
+            sidebarProfile.classList.add('hidden');
+            activityFeed.classList.add('hidden');
+
+            // Update header avatar and dropdown
+            const headerAvatar = document.getElementById('headerAvatar');
+            const headerDropdownAvatar = document.getElementById('headerDropdownAvatar');
+            const headerDropdownName = document.getElementById('headerDropdownName');
+            const headerDropdownEmail = document.getElementById('headerDropdownEmail');
+
+            if (headerAvatar) headerAvatar.src = user.photoURL || 'https://via.placeholder.com/40';
+            if (headerDropdownAvatar) headerDropdownAvatar.src = user.photoURL || 'https://via.placeholder.com/36';
+            if (headerDropdownName) headerDropdownName.textContent = user.displayName || 'User';
+            if (headerDropdownEmail) headerDropdownEmail.textContent = user.email;
+
+            // Update legacy user profile elements (for backward compatibility)
             userAvatar.src = user.photoURL || 'https://via.placeholder.com/50';
             userName.textContent = user.displayName || 'User';
             userEmail.textContent = user.email;
 
-            // Populate dropdown
             dropdownAvatar.src = user.photoURL || 'https://via.placeholder.com/36';
             dropdownUserName.textContent = user.displayName || 'User';
             dropdownUserEmail.textContent = user.email;
 
-            // Update mobile header
+            // Hide mobile header (we use app header instead)
             const mobileHeader = document.getElementById('mobileHeader');
-            const mobileAvatar = document.getElementById('mobileAvatar');
-            const mobileName = document.getElementById('mobileName');
-            if (mobileHeader && mobileAvatar && mobileName) {
-                mobileHeader.classList.remove('hidden');
-                mobileAvatar.src = user.photoURL || 'https://via.placeholder.com/50';
-                mobileName.textContent = user.displayName || 'Mindclone';
+            if (mobileHeader) {
+                mobileHeader.classList.add('hidden');
             }
 
             // Load link status
             await loadLinkStatus();
 
-            // Show and load activity feed
-            activityFeed.classList.remove('hidden');
+            // Load activity feed data (for modal)
             await loadActivityFeed();
 
             // Set up real-time listener for activity feed
             setupActivityListener();
+
+            // Update activity badge
+            updateActivityBadge();
 
             // Clear existing UI
             chatMessages.innerHTML = '';
@@ -2468,6 +3182,217 @@
                 chatInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         });
+
+        // ============================================
+        // NEW: Landing Page & Header Event Handlers
+        // ============================================
+
+        // Landing sign-in button
+        const landingSignInBtn = document.getElementById('landingSignInBtn');
+        if (landingSignInBtn) {
+            landingSignInBtn.addEventListener('click', async () => {
+                try {
+                    await signInWithPopup(auth, provider);
+                } catch (error) {
+                    console.error('Sign-in error:', error);
+                }
+            });
+        }
+
+        // Header avatar dropdown toggle
+        const headerAvatar = document.getElementById('headerAvatar');
+        const headerDropdown = document.getElementById('headerDropdown');
+        if (headerAvatar && headerDropdown) {
+            headerAvatar.addEventListener('click', (e) => {
+                e.stopPropagation();
+                headerDropdown.classList.toggle('hidden');
+            });
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const headerDropdown = document.getElementById('headerDropdown');
+            const headerAvatar = document.getElementById('headerAvatar');
+            if (headerDropdown && headerAvatar) {
+                if (!headerDropdown.contains(e.target) && !headerAvatar.contains(e.target)) {
+                    headerDropdown.classList.add('hidden');
+                }
+            }
+        });
+
+        // Activity button - open modal
+        const activityBtn = document.getElementById('activityBtn');
+        if (activityBtn) {
+            activityBtn.addEventListener('click', () => {
+                openActivityModal();
+            });
+        }
+
+        // Activity modal close button
+        const activityModalClose = document.getElementById('activityModalClose');
+        if (activityModalClose) {
+            activityModalClose.addEventListener('click', () => {
+                closeActivityModal();
+            });
+        }
+
+        // Activity modal overlay - close on click
+        const activityModal = document.getElementById('activityModal');
+        if (activityModal) {
+            activityModal.addEventListener('click', (e) => {
+                if (e.target.classList.contains('activity-modal-overlay') ||
+                    e.target.id === 'activityModal') {
+                    closeActivityModal();
+                }
+            });
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const activityModal = document.getElementById('activityModal');
+                if (activityModal && !activityModal.classList.contains('hidden')) {
+                    closeActivityModal();
+                }
+
+                const headerDropdown = document.getElementById('headerDropdown');
+                if (headerDropdown && !headerDropdown.classList.contains('hidden')) {
+                    headerDropdown.classList.add('hidden');
+                }
+            }
+        });
+
+        // Header sign-out button
+        const headerSignOutBtn = document.getElementById('headerSignOutBtn');
+        if (headerSignOutBtn) {
+            headerSignOutBtn.addEventListener('click', async () => {
+                try {
+                    await signOut(auth);
+                    // Clear conversation history
+                    conversationHistory = [];
+                    chatMessages.innerHTML = '';
+                    // Close dropdown
+                    const headerDropdown = document.getElementById('headerDropdown');
+                    if (headerDropdown) {
+                        headerDropdown.classList.add('hidden');
+                    }
+                } catch (error) {
+                    console.error('Sign-out error:', error);
+                }
+            });
+        }
+
+        // ============================================
+        // Helper Functions for Activity Modal
+        // ============================================
+
+        // Open activity modal
+        function openActivityModal() {
+            const activityModal = document.getElementById('activityModal');
+            if (activityModal) {
+                activityModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden'; // Prevent background scrolling
+                populateActivityModal();
+            }
+        }
+
+        // Close activity modal
+        function closeActivityModal() {
+            const activityModal = document.getElementById('activityModal');
+            if (activityModal) {
+                activityModal.classList.add('hidden');
+                document.body.style.overflow = ''; // Restore scrolling
+            }
+        }
+
+        // Populate activity modal with data
+        function populateActivityModal() {
+            const modalActivityList = document.getElementById('modalActivityList');
+            const modalActivityEmpty = document.getElementById('modalActivityEmpty');
+            const modalActivityCount = document.getElementById('modalActivityCount');
+            const modalTotalCount = document.getElementById('modalTotalCount');
+
+            if (!modalActivityList) return;
+
+            // Clear existing content
+            modalActivityList.innerHTML = '';
+
+            // Calculate stats
+            const now = Date.now();
+            const oneDayAgo = now - (24 * 60 * 60 * 1000);
+            const todayCount = activityData.filter(activity => {
+                const timestamp = activity.timestamp?.toMillis ? activity.timestamp.toMillis() : activity.timestamp;
+                return timestamp > oneDayAgo;
+            }).length;
+
+            // Update stats
+            if (modalActivityCount) {
+                modalActivityCount.textContent = todayCount;
+            }
+            if (modalTotalCount) {
+                modalTotalCount.textContent = activityData.length;
+            }
+
+            // Show empty state or activity list
+            if (activityData.length === 0) {
+                if (modalActivityEmpty) {
+                    modalActivityEmpty.classList.remove('hidden');
+                }
+                modalActivityList.classList.add('hidden');
+            } else {
+                if (modalActivityEmpty) {
+                    modalActivityEmpty.classList.add('hidden');
+                }
+                modalActivityList.classList.remove('hidden');
+
+                // Render activity items (most recent first)
+                const sortedActivities = [...activityData].sort((a, b) => {
+                    const aTime = a.timestamp?.toMillis ? a.timestamp.toMillis() : a.timestamp;
+                    const bTime = b.timestamp?.toMillis ? b.timestamp.toMillis() : b.timestamp;
+                    return bTime - aTime;
+                });
+
+                sortedActivities.forEach(activity => {
+                    const item = document.createElement('div');
+                    item.className = 'modal-activity-item';
+
+                    const timestamp = activity.timestamp?.toMillis ? activity.timestamp.toMillis() : activity.timestamp;
+                    const timeAgo = formatTimestamp({ toDate: () => new Date(timestamp) });
+
+                    item.innerHTML = `
+                        <div class="modal-activity-icon">👤</div>
+                        <div class="modal-activity-details">
+                            <div class="modal-activity-message">${activity.lastMessage || 'Started a conversation'}</div>
+                            <div class="modal-activity-time">${timeAgo}</div>
+                        </div>
+                    `;
+
+                    modalActivityList.appendChild(item);
+                });
+            }
+        }
+
+        // Update activity badge count
+        function updateActivityBadge() {
+            const activityBadge = document.getElementById('activityBadge');
+            if (!activityBadge) return;
+
+            // Calculate today's activity count
+            const now = Date.now();
+            const oneDayAgo = now - (24 * 60 * 60 * 1000);
+            const todayCount = activityData.filter(activity => {
+                const timestamp = activity.timestamp?.toMillis ? activity.timestamp.toMillis() : activity.timestamp;
+                return timestamp > oneDayAgo;
+            }).length;
+
+            // Update badge
+            if (todayCount > 0) {
+                activityBadge.textContent = todayCount > 99 ? '99+' : todayCount;
+                activityBadge.classList.remove('hidden');
+            } else {
+                activityBadge.classList.add('hidden');
+            }
+        }
     </script>
 </body>
 </html>
