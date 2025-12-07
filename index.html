@@ -424,6 +424,193 @@
             background: #333;
         }
 
+        /* Conversation Modal */
+        .conversation-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .conversation-modal-content {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        }
+
+        .conversation-modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #1a1a1a;
+        }
+
+        .conversation-modal-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .conversation-modal-title .visitor-icon {
+            font-size: 24px;
+        }
+
+        .conversation-modal-title .visitor-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .conversation-modal-title .visitor-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .conversation-modal-title .visitor-time {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .conversation-modal-close {
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 32px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .conversation-modal-close:hover {
+            background: #2a2a2a;
+            color: white;
+        }
+
+        .conversation-modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .conversation-modal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .conversation-modal-body::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        .conversation-modal-body::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        .conversation-modal-body::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+
+        .conversation-message {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .conversation-message.user {
+            align-items: flex-end;
+        }
+
+        .conversation-message.assistant {
+            align-items: flex-start;
+        }
+
+        .conversation-message-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .conversation-message-bubble {
+            background: #2a2a2a;
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 80%;
+            word-wrap: break-word;
+            line-height: 1.5;
+            color: white;
+        }
+
+        .conversation-message.user .conversation-message-bubble {
+            background: white;
+            color: black;
+        }
+
+        .conversation-message.assistant .conversation-message-bubble {
+            background: #2a2a2a;
+            color: white;
+        }
+
+        .conversation-message-time {
+            font-size: 10px;
+            color: #666;
+        }
+
+        .conversation-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .conversation-loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: #4CAF50;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .conversation-error {
+            padding: 40px;
+            text-align: center;
+            color: #f44336;
+        }
+
         /* Main Content (Right Panel - Chat Area) */
         .main-content {
             flex: 1;
@@ -1059,6 +1246,25 @@
         </div>
     </div>
 
+    <!-- Conversation Modal -->
+    <div id="conversationModal" class="conversation-modal hidden">
+        <div class="conversation-modal-content">
+            <div class="conversation-modal-header">
+                <div class="conversation-modal-title">
+                    <span class="visitor-icon">👤</span>
+                    <div class="visitor-info">
+                        <div id="modalVisitorName" class="visitor-name">visitor_abc123</div>
+                        <div id="modalVisitorTime" class="visitor-time">First visit: 2h ago</div>
+                    </div>
+                </div>
+                <button id="conversationModalClose" class="conversation-modal-close">×</button>
+            </div>
+            <div id="conversationModalBody" class="conversation-modal-body">
+                <!-- Messages will be dynamically added here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Markdown Library -->
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
 
@@ -1103,6 +1309,11 @@
         const activityList = document.getElementById('activityList');
         const activityEmpty = document.getElementById('activityEmpty');
         const activityCount = document.getElementById('activityCount');
+        const conversationModal = document.getElementById('conversationModal');
+        const conversationModalBody = document.getElementById('conversationModalBody');
+        const conversationModalClose = document.getElementById('conversationModalClose');
+        const modalVisitorName = document.getElementById('modalVisitorName');
+        const modalVisitorTime = document.getElementById('modalVisitorTime');
 
         // Conversation history
         let conversationHistory = [];
@@ -1304,10 +1515,9 @@
                 ${lastResponse ? `<div class="activity-item-response">🔮 ${truncateText(lastResponse, 60)}</div>` : ''}
             `;
 
-            // Click to expand (Phase 4 - placeholder for now)
+            // Click to expand conversation
             item.addEventListener('click', () => {
-                console.log('Clicked visitor:', visitorId);
-                // TODO: Phase 4 - Implement click-to-expand conversations
+                openConversationModal(visitorId);
             });
 
             return item;
@@ -1488,8 +1698,7 @@
 
                 // Re-attach click listener (lost after innerHTML update)
                 existingItem.onclick = () => {
-                    console.log('Clicked visitor:', visitorId);
-                    // TODO: Phase 4 - Implement click-to-expand conversations
+                    openConversationModal(visitorId);
                 };
 
                 // Add "new" class and animate
@@ -1569,6 +1778,117 @@
 
             activityCount.textContent = `${todayCount} today`;
         }
+
+        // Conversation Modal Functions
+        async function openConversationModal(visitorId) {
+            console.log('[Modal] Opening conversation for visitor:', visitorId);
+
+            // Show modal
+            conversationModal.classList.remove('hidden');
+
+            // Update header
+            const visitorName = `visitor_${visitorId.substring(0, 6)}`;
+            modalVisitorName.textContent = visitorName;
+
+            // Show loading state
+            conversationModalBody.innerHTML = `
+                <div class="conversation-loading">
+                    <div class="spinner"></div>
+                    <div>Loading conversation...</div>
+                </div>
+            `;
+
+            try {
+                // Fetch full conversation via API
+                const idToken = await auth.currentUser.getIdToken();
+                const response = await fetch(`/api/analytics?visitorId=${visitorId}`, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load conversation');
+                }
+
+                const data = await response.json();
+                console.log('[Modal] Conversation data:', data);
+
+                // Update time
+                if (data.firstVisit) {
+                    const firstVisit = data.firstVisit.seconds ? new Date(data.firstVisit.seconds * 1000) : new Date(data.firstVisit);
+                    modalVisitorTime.textContent = `First visit: ${formatTimeAgo(data.firstVisit)}`;
+                }
+
+                // Render messages
+                conversationModalBody.innerHTML = '';
+
+                if (data.messages && data.messages.length > 0) {
+                    // Reverse to show oldest first
+                    const messages = [...data.messages].reverse();
+
+                    messages.forEach(msg => {
+                        const messageEl = document.createElement('div');
+                        messageEl.className = `conversation-message ${msg.role}`;
+
+                        const label = msg.role === 'user' ? 'Visitor' : 'Your AI';
+                        const time = msg.timestamp ? formatTimeAgo(msg.timestamp) : '';
+
+                        messageEl.innerHTML = `
+                            <div class="conversation-message-label">${label}</div>
+                            <div class="conversation-message-bubble">${escapeHtml(msg.content)}</div>
+                            ${time ? `<div class="conversation-message-time">${time}</div>` : ''}
+                        `;
+
+                        conversationModalBody.appendChild(messageEl);
+                    });
+
+                    // Scroll to bottom
+                    conversationModalBody.scrollTop = conversationModalBody.scrollHeight;
+                } else {
+                    conversationModalBody.innerHTML = `
+                        <div class="conversation-error">
+                            No messages found for this visitor.
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('[Modal] Error loading conversation:', error);
+                conversationModalBody.innerHTML = `
+                    <div class="conversation-error">
+                        Failed to load conversation: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function closeConversationModal() {
+            conversationModal.classList.add('hidden');
+            conversationModalBody.innerHTML = '';
+        }
+
+        // Helper to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Modal close handlers
+        conversationModalClose.addEventListener('click', closeConversationModal);
+
+        // Close on backdrop click
+        conversationModal.addEventListener('click', (e) => {
+            if (e.target === conversationModal) {
+                closeConversationModal();
+            }
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !conversationModal.classList.contains('hidden')) {
+                closeConversationModal();
+            }
+        });
 
         // Show Auth Screen
         function showAuthScreen() {
