@@ -360,6 +360,31 @@
             font-weight: 600;
         }
 
+        .activity-feed-link {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .activity-feed-link:hover {
+            color: #4CAF50;
+        }
+
+        .activity-feed-link .arrow {
+            opacity: 0.6;
+            font-size: 12px;
+            transition: transform 0.3s ease;
+        }
+
+        .activity-feed-link:hover .arrow {
+            transform: translateX(3px);
+            opacity: 1;
+        }
+
         .activity-feed-title .icon {
             font-size: 16px;
         }
@@ -1265,7 +1290,10 @@
             <div id="activityFeed" class="activity-feed hidden">
                 <div class="activity-feed-header">
                     <div class="activity-feed-title">
-                        <span><span class="icon">🔗</span> Live Link Activity</span>
+                        <a href="#" id="activityFeedLink" class="activity-feed-link" target="_blank">
+                            <span class="icon">🔗</span> Live Link Activity
+                            <span class="arrow">→</span>
+                        </a>
                         <span id="activityCount" class="activity-feed-count">0 today</span>
                     </div>
                 </div>
@@ -1303,13 +1331,7 @@
                     <div class="user-info">
                         <div id="userName" class="user-name"></div>
                         <div id="userEmail" class="user-email"></div>
-                        <div id="linkStatus" class="link-status hidden">
-                            <a href="#" id="viewLinkBtn" class="link-badge" target="_blank">
-                                <span class="pulse"></span>
-                                <span>Public Link</span>
-                                <span class="arrow">→</span>
-                            </a>
-                        </div>
+                        <!-- Public Link badge removed - now in Activity Feed header -->
                         <button id="signOutBtn" class="sign-out-btn hidden">Sign Out</button>
                     </div>
                 </div>
@@ -1608,14 +1630,20 @@
 
                 if (response.ok) {
                     const settings = await response.json();
-                    const linkStatus = document.getElementById('linkStatus');
-                    const viewLinkBtn = document.getElementById('viewLinkBtn');
+                    const activityFeedLink = document.getElementById('activityFeedLink');
 
                     if (settings.linkEnabled && settings.username) {
-                        linkStatus.classList.remove('hidden');
-                        viewLinkBtn.href = `https://mindclone.link/${settings.username}`;
+                        // Set the public link URL
+                        activityFeedLink.href = `https://mindclone.link/${settings.username}`;
+                        activityFeedLink.target = '_blank';
+                        activityFeedLink.style.cursor = 'pointer';
+                        activityFeedLink.style.opacity = '1';
                     } else {
-                        linkStatus.classList.add('hidden');
+                        // Redirect to settings to enable link
+                        activityFeedLink.href = '/settings';
+                        activityFeedLink.target = '_self';
+                        activityFeedLink.style.cursor = 'pointer';
+                        activityFeedLink.style.opacity = '0.6';
                     }
                 }
             } catch (error) {
