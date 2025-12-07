@@ -7,7 +7,7 @@ let memoryClient = null;
 
 function getMemoryClient() {
   if (!memoryClient && process.env.MEM0_API_KEY) {
-    memoryClient = new MemoryClient(process.env.MEM0_API_KEY);
+    memoryClient = new MemoryClient({ apiKey: process.env.MEM0_API_KEY });
   }
   return memoryClient;
 }
