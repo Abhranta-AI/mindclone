@@ -260,6 +260,10 @@
             gap: 10px;
             font-size: 13px;
             transition: background 0.3s ease;
+            text-decoration: none;
+        }
+
+        .avatar-dropdown-item:last-child {
             border-radius: 0 0 12px 12px;
         }
 
@@ -1253,7 +1257,7 @@
                 <div class="logo">🔮</div>
                 <h1>Mindclone Studio</h1>
                 <p class="tagline">Your Personal AI Companion</p>
-                <a href="/settings" class="settings-link">⚙️ Settings</a>
+                <a href="/settings" class="settings-link hidden">⚙️ Settings</a>
             </div>
 
             <!-- Live Activity Feed (shown when logged in) -->
@@ -1319,6 +1323,10 @@
                         </div>
                     </div>
                     <hr class="avatar-dropdown-divider">
+                    <a href="/settings" id="dropdownSettingsLink" class="avatar-dropdown-item">
+                        <span class="avatar-dropdown-icon">⚙️</span>
+                        <span>Settings</span>
+                    </a>
                     <button id="dropdownSignOutBtn" class="avatar-dropdown-item">
                         <span class="avatar-dropdown-icon">🚪</span>
                         <span>Sign Out</span>
@@ -1558,6 +1566,12 @@
         // Attach to both buttons
         signOutBtn?.addEventListener('click', handleSignOut);
         dropdownSignOutBtn?.addEventListener('click', handleSignOut);
+
+        // Close dropdown when Settings is clicked
+        const dropdownSettingsLink = document.getElementById('dropdownSettingsLink');
+        dropdownSettingsLink?.addEventListener('click', () => {
+            avatarDropdown.classList.add('hidden');
+        });
 
         // Mobile Menu Button
         const mobileMenuBtn = document.getElementById('mobileMenuBtn');
