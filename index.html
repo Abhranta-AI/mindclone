@@ -632,78 +632,116 @@
             background: #ff5252;
         }
 
+        /* Mobile Header - WhatsApp style */
+        .mobile-header {
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .app-container {
                 flex-direction: column;
+                height: 100vh;
             }
 
+            /* Hide sidebar completely on mobile */
             .sidebar {
-                width: 100%;
-                height: auto;
-                max-height: none;
-                border-right: none;
+                display: none;
+            }
+
+            /* Show WhatsApp-style mobile header */
+            .mobile-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px 16px;
+                background: #0d0d0d;
                 border-bottom: 1px solid #333;
-                overflow: visible;
+                height: 56px;
+                flex-shrink: 0;
             }
 
-            .sidebar-header {
-                padding: 12px 15px;
+            .mobile-header-left {
+                display: flex;
+                align-items: center;
+                gap: 12px;
             }
 
-            .sidebar-header .logo {
-                width: 30px;
-                height: 30px;
-                font-size: 20px;
+            .mobile-header .user-avatar {
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                object-fit: cover;
             }
 
-            .sidebar-header h1 {
-                font-size: 18px;
-                margin-bottom: 4px;
+            .mobile-header-title {
+                display: flex;
+                flex-direction: column;
             }
 
-            .sidebar-header .tagline {
-                display: none;
+            .mobile-header-name {
+                font-size: 16px;
+                font-weight: 600;
+                color: white;
             }
 
-            .sidebar-header .settings-link {
-                padding: 6px 12px;
+            .mobile-header-subtitle {
                 font-size: 12px;
+                color: #999;
             }
 
-            .sidebar-spacer {
-                display: none;
+            .mobile-menu-btn {
+                background: none;
+                border: none;
+                color: white;
+                font-size: 24px;
+                cursor: pointer;
+                padding: 4px 8px;
             }
 
-            .sidebar-profile {
-                padding: 10px 15px;
-            }
-
-            .sidebar-profile .user-avatar {
-                width: 35px;
-                height: 35px;
-            }
-
-            .sidebar-profile .user-name {
-                font-size: 13px;
-            }
-
-            .sidebar-profile .user-email {
-                font-size: 11px;
-            }
-
+            /* Make main content fill screen */
             .main-content {
                 flex: 1;
                 min-height: 0;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .chat-container {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .chat-messages {
+                flex: 1;
+                overflow-y: auto;
             }
 
             .message-content {
                 max-width: 85%;
+            }
+
+            /* Welcome screen on mobile */
+            .welcome-container {
+                padding: 20px;
             }
         }
     </style>
 </head>
 <body>
     <div class="app-container">
+        <!-- Mobile Header (WhatsApp style - only visible on mobile) -->
+        <div id="mobileHeader" class="mobile-header hidden">
+            <div class="mobile-header-left">
+                <img id="mobileAvatar" class="user-avatar" src="" alt="User">
+                <div class="mobile-header-title">
+                    <div id="mobileName" class="mobile-header-name">Mindclone</div>
+                    <div class="mobile-header-subtitle">AI Companion</div>
+                </div>
+            </div>
+            <button id="mobileMenuBtn" class="mobile-menu-btn">⋮</button>
+        </div>
+
         <!-- Left Sidebar -->
         <div class="sidebar">
             <!-- Sidebar Header (always visible) -->
@@ -922,6 +960,27 @@
             }
         });
 
+        // Mobile Menu Button
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        if (mobileMenuBtn) {
+            mobileMenuBtn.addEventListener('click', () => {
+                const action = confirm('Options:\n\nOK = Settings\nCancel = Sign Out');
+                if (action) {
+                    // Go to settings
+                    window.location.href = '/settings';
+                } else {
+                    // Sign out
+                    signOut(auth).then(() => {
+                        conversationHistory = [];
+                        chatMessages.innerHTML = '';
+                    }).catch(error => {
+                        console.error('Sign out error:', error);
+                        alert('Failed to sign out. Please try again.');
+                    });
+                }
+            });
+        }
+
         // Load Link Status
         async function loadLinkStatus() {
             if (!auth.currentUser) return;
@@ -955,6 +1014,12 @@
             sidebarAuth.classList.remove('hidden');
             sidebarProfile.classList.add('hidden');
             chatInterface.classList.add('hidden');
+
+            // Hide mobile header when signed out
+            const mobileHeader = document.getElementById('mobileHeader');
+            if (mobileHeader) {
+                mobileHeader.classList.add('hidden');
+            }
         }
 
         // Show Chat Interface
@@ -967,6 +1032,16 @@
             userAvatar.src = user.photoURL || 'https://via.placeholder.com/50';
             userName.textContent = user.displayName || 'User';
             userEmail.textContent = user.email;
+
+            // Update mobile header
+            const mobileHeader = document.getElementById('mobileHeader');
+            const mobileAvatar = document.getElementById('mobileAvatar');
+            const mobileName = document.getElementById('mobileName');
+            if (mobileHeader && mobileAvatar && mobileName) {
+                mobileHeader.classList.remove('hidden');
+                mobileAvatar.src = user.photoURL || 'https://via.placeholder.com/50';
+                mobileName.textContent = user.displayName || 'Mindclone';
+            }
 
             // Load link status
             await loadLinkStatus();
