@@ -3979,7 +3979,24 @@ Tell me about yourself or your business. What do you do? What problem do you sol
                 return true;
             }
 
-            return false;
+            // If we got here, workflow is in an unexpected state
+            console.error('Workflow in unexpected state:', {
+                step: workflowState.step,
+                waitingForApproval: workflowState.waitingForApproval,
+                currentSection: workflowState.currentSection
+            });
+
+            await addWorkflowMessage('ai', `I got a bit confused. Let me ask again:\n\n` +
+                (step === 'intro' ? 'What is the primary purpose of your public link?' :
+                step === 'target_audiences' ? 'Who are the primary people visiting your link?' :
+                step === 'desired_actions' ? 'What do you want visitors to do?' :
+                step === 'section_about' ? 'Tell me about yourself or your business.' :
+                step === 'section_product' ? 'Tell me about what you offer.' :
+                step === 'section_traction' ? 'Share your achievements or traction metrics.' :
+                step === 'section_contact' ? 'How should visitors reach you?' :
+                'Please type "cancel" to restart the workflow.'));
+
+            return true; // Still block regular AI
         }
 
         // Helper functions to draft content using AI
