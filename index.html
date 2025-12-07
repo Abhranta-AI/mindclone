@@ -1356,11 +1356,10 @@
         }
 
         .message.ai .message-content {
-            border-radius: 0; /* Remove border radius for full width */
-            background: transparent; /* Remove background box */
-            border: none; /* Remove border */
-            max-width: 100%; /* Full width */
-            padding: 20px 0; /* Remove horizontal padding, keep vertical spacing */
+            /* Keep box styling on desktop - inherit from base .message-content */
+            /* Only adjust the border-radius for a left-tail WhatsApp style */
+            border-radius: 18px 18px 18px 4px;
+            max-width: 70%; /* Constrained width for better readability */
         }
 
         .chat-input-container {
@@ -1836,7 +1835,12 @@
             }
 
             .message.ai .message-content {
-                max-width: 100%; /* Keep AI messages full width on mobile */
+                /* Mobile: full-width, transparent, no box */
+                max-width: 100%;
+                background: transparent;
+                border: none;
+                border-radius: 0;
+                padding: 20px 0;
             }
 
             /* Fix chat input for Safari iOS */
