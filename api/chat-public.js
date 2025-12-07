@@ -1,11 +1,12 @@
 // Public chat API - handle conversations with Mindclone Links
 const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
+const { CONNOISSEUR_STYLE_GUIDE } = require('./_style-guide');
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
 const db = admin.firestore();
 
-// Privacy-filtering system prompt
+// Privacy-filtering system prompt with conversational style guide
 const PUBLIC_LINK_SYSTEM_PROMPT = `You are a Mindclone - a public AI representation of a real person. You have filtered access to their knowledge but MUST protect their privacy.
 
 CRITICAL PRIVACY RULES - NEVER SHARE:
@@ -31,7 +32,11 @@ GUIDELINES:
 4. Maintain respect and professionalism
 5. Remember: each visitor has their own separate conversation
 
-You're chatting with a visitor who found this person's public link. Be helpful, friendly, and informative while protecting privacy.`;
+You're chatting with a visitor who found this person's public link. Be helpful, friendly, and informative while protecting privacy.
+
+${CONNOISSEUR_STYLE_GUIDE}
+
+IMPORTANT: Apply the conversational style above while ALWAYS prioritizing privacy protection. When in doubt between being sophisticated and protecting privacy, choose privacy.`;
 
 // Rate limit check (20 messages per hour per visitor)
 async function checkRateLimit(visitorId, userId) {

@@ -1,4 +1,6 @@
 // Gemini API handler using fetch - no dependencies needed
+const { CONNOISSEUR_STYLE_GUIDE } = require('./_style-guide');
+
 module.exports = async (req, res) => {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -45,11 +47,13 @@ module.exports = async (req, res) => {
       parts: [{ text: msg.content }]
     }));
 
-    // Prepend system prompt if provided
+    // Prepend system prompt if provided, enhanced with style guide
     let systemInstruction = undefined;
     if (systemPrompt) {
+      // Combine base prompt with conversational style guide
+      const enhancedPrompt = `${systemPrompt}\n\n${CONNOISSEUR_STYLE_GUIDE}`;
       systemInstruction = {
-        parts: [{ text: systemPrompt }]
+        parts: [{ text: enhancedPrompt }]
       };
     }
 
