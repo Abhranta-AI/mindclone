@@ -144,6 +144,12 @@
             border-radius: 50%;
             border: 2px solid #333;
             flex-shrink: 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-profile .user-avatar:hover {
+            border-color: #4CAF50;
         }
 
         .sidebar-profile .user-info {
@@ -184,6 +190,85 @@
 
         .sidebar-profile .sign-out-btn:hover {
             background: #333;
+        }
+
+        /* Avatar Dropdown Menu */
+        .avatar-dropdown {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            min-width: 200px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .avatar-dropdown-header {
+            padding: 12px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .dropdown-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid #333;
+            flex-shrink: 0;
+        }
+
+        .dropdown-user-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .dropdown-user-name {
+            font-weight: 600;
+            color: white;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .dropdown-user-email {
+            font-size: 11px;
+            color: #999;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .avatar-dropdown-divider {
+            border: none;
+            border-top: 1px solid #333;
+            margin: 0;
+        }
+
+        .avatar-dropdown-item {
+            width: 100%;
+            padding: 10px 12px;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            transition: background 0.3s ease;
+            border-radius: 0 0 12px 12px;
+        }
+
+        .avatar-dropdown-item:hover {
+            background: #2a2a2a;
+        }
+
+        .avatar-dropdown-icon {
+            font-size: 16px;
         }
 
         .link-status {
@@ -1220,8 +1305,24 @@
                                 <span class="arrow">→</span>
                             </a>
                         </div>
-                        <button id="signOutBtn" class="sign-out-btn">Sign Out</button>
+                        <button id="signOutBtn" class="sign-out-btn hidden">Sign Out</button>
                     </div>
+                </div>
+
+                <!-- Avatar Dropdown Menu -->
+                <div id="avatarDropdown" class="avatar-dropdown hidden">
+                    <div class="avatar-dropdown-header">
+                        <img id="dropdownAvatar" class="dropdown-avatar" src="" alt="User">
+                        <div class="dropdown-user-info">
+                            <div id="dropdownUserName" class="dropdown-user-name"></div>
+                            <div id="dropdownUserEmail" class="dropdown-user-email"></div>
+                        </div>
+                    </div>
+                    <hr class="avatar-dropdown-divider">
+                    <button id="dropdownSignOutBtn" class="avatar-dropdown-item">
+                        <span class="avatar-dropdown-icon">🚪</span>
+                        <span>Sign Out</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -1315,6 +1416,11 @@
         const conversationModalClose = document.getElementById('conversationModalClose');
         const modalVisitorName = document.getElementById('modalVisitorName');
         const modalVisitorTime = document.getElementById('modalVisitorTime');
+        const avatarDropdown = document.getElementById('avatarDropdown');
+        const dropdownAvatar = document.getElementById('dropdownAvatar');
+        const dropdownUserName = document.getElementById('dropdownUserName');
+        const dropdownUserEmail = document.getElementById('dropdownUserEmail');
+        const dropdownSignOutBtn = document.getElementById('dropdownSignOutBtn');
 
         // Conversation history
         let conversationHistory = [];
@@ -1413,18 +1519,45 @@
             }
         });
 
-        // Sign Out
-        signOutBtn.addEventListener('click', async () => {
+        // Avatar dropdown toggle
+        userAvatar?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            avatarDropdown.classList.toggle('hidden');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', () => {
+            if (avatarDropdown && !avatarDropdown.classList.contains('hidden')) {
+                avatarDropdown.classList.add('hidden');
+            }
+        });
+
+        // Prevent dropdown from closing when clicking inside it
+        avatarDropdown?.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // Sign out handler (works for both sidebar button and dropdown)
+        async function handleSignOut() {
             try {
                 await signOut(auth);
                 conversationHistory = []; // Clear in-memory array
                 chatMessages.innerHTML = ''; // Clear UI
+
+                // Close dropdown if open
+                if (avatarDropdown && !avatarDropdown.classList.contains('hidden')) {
+                    avatarDropdown.classList.add('hidden');
+                }
                 // Note: Firestore data remains intact
             } catch (error) {
                 console.error('Sign out error:', error);
                 alert('Failed to sign out. Please try again.');
             }
-        });
+        }
+
+        // Attach to both buttons
+        signOutBtn?.addEventListener('click', handleSignOut);
+        dropdownSignOutBtn?.addEventListener('click', handleSignOut);
 
         // Mobile Menu Button
         const mobileMenuBtn = document.getElementById('mobileMenuBtn');
@@ -1932,6 +2065,11 @@
             userAvatar.src = user.photoURL || 'https://via.placeholder.com/50';
             userName.textContent = user.displayName || 'User';
             userEmail.textContent = user.email;
+
+            // Populate dropdown
+            dropdownAvatar.src = user.photoURL || 'https://via.placeholder.com/36';
+            dropdownUserName.textContent = user.displayName || 'User';
+            dropdownUserEmail.textContent = user.email;
 
             // Update mobile header
             const mobileHeader = document.getElementById('mobileHeader');
