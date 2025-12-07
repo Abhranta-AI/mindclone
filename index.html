@@ -1846,8 +1846,8 @@
                 left: 0;
                 right: 0;
                 width: 100%;
-                padding: 12px 16px;
-                padding-bottom: max(12px, calc(12px + env(safe-area-inset-bottom)));
+                padding: 8px 16px;
+                padding-bottom: max(8px, calc(8px + env(safe-area-inset-bottom)));
                 background: #e0e0e0;
                 border-top: 1px solid #bbb;
                 z-index: 1000;
@@ -1869,7 +1869,7 @@
                 color: #333; /* Dark text on light background */
                 border: 1px solid #bbb; /* Subtle border */
                 border-radius: 6px; /* Minimal rectangular rounding */
-                padding: 10px 14px; /* Override desktop padding */
+                padding: 8px 12px; /* Compact padding */
             }
 
             .chat-input::placeholder {
@@ -1886,7 +1886,7 @@
                 background: #d0d0d0; /* Slightly darker gray */
                 color: #333; /* Dark arrow */
                 border: 1px solid #bbb;
-                padding: 10px 16px;
+                padding: 8px 14px;
                 border-radius: 6px;
             }
 
@@ -1900,7 +1900,7 @@
 
             /* Ensure chat messages don't hide behind fixed input bar */
             .chat-messages {
-                padding-bottom: 90px; /* Account for fixed typing bar height */
+                padding-bottom: 70px; /* Account for compact fixed typing bar height */
             }
 
             /* Welcome screen on mobile */
