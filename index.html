@@ -2620,11 +2620,14 @@
                 // Listen to visitor changes
                 activityListener = onSnapshot(q, async (snapshot) => {
                     console.log('[Activity] Snapshot received:', snapshot.size, 'visitors');
+                    console.log('[Activity] Current time:', new Date().toLocaleTimeString());
 
                     const changes = snapshot.docChanges();
+                    console.log('[Activity] Number of changes:', changes.length);
 
                     // Process changes
                     for (const change of changes) {
+                        console.log('[Activity] Change type:', change.type, 'Visitor:', change.doc.id);
                         const visitorId = change.doc.id;
                         const visitorData = change.doc.data();
 
