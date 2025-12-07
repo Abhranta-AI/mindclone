@@ -2529,8 +2529,8 @@
         let activityData = [];
         let activityListener = null; // Real-time listener unsubscribe function
 
-        // Knowledge Base Workflow State
-        let workflowState = {
+        // Knowledge Base Workflow State with persistence
+        let workflowState = loadWorkflowState() || {
             active: false,
             step: null,
             waitingForApproval: false,
@@ -2546,6 +2546,41 @@
                 sections: {}
             }
         };
+
+        // Load workflow state from localStorage
+        function loadWorkflowState() {
+            try {
+                const saved = localStorage.getItem('workflowState');
+                if (saved) {
+                    const state = JSON.parse(saved);
+                    console.log('[Workflow] Loaded saved state:', state);
+                    return state;
+                }
+            } catch (error) {
+                console.error('[Workflow] Error loading state:', error);
+            }
+            return null;
+        }
+
+        // Save workflow state to localStorage
+        function saveWorkflowState() {
+            try {
+                localStorage.setItem('workflowState', JSON.stringify(workflowState));
+                console.log('[Workflow] Saved state:', workflowState);
+            } catch (error) {
+                console.error('[Workflow] Error saving state:', error);
+            }
+        }
+
+        // Clear workflow state from localStorage
+        function clearWorkflowState() {
+            try {
+                localStorage.removeItem('workflowState');
+                console.log('[Workflow] Cleared saved state');
+            } catch (error) {
+                console.error('[Workflow] Error clearing state:', error);
+            }
+        }
 
         // Helper to add workflow message and save to Firestore
         async function addWorkflowMessage(type, content) {
@@ -2604,6 +2639,9 @@
 
             // Hide indicator
             hideWorkflowIndicator();
+
+            // Clear saved state
+            clearWorkflowState();
 
             // Show cancellation message
             await addWorkflowMessage('ai', '❌ Workflow cancelled. Type "set up my link" whenever you\'re ready to try again.');
@@ -3705,6 +3743,7 @@
         async function startKnowledgeBaseWorkflow() {
             workflowState.active = true;
             workflowState.step = 'intro';
+            saveWorkflowState(); // Persist state
 
             // Show workflow indicator
             showWorkflowIndicator('🚀 Setting up your public link...');
@@ -3996,6 +4035,7 @@ Tell me about yourself or your business. What do you do? What problem do you sol
                 step === 'section_contact' ? 'How should visitors reach you?' :
                 'Please type "cancel" to restart the workflow.'));
 
+            saveWorkflowState(); // Save state even after error
             return true; // Still block regular AI
         }
 
@@ -4031,6 +4071,8 @@ Return ONLY the purpose statement, nothing else.`;
 
                 workflowState.currentDraft = draft;
                 workflowState.waitingForApproval = true;
+                saveWorkflowState(); // Persist state
+                saveWorkflowState(); // Persist state
 
                 const response = feedback
                     ? `Here's the revised purpose:\n\n**"${draft}"**\n\nType **"approve"** to save, or tell me how to adjust further.`
@@ -4084,6 +4126,7 @@ Return ONLY the bulleted list, nothing else. Example format:
 
                 workflowState.currentDraft = draft;
                 workflowState.waitingForApproval = true;
+                saveWorkflowState(); // Persist state
 
                 const response = feedback
                     ? `Here's the revised list:\n\n${draft}\n\nType **"approve"** to save, or tell me what else to change.`
@@ -4137,6 +4180,7 @@ Return ONLY the bulleted list, nothing else. Example format:
 
                 workflowState.currentDraft = draft;
                 workflowState.waitingForApproval = true;
+                saveWorkflowState(); // Persist state
 
                 const response = feedback
                     ? `Here's the revised list:\n\n${draft}\n\nType **"approve"** to save, or tell me how to adjust further.`
@@ -4194,6 +4238,7 @@ Draft professional, authentic content based on what they said. Return ONLY the c
 
                 workflowState.currentDraft = draft;
                 workflowState.waitingForApproval = true;
+                saveWorkflowState(); // Persist state
 
                 const sectionTitle = sectionName.charAt(0).toUpperCase() + sectionName.slice(1);
                 const response = `Here's what I drafted for your **${sectionTitle}** section:
@@ -4398,6 +4443,9 @@ Type **"approve"** to save this, or tell me how to improve it.`;
                 // Hide workflow indicator
                 hideWorkflowIndicator();
 
+            // Clear saved state
+            clearWorkflowState();
+
                 // Show success message with correct URL
                 const username = settings.username || 'your-username';
                 const domain = window.location.hostname === 'localhost' ?
@@ -4455,8 +4503,17 @@ Is there anything else you'd like to configure?`;
             chatInput.value = '';
 
             // === WORKFLOW HANDLING ===
+            // Log workflow state for debugging
+            console.log('[Workflow] Current state:', {
+                active: workflowState.active,
+                step: workflowState.step,
+                waitingForApproval: workflowState.waitingForApproval,
+                message: message
+            });
+
             // Check if workflow is active - BLOCK ALL REGULAR AI
             if (workflowState.active) {
+                console.log('[Workflow] Workflow is active, handling message in workflow');
                 // Handle workflow response
                 await handleWorkflowResponse(message);
                 return; // ALWAYS block regular AI when workflow is active
@@ -4464,10 +4521,13 @@ Is there anything else you'd like to configure?`;
 
             // Check if message triggers workflow
             if (!workflowState.active && detectWorkflowTrigger(message)) {
+                console.log('[Workflow] Message triggers workflow, starting...');
                 await startKnowledgeBaseWorkflow();
                 return; // Don't send to regular AI
             }
             // === END WORKFLOW HANDLING ===
+
+            console.log('[Workflow] Not in workflow mode, sending to regular AI');
 
             // Add to conversation history
             conversationHistory.push({
