@@ -3558,14 +3558,23 @@
         function detectWorkflowTrigger(message) {
             const lowerMsg = message.toLowerCase();
             const triggers = [
+                'set up my link',
+                'setup my link',
+                'build my link',
+                'create my link',
+                'configure my link',
+                'help with my link',
+                'set up link',
+                'setup link',
+                'build link',
+                'create link',
                 'set up my public link',
                 'setup my public link',
                 'build my public link',
                 'create my public link',
                 'help me build my knowledge base',
                 'setup my knowledge base',
-                'configure my link',
-                'help with my link'
+                'setup knowledge base'
             ];
             return triggers.some(trigger => lowerMsg.includes(trigger));
         }
