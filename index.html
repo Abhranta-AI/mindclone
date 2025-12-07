@@ -311,14 +311,9 @@
             font-size: 20px;
         }
 
-        .message.ai .message-avatar {
+        .message-avatar {
             background: #1a1a1a;
             border: 2px solid #333;
-        }
-
-        /* Hide user avatar (WhatsApp style - you don't need to see your own pic) */
-        .message.user .message-avatar {
-            display: none;
         }
 
         .message-content {
@@ -341,15 +336,16 @@
             padding-right: 30px; /* Space for checkmark */
         }
 
-        /* WhatsApp-style checkmark for sent messages */
+        /* WhatsApp-style double checkmark for delivered messages */
         .message.user .message-content::after {
-            content: '✓';
+            content: '✓✓';
             position: absolute;
             right: 10px;
             bottom: 8px;
             font-size: 14px;
             color: #999;
             font-weight: bold;
+            letter-spacing: -3px;
         }
 
         .message.ai .message-content {
@@ -1148,9 +1144,13 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
 
-            const avatar = document.createElement('div');
-            avatar.className = 'message-avatar';
-            avatar.textContent = type === 'ai' ? '🔮' : '👤';
+            // Only add avatar for AI messages (WhatsApp style)
+            if (type === 'ai') {
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                avatar.textContent = '🔮';
+                messageDiv.appendChild(avatar);
+            }
 
             const messageContent = document.createElement('div');
             messageContent.className = 'message-content';
@@ -1170,7 +1170,6 @@
                 messageContent.appendChild(timestampDiv);
             }
 
-            messageDiv.appendChild(avatar);
             messageDiv.appendChild(messageContent);
 
             // Add copy button for AI messages
