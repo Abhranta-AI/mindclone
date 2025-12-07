@@ -557,6 +557,24 @@
             order: 2;
         }
 
+        /* Right Activity Panel */
+        .right-activity-panel {
+            width: 280px;
+            background: #1a1a1a;
+            border-left: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            order: 3;
+        }
+
+        .right-activity-panel .activity-feed {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
         .sidebar-header {
             padding: 30px 20px;
             text-align: center;
@@ -1241,14 +1259,15 @@
             color: #f44336;
         }
 
-        /* Main Content (Right Panel - Chat Area) */
+        /* Main Content (Center - Chat Area) */
         .main-content {
             flex: 1;
             display: flex;
             flex-direction: column;
             background: #0d0d0d;
             overflow: hidden;
-            width: 100%;
+            max-width: calc(100vw - 280px);
+            order: 1;
         }
 
         /* Add top padding when header is visible */
@@ -1683,6 +1702,16 @@
 
         /* ==================== MOBILE RESPONSIVE ==================== */
         @media (max-width: 768px) {
+            /* Hide right activity panel on mobile */
+            .right-activity-panel {
+                display: none !important;
+            }
+
+            /* Main content fills screen on mobile */
+            .main-content {
+                max-width: 100vw !important;
+            }
+
             /* Landing page mobile */
             .landing-title {
                 font-size: 48px;
@@ -2113,6 +2142,29 @@
                 </div>
             </div>
         </div>
+
+        <!-- Right Activity Panel -->
+        <div class="right-activity-panel">
+            <!-- Live Activity Feed -->
+            <div class="activity-feed">
+                <div class="activity-feed-header">
+                    <a href="#" id="rightActivityFeedLink" class="activity-feed-link" target="_blank">
+                        <span class="icon">🔗</span> Live Link Activity
+                        <span class="arrow">→</span>
+                    </a>
+                    <span id="rightActivityCount" class="activity-feed-count">0 today</span>
+                </div>
+                <div id="rightActivityList" class="activity-feed-list">
+                    <!-- Activity items will be dynamically added here -->
+                </div>
+                <!-- Empty state (shown when no activity) -->
+                <div id="rightActivityEmpty" class="activity-feed-empty">
+                    <div class="icon">🔗</div>
+                    <div class="message">No Link Activity Yet<br>Enable your Public Link to see visitor conversations</div>
+                    <a href="/settings" class="link-to-settings">Go to Settings</a>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Conversation Modal -->
@@ -2191,6 +2243,13 @@
         const activityList = document.getElementById('activityList');
         const activityEmpty = document.getElementById('activityEmpty');
         const activityCount = document.getElementById('activityCount');
+
+        // Right activity panel elements
+        const rightActivityFeedLink = document.getElementById('rightActivityFeedLink');
+        const rightActivityList = document.getElementById('rightActivityList');
+        const rightActivityEmpty = document.getElementById('rightActivityEmpty');
+        const rightActivityCount = document.getElementById('rightActivityCount');
+
         const conversationModal = document.getElementById('conversationModal');
         const conversationModalBody = document.getElementById('conversationModalBody');
         const conversationModalClose = document.getElementById('conversationModalClose');
@@ -2387,12 +2446,28 @@
                         activityFeedLink.target = '_blank';
                         activityFeedLink.style.cursor = 'pointer';
                         activityFeedLink.style.opacity = '1';
+
+                        // Also update right panel link
+                        if (rightActivityFeedLink) {
+                            rightActivityFeedLink.href = `https://mindclone.link/${settings.username}`;
+                            rightActivityFeedLink.target = '_blank';
+                            rightActivityFeedLink.style.cursor = 'pointer';
+                            rightActivityFeedLink.style.opacity = '1';
+                        }
                     } else {
                         // Redirect to settings to enable link
                         activityFeedLink.href = '/settings';
                         activityFeedLink.target = '_self';
                         activityFeedLink.style.cursor = 'pointer';
                         activityFeedLink.style.opacity = '0.6';
+
+                        // Also update right panel link
+                        if (rightActivityFeedLink) {
+                            rightActivityFeedLink.href = '/settings';
+                            rightActivityFeedLink.target = '_self';
+                            rightActivityFeedLink.style.cursor = 'pointer';
+                            rightActivityFeedLink.style.opacity = '0.6';
+                        }
                     }
                 }
             } catch (error) {
@@ -2469,17 +2544,22 @@
                         return (Date.now() - time) < 86400000; // 24 hours
                     }).length;
                     activityCount.textContent = `${todayCount} today`;
+                    if (rightActivityCount) rightActivityCount.textContent = `${todayCount} today`;
 
                     // Clear current list
                     activityList.innerHTML = '';
+                    if (rightActivityList) rightActivityList.innerHTML = '';
 
                     if (activityData.length > 0) {
                         // Show list, hide empty state
                         activityList.style.display = 'flex';
                         activityEmpty.style.display = 'none';
+                        if (rightActivityList) rightActivityList.style.display = 'flex';
+                        if (rightActivityEmpty) rightActivityEmpty.style.display = 'none';
 
                         // Render each activity item
                         activityData.forEach(activity => {
+                            // Create item for old sidebar
                             const item = createActivityItem(
                                 activity.visitorId,
                                 activity.lastMessage,
@@ -2488,11 +2568,25 @@
                                 activity.isNew
                             );
                             activityList.appendChild(item);
+
+                            // Create item for right panel
+                            if (rightActivityList) {
+                                const rightItem = createActivityItem(
+                                    activity.visitorId,
+                                    activity.lastMessage,
+                                    activity.lastResponse,
+                                    activity.lastTimestamp,
+                                    activity.isNew
+                                );
+                                rightActivityList.appendChild(rightItem);
+                            }
                         });
                     } else {
                         // Show empty state
                         activityList.style.display = 'none';
                         activityEmpty.style.display = 'flex';
+                        if (rightActivityList) rightActivityList.style.display = 'none';
+                        if (rightActivityEmpty) rightActivityEmpty.style.display = 'flex';
                     }
                 } else {
                     console.error('Failed to load activity feed');
