@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Mindclone Studio - Your Personal AI Companion</title>
     <style>
         * {
@@ -661,6 +661,7 @@
                 align-items: center;
                 justify-content: space-between;
                 padding: 10px 16px;
+                padding-top: calc(10px + env(safe-area-inset-top));
                 background: #0d0d0d;
                 border-bottom: 1px solid #333;
                 height: 56px;
@@ -726,6 +727,17 @@
 
             .message-content {
                 max-width: 85%;
+            }
+
+            /* Fix chat input for Safari iOS */
+            .chat-input-container {
+                padding: 15px 16px;
+                padding-bottom: calc(15px + env(safe-area-inset-bottom));
+                position: relative;
+            }
+
+            .chat-input {
+                font-size: 16px; /* Prevents iOS zoom on focus */
             }
 
             /* Welcome screen on mobile */
