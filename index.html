@@ -547,15 +547,15 @@
             margin-top: 64px;
         }
 
-        /* Sidebar - Hidden by default */
+        /* Left Navigation Sidebar */
         .sidebar {
             width: 220px;
             background: #1a1a1a;
-            border-left: 1px solid #333;
+            border-right: 1px solid #333;
             display: none;
             flex-direction: column;
             overflow-y: auto;
-            order: 2;
+            order: 0;
         }
 
         /* Right Activity Panel */
@@ -1267,7 +1267,7 @@
             flex-direction: column;
             background: #0d0d0d;
             overflow: hidden;
-            max-width: calc(100vw - 280px);
+            max-width: calc(100vw - 500px);
             order: 1;
         }
 
@@ -2047,26 +2047,6 @@
                 <h1>Mindclone</h1>
                 <p class="tagline">Your Personal AI Companion</p>
                 <a href="/settings" class="settings-link hidden">⚙️ Settings</a>
-            </div>
-
-            <!-- Live Activity Feed (shown when logged in) -->
-            <div id="activityFeed" class="activity-feed hidden">
-                <div class="activity-feed-header">
-                    <a href="#" id="activityFeedLink" class="activity-feed-link" target="_blank">
-                        <span class="icon">🔗</span> Live Link Activity
-                        <span class="arrow">→</span>
-                    </a>
-                    <span id="activityCount" class="activity-feed-count">0 today</span>
-                </div>
-                <div id="activityList" class="activity-feed-list">
-                    <!-- Activity items will be dynamically added here -->
-                </div>
-                <!-- Empty state (shown when no activity) -->
-                <div id="activityEmpty" class="activity-feed-empty">
-                    <div class="icon">🔗</div>
-                    <div class="message">No Link Activity Yet<br>Enable your Public Link to see visitor conversations</div>
-                    <a href="/settings" class="link-to-settings">Go to Settings</a>
-                </div>
             </div>
 
             <!-- Sidebar Footer (bottom of sidebar) -->
@@ -3076,10 +3056,13 @@
                 mainContent.classList.add('with-header');
             }
 
-            // Hide sidebar components (not needed with header layout)
+            // Show left sidebar with user profile
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) {
+                sidebar.style.display = 'flex';
+            }
             sidebarAuth.classList.add('hidden');
-            sidebarProfile.classList.add('hidden');
-            activityFeed.classList.add('hidden');
+            sidebarProfile.classList.remove('hidden');
 
             // Update header avatar and dropdown
             const headerAvatar = document.getElementById('headerAvatar');
