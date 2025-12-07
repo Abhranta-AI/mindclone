@@ -2475,6 +2475,18 @@
             }
         };
 
+        // Helper to add workflow message and save to Firestore
+        async function addWorkflowMessage(type, content) {
+            const timestamp = new Date();
+            addMessage(type, content, timestamp);
+
+            // Save to Firestore
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+                await saveMessageToFirestore(currentUser.uid, type === 'ai' ? 'assistant' : type, content);
+            }
+        }
+
         // System prompt - enhanced with The Connoisseur persona
         const systemPrompt = "You are Mindclone, a personal AI companion - a sophisticated, cultured, and enlightened conversational partner who offers thoughtful insights while maintaining elegance and grace.";
 
@@ -3559,7 +3571,7 @@
         }
 
         // Start knowledge base workflow
-        function startKnowledgeBaseWorkflow() {
+        async function startKnowledgeBaseWorkflow() {
             workflowState.active = true;
             workflowState.step = 'intro';
 
@@ -3574,7 +3586,7 @@ For example:
 • "Showcase my professional background to recruiters"
 • "Share information about my business with potential customers"`;
 
-            addMessage('ai', introMessage, new Date());
+            await addWorkflowMessage('ai', introMessage);
         }
 
         // Handle workflow responses
@@ -3585,21 +3597,68 @@ For example:
             // Check if user is approving/editing a draft
             if (workflowState.waitingForApproval) {
                 if (lowerMsg === 'approve' || lowerMsg === 'approved' || lowerMsg === 'yes' || lowerMsg === 'looks good') {
-                    // Save the draft and move to next step
+                    // Reset approval state
+                    workflowState.waitingForApproval = false;
+                    workflowState.currentDraft = null;
+
+                    // Handle CoF draft approvals
+                    if (step === 'purpose_draft') {
+                        workflowState.data.cof.purpose = workflowState.currentDraft;
+                        workflowState.step = 'target_audiences';
+                        const response = `✅ Purpose saved!
+
+**Target Audiences**
+
+Who are the primary people visiting your link? Tell me about them.`;
+                        await addWorkflowMessage('ai', response);
+                        return true;
+                    } else if (step === 'audiences_draft') {
+                        const audiences = workflowState.currentDraft
+                            .split(/[,\n•]/)
+                            .map(a => a.trim())
+                            .filter(a => a.length > 0);
+                        workflowState.data.cof.targetAudiences = audiences;
+                        workflowState.step = 'desired_actions';
+                        const response = `✅ Target audiences saved!
+
+**Desired Actions**
+
+What do you want visitors to do after they learn about you? What actions should they take?`;
+                        await addWorkflowMessage('ai', response);
+                        return true;
+                    } else if (step === 'actions_draft') {
+                        const actions = workflowState.currentDraft
+                            .split(/[,\n•]/)
+                            .map(a => a.trim())
+                            .filter(a => a.length > 0);
+                        workflowState.data.cof.desiredActions = actions;
+                        workflowState.step = 'sections_intro';
+                        const response = `✅ Desired actions saved!
+
+**Core Objective Function Complete!**
+
+Now let's build your **Knowledge Base** with specific information. I recommend 4 essential sections:
+
+1. **About** - Who you are / what you do
+2. **Product/Service** - What you offer
+3. **Traction/Background** - Your achievements
+4. **Contact** - How to reach you
+
+Ready to start? Type "yes" to continue, or "skip" to save just the CoF for now.`;
+                        await addWorkflowMessage('ai', response);
+                        return true;
+                    }
+
+                    // Handle section draft approvals
                     const section = workflowState.currentSection;
                     if (section) {
                         workflowState.data.sections[section] = {
                             content: workflowState.currentDraft,
                             approved: true
                         };
+                        workflowState.currentSection = null;
                     }
 
-                    // Reset approval state
-                    workflowState.waitingForApproval = false;
-                    workflowState.currentDraft = null;
-                    workflowState.currentSection = null;
-
-                    // Move to next section (only for section steps, not CoF steps)
                     if (step === 'section_about') {
                         workflowState.step = 'section_product';
                         const response = `✅ Approved! Saved to knowledge base.
@@ -3607,7 +3666,7 @@ For example:
 **Section 2: Product/Service**
 
 Tell me about what you offer. What are your key products, services, or features?`;
-                        addMessage('ai', response, new Date());
+                        await addWorkflowMessage('ai', response);
                         return true;
                     } else if (step === 'section_product') {
                         workflowState.step = 'section_traction';
@@ -3616,7 +3675,7 @@ Tell me about what you offer. What are your key products, services, or features?
 **Section 3: Traction/Background**
 
 Share your achievements, traction metrics, or professional background.`;
-                        addMessage('ai', response, new Date());
+                        await addWorkflowMessage('ai', response);
                         return true;
                     } else if (step === 'section_traction') {
                         workflowState.step = 'section_contact';
@@ -3625,18 +3684,17 @@ Share your achievements, traction metrics, or professional background.`;
 **Section 4: Contact**
 
 How should visitors reach you? Share your contact methods.`;
-                        addMessage('ai', response, new Date());
+                        await addWorkflowMessage('ai', response);
                         return true;
                     } else if (step === 'section_contact') {
                         workflowState.step = 'complete';
                         const response = `✅ Approved! All sections completed.
 
 Let me show you a preview of your complete knowledge base.`;
-                        addMessage('ai', response, new Date());
+                        await addWorkflowMessage('ai', response);
                         setTimeout(() => showKnowledgeBasePreview(), 1000);
                         return true;
                     }
-                    // For CoF steps, fall through to their handlers below
                 } else {
                     // User provided feedback - regenerate based on current step
                     if (step === 'purpose_draft') {
@@ -3676,7 +3734,7 @@ Let me show you a preview of your complete knowledge base.`;
 **Target Audiences**
 
 Who are the primary people visiting your link? Tell me about them.`;
-                addMessage('ai', response, new Date());
+                await addWorkflowMessage('ai', response);
                 return true;
             }
 
@@ -3702,7 +3760,7 @@ Who are the primary people visiting your link? Tell me about them.`;
 **Desired Actions**
 
 What do you want visitors to do after they learn about you? What actions should they take?`;
-                addMessage('ai', response, new Date());
+                await addWorkflowMessage('ai', response);
                 return true;
             }
 
@@ -3735,7 +3793,7 @@ Now let's build your **Knowledge Base** with specific information. I recommend 4
 4. **Contact** - How to reach you
 
 Ready to start? Type "yes" to continue, or "skip" to save just the CoF for now.`;
-                addMessage('ai', response, new Date());
+                await addWorkflowMessage('ai', response);
                 return true;
             }
 
@@ -3751,7 +3809,7 @@ Ready to start? Type "yes" to continue, or "skip" to save just the CoF for now.`
 **Section 1: About**
 
 Tell me about yourself or your business. What do you do? What problem do you solve?`;
-                addMessage('ai', response, new Date());
+                await addWorkflowMessage('ai', response);
                 return true;
             }
 
@@ -3819,10 +3877,10 @@ Return ONLY the purpose statement, nothing else.`;
                     ? `Here's the revised purpose:\n\n**"${draft}"**\n\nType **"approve"** to save, or tell me how to adjust further.`
                     : `Based on what you told me, here's the purpose I drafted:\n\n**"${draft}"**\n\nDoes this capture it well? Type **"approve"** to save it, or tell me how to adjust it.`;
 
-                addMessage('ai', response, new Date());
+                await addWorkflowMessage('ai', response);
             } catch (error) {
                 removeTypingIndicator();
-                addMessage('ai', `Sorry, I had trouble drafting that. Let me try again. Could you rephrase your purpose?`, new Date());
+                await addWorkflowMessage('ai', `Sorry, I had trouble drafting that. Let me try again. Could you rephrase your purpose?`);
                 workflowState.step = 'intro';
             }
         }
@@ -3862,10 +3920,10 @@ Return ONLY the bulleted list, nothing else. Example format:
                     ? `Here's the revised list:\n\n${draft}\n\nType **"approve"** to save, or tell me what else to change.`
                     : `Here are the target audiences I identified:\n\n${draft}\n\nType **"approve"** if this looks good, or tell me what to change.`;
 
-                addMessage('ai', response, new Date());
+                await addWorkflowMessage('ai', response);
             } catch (error) {
                 removeTypingIndicator();
-                addMessage('ai', `Sorry, I had trouble with that. Could you list your target audiences again?`, new Date());
+                await addWorkflowMessage('ai', `Sorry, I had trouble with that. Could you list your target audiences again?`);
                 workflowState.step = 'target_audiences';
             }
         }
@@ -3905,10 +3963,10 @@ Return ONLY the bulleted list, nothing else. Example format:
                     ? `Here's the revised list:\n\n${draft}\n\nType **"approve"** to save, or tell me how to adjust further.`
                     : `Here are the desired actions I drafted:\n\n${draft}\n\nType **"approve"** to save, or tell me how to adjust.`;
 
-                addMessage('ai', response, new Date());
+                await addWorkflowMessage('ai', response);
             } catch (error) {
                 removeTypingIndicator();
-                addMessage('ai', `Sorry, I had trouble with that. Could you describe the desired actions again?`, new Date());
+                await addWorkflowMessage('ai', `Sorry, I had trouble with that. Could you describe the desired actions again?`);
                 workflowState.step = 'desired_actions';
             }
         }
@@ -3956,10 +4014,10 @@ ${draft}
 ---
 
 Type **"approve"** to save this, or tell me how to improve it.`;
-                addMessage('ai', response, new Date());
+                await addWorkflowMessage('ai', response);
             } catch (error) {
                 removeTypingIndicator();
-                addMessage('ai', `Sorry, I had trouble drafting that. Could you tell me about your ${sectionName} again?`, new Date());
+                await addWorkflowMessage('ai', `Sorry, I had trouble drafting that. Could you tell me about your ${sectionName} again?`);
             }
         }
 
@@ -4114,7 +4172,7 @@ You can:
 
 Is there anything else you'd like to configure?`;
 
-                addMessage('ai', successMsg, new Date());
+                await addWorkflowMessage('ai', successMsg);
 
             } catch (error) {
                 console.error('Error saving knowledge base:', error);
@@ -4161,7 +4219,7 @@ Is there anything else you'd like to configure?`;
 
             // Check if message triggers workflow
             if (!workflowState.active && detectWorkflowTrigger(message)) {
-                startKnowledgeBaseWorkflow();
+                await startKnowledgeBaseWorkflow();
                 return; // Don't send to regular AI
             }
             // === END WORKFLOW HANDLING ===
@@ -4204,7 +4262,7 @@ Is there anything else you'd like to configure?`;
                 if (data.success && data.content) {
                     // Add AI response to UI with timestamp
                     const aiTimestamp = new Date();
-                    addMessage('ai', data.content, aiTimestamp);
+                    await addWorkflowMessage('ai', data.content, aiTimestamp);
 
                     // Add to conversation history
                     conversationHistory.push({
