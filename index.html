@@ -2582,16 +2582,14 @@
             }
         }
 
-        // Helper to add workflow message and save to Firestore
+        // Helper to add workflow message (NO Firestore writes to prevent blocking)
         async function addWorkflowMessage(type, content) {
             const timestamp = new Date();
             addMessage(type, content, timestamp);
 
-            // Save to Firestore
-            const currentUser = auth.currentUser;
-            if (currentUser) {
-                await saveMessageToFirestore(currentUser.uid, type === 'ai' ? 'assistant' : type, content);
-            }
+            // DO NOT save to Firestore during workflow - prevents freezing
+            // Workflow messages are ephemeral; only final knowledge base is saved
+            console.log('[Workflow] Message added (not saved to Firestore):', { type, content: content.substring(0, 50) });
         }
 
         // Workflow Indicator Functions
