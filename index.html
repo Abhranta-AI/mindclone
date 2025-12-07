@@ -244,6 +244,186 @@
             transform: translateX(2px);
         }
 
+        /* Live Activity Feed */
+        .activity-feed {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-top: 1px solid #333;
+        }
+
+        .activity-feed-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #333;
+            background: #1a1a1a;
+        }
+
+        .activity-feed-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .activity-feed-title .icon {
+            font-size: 16px;
+        }
+
+        .activity-feed-count {
+            font-size: 11px;
+            color: #999;
+            background: #2a2a2a;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .activity-feed-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .activity-feed-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .activity-feed-list::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        .activity-feed-list::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 3px;
+        }
+
+        .activity-feed-list::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+
+        .activity-item {
+            background: #2a2a2a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .activity-item:hover {
+            background: #333;
+            border-color: #444;
+            transform: translateY(-2px);
+        }
+
+        .activity-item.new {
+            border-color: rgba(76, 175, 80, 0.5);
+            background: rgba(76, 175, 80, 0.05);
+        }
+
+        .activity-item-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .activity-item-visitor {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4CAF50;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .activity-item-time {
+            font-size: 10px;
+            color: #999;
+            margin-left: auto;
+        }
+
+        .activity-item-message {
+            font-size: 11px;
+            color: #ddd;
+            line-height: 1.4;
+            margin-bottom: 6px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .activity-item-response {
+            font-size: 11px;
+            color: #999;
+            line-height: 1.4;
+            padding-left: 12px;
+            border-left: 2px solid #333;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .activity-feed-empty {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            text-align: center;
+            color: #999;
+        }
+
+        .activity-feed-empty .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        .activity-feed-empty .message {
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .activity-feed-empty .link-to-settings {
+            padding: 8px 16px;
+            background: #2a2a2a;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 12px;
+            border: 1px solid #333;
+            transition: all 0.3s ease;
+        }
+
+        .activity-feed-empty .link-to-settings:hover {
+            background: #333;
+        }
+
         /* Main Content (Right Panel - Chat Area) */
         .main-content {
             flex: 1;
@@ -803,8 +983,24 @@
                 <a href="/settings" class="settings-link">⚙️ Settings</a>
             </div>
 
-            <!-- Spacer to push footer to bottom -->
-            <div class="sidebar-spacer"></div>
+            <!-- Live Activity Feed (shown when logged in) -->
+            <div id="activityFeed" class="activity-feed hidden">
+                <div class="activity-feed-header">
+                    <div class="activity-feed-title">
+                        <span><span class="icon">🔗</span> Live Link Activity</span>
+                        <span id="activityCount" class="activity-feed-count">0 today</span>
+                    </div>
+                </div>
+                <div id="activityList" class="activity-feed-list">
+                    <!-- Activity items will be dynamically added here -->
+                </div>
+                <!-- Empty state (shown when no activity) -->
+                <div id="activityEmpty" class="activity-feed-empty">
+                    <div class="icon">🔗</div>
+                    <div class="message">No Link Activity Yet<br>Enable your Public Link to see visitor conversations</div>
+                    <a href="/settings" class="link-to-settings">Go to Settings</a>
+                </div>
+            </div>
 
             <!-- Sidebar Footer (bottom of sidebar) -->
             <div class="sidebar-footer">
@@ -903,9 +1099,14 @@
         const chatMessages = document.getElementById('chatMessages');
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
+        const activityFeed = document.getElementById('activityFeed');
+        const activityList = document.getElementById('activityList');
+        const activityEmpty = document.getElementById('activityEmpty');
+        const activityCount = document.getElementById('activityCount');
 
         // Conversation history
         let conversationHistory = [];
+        let activityData = [];
 
         // System prompt
         const systemPrompt = "You are Mindclone, a personal AI companion. Be friendly, helpful, and conversational. Keep your responses concise and natural.";
@@ -1061,11 +1262,121 @@
             }
         }
 
+        // Activity Feed Functions
+        function formatTimeAgo(timestamp) {
+            if (!timestamp) return 'just now';
+
+            const now = Date.now();
+            const time = timestamp.seconds ? timestamp.seconds * 1000 : timestamp;
+            const diff = Math.floor((now - time) / 1000); // difference in seconds
+
+            if (diff < 60) return 'just now';
+            if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+            if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
+            return `${Math.floor(diff / 2592000)}mo ago`;
+        }
+
+        function truncateText(text, maxLength = 50) {
+            if (!text) return '';
+            if (text.length <= maxLength) return text;
+            return text.substring(0, maxLength) + '...';
+        }
+
+        function createActivityItem(visitorId, lastMessage, lastResponse, timestamp, isNew = false) {
+            const item = document.createElement('div');
+            item.className = `activity-item${isNew ? ' new' : ''}`;
+            item.dataset.visitorId = visitorId;
+
+            const visitorName = `visitor_${visitorId.substring(0, 6)}`;
+            const timeAgo = formatTimeAgo(timestamp);
+
+            item.innerHTML = `
+                <div class="activity-item-header">
+                    <div class="activity-item-visitor">
+                        <span>👤</span>
+                        <span>${visitorName}</span>
+                    </div>
+                    <div class="activity-item-time">${timeAgo}</div>
+                </div>
+                <div class="activity-item-message">"${truncateText(lastMessage, 60)}"</div>
+                ${lastResponse ? `<div class="activity-item-response">🔮 ${truncateText(lastResponse, 60)}</div>` : ''}
+            `;
+
+            // Click to expand (Phase 4 - placeholder for now)
+            item.addEventListener('click', () => {
+                console.log('Clicked visitor:', visitorId);
+                // TODO: Phase 4 - Implement click-to-expand conversations
+            });
+
+            return item;
+        }
+
+        async function loadActivityFeed() {
+            if (!auth.currentUser) return;
+
+            try {
+                const idToken = await auth.currentUser.getIdToken();
+                const response = await fetch('/api/activity', {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    activityData = data.activities || [];
+
+                    // Update count
+                    const todayCount = activityData.filter(a => {
+                        const time = a.lastTimestamp?.seconds ? a.lastTimestamp.seconds * 1000 : Date.now();
+                        return (Date.now() - time) < 86400000; // 24 hours
+                    }).length;
+                    activityCount.textContent = `${todayCount} today`;
+
+                    // Clear current list
+                    activityList.innerHTML = '';
+
+                    if (activityData.length > 0) {
+                        // Show list, hide empty state
+                        activityList.style.display = 'flex';
+                        activityEmpty.style.display = 'none';
+
+                        // Render each activity item
+                        activityData.forEach(activity => {
+                            const item = createActivityItem(
+                                activity.visitorId,
+                                activity.lastMessage,
+                                activity.lastResponse,
+                                activity.lastTimestamp,
+                                activity.isNew
+                            );
+                            activityList.appendChild(item);
+                        });
+                    } else {
+                        // Show empty state
+                        activityList.style.display = 'none';
+                        activityEmpty.style.display = 'flex';
+                    }
+                } else {
+                    console.error('Failed to load activity feed');
+                    // Show empty state on error
+                    activityList.style.display = 'none';
+                    activityEmpty.style.display = 'flex';
+                }
+            } catch (error) {
+                console.error('Error loading activity feed:', error);
+                // Show empty state on error
+                activityList.style.display = 'none';
+                activityEmpty.style.display = 'flex';
+            }
+        }
+
         // Show Auth Screen
         function showAuthScreen() {
             sidebarAuth.classList.remove('hidden');
             sidebarProfile.classList.add('hidden');
             chatInterface.classList.add('hidden');
+            activityFeed.classList.add('hidden');
 
             // Show sidebar on mobile when signed out
             if (sidebar) {
@@ -1107,6 +1418,10 @@
 
             // Load link status
             await loadLinkStatus();
+
+            // Show and load activity feed
+            activityFeed.classList.remove('hidden');
+            await loadActivityFeed();
 
             // Clear existing UI
             chatMessages.innerHTML = '';

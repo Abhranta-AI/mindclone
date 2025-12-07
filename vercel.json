@@ -46,6 +46,10 @@
       "dest": "/api/analytics.js"
     },
     {
+      "src": "^/api/activity$",
+      "dest": "/api/activity.js"
+    },
+    {
       "src": "^/api/messages/mark-public$",
       "dest": "/api/messages/mark-public.js"
     },
