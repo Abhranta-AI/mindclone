@@ -5058,6 +5058,9 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
 
         // Update activity count
         function updateActivityCount() {
+            // activityList removed with left sidebar - skip if not present
+            if (!activityList) return;
+
             const now = Date.now();
             const items = activityList.querySelectorAll('.activity-item');
             let todayCount = 0;
@@ -5073,8 +5076,10 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
                 }
             });
 
-            // Update old sidebar count
-            activityCount.textContent = `${todayCount} today`;
+            // Update old sidebar count (removed with left sidebar)
+            if (activityCount) {
+                activityCount.textContent = `${todayCount} today`;
+            }
 
             // Update right panel count
             if (rightActivityCount) {
