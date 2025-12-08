@@ -2488,6 +2488,28 @@
             color: #999;
         }
 
+        /* Links in AI messages (grey background) */
+        .message.ai .message-content a {
+            color: #6bc5ff;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .message.ai .message-content a:hover {
+            color: #ffffff;
+        }
+
+        /* Links in user messages (white background) */
+        .message.user .message-content a {
+            color: #0066cc;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .message.user .message-content a:hover {
+            color: #004499;
+        }
+
         /* Empty State */
         .empty-state {
             display: flex;

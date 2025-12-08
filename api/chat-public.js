@@ -7,36 +7,81 @@ initializeFirebaseAdmin();
 const db = admin.firestore();
 
 // Privacy-filtering system prompt with conversational style guide
-const PUBLIC_LINK_SYSTEM_PROMPT = `You are a Mindclone - a public AI representation of a real person. You have filtered access to their knowledge but MUST protect their privacy.
+const PUBLIC_LINK_SYSTEM_PROMPT = `You ARE this person. You are their Mindclone - speaking AS them, IN FIRST PERSON, with their full voice and authority.
 
-CRITICAL PRIVACY RULES - NEVER SHARE:
-- Phone numbers, addresses, emails, passwords
-- Financial information (bank accounts, income, credit cards, etc.)
-- Private family details (names, relationships, conflicts)
-- Health conditions (diagnoses, medications, medical history)
-- Work confidential information (salary, company secrets)
-- Private locations, credentials, or sensitive personal data
-- Social security numbers, IDs, or any identifying numbers
+## YOUR IDENTITY
+You don't represent them. You ARE them in digital form. When you speak about "my business", "my startup", "my work" - you speak with complete ownership and authority. You ARE the founder, the creator, the person behind everything.
 
-WHAT YOU CAN SHARE:
-- General interests and hobbies
-- Public professional background and experience
-- General life philosophy and values
-- Opinions on public topics
-- General knowledge and expertise
+## AUTHORITY ON YOUR BUSINESS/WORK
+When discussing ANYTHING in your knowledge base - pitch deck, financials, business model, professional work:
+- Speak with COMPLETE CONFIDENCE AND AUTHORITY
+- NEVER say "based on available information" or "from what I know"
+- NEVER hedge with "according to the documents"
+- These ARE your documents, your business, your numbers
+- You KNOW this because it's YOUR business
 
-GUIDELINES:
-1. When unsure about privacy, be VAGUE rather than specific
-2. Politely decline requests for private information
-3. Be friendly but protective of privacy
-4. Maintain respect and professionalism
-5. Remember: each visitor has their own separate conversation
+EXAMPLES:
+BAD: "Based on the pitch deck, the company aims to..."
+GOOD: "My company is building..."
 
-You're chatting with a visitor who found this person's public link. Be helpful, friendly, and informative while protecting privacy.
+BAD: "According to available information, the revenue projections show..."
+GOOD: "My revenue projections show... I'm targeting..."
+
+BAD: "The financial model suggests they're focused on..."
+GOOD: "I'm focused on... My financial model projects..."
+
+## PRIVACY PROTECTION (Personal info only)
+NEVER share these private personal details:
+- Phone numbers, home address, personal email
+- Bank accounts, passwords, social security numbers
+- Private family details, health conditions
+- Anything explicitly marked as private
+
+## WHAT YOU CAN DISCUSS FREELY
+- ALL business/startup information (pitch, financials, strategy)
+- Professional background and expertise
+- Projects, achievements, public work
+- Opinions, philosophy, interests
+- Anything in the knowledge base
+
+## SPEAKING STYLE
+- First person: "I", "my", "me"
+- Confident and direct
+- Enthusiastic about your work
+- Knowledgeable without being arrogant
+- Personal and warm
+
+Remember: You're not an AI assistant with limited information. You ARE this person. Own everything in your knowledge base completely.
 
 ${CONNOISSEUR_STYLE_GUIDE}
 
-IMPORTANT: Apply the conversational style above while ALWAYS prioritizing privacy protection. When in doubt between being sophisticated and protecting privacy, choose privacy.`;
+IMPORTANT: Apply the conversational style while maintaining your identity as this person. Speak with full authority about your professional life and business.`;
+
+// Tool definitions for public link
+const tools = [
+  {
+    function_declarations: [
+      {
+        name: "show_slide",
+        description: "Display a specific slide from the pitch deck to the visitor. Use this when the visitor asks to SEE or SHOW a slide, or when you want to visually demonstrate something from your pitch deck. The slide will appear in a display panel next to the chat.",
+        parameters: {
+          type: "object",
+          properties: {
+            slideNumber: {
+              type: "number",
+              description: "The slide number to display (1-indexed). Use 1 for the first slide, 2 for the second, etc."
+            },
+            reason: {
+              type: "string",
+              description: "Brief explanation of why you're showing this slide"
+            }
+          },
+          required: ["slideNumber"]
+        }
+      }
+    ]
+  }
+];
 
 // Rate limit check (20 messages per hour per visitor)
 async function checkRateLimit(visitorId, userId) {
@@ -205,8 +250,8 @@ async function saveVisitorMessage(userId, visitorId, role, content) {
   }
 }
 
-// Call Gemini API
-async function callGeminiAPI(messages, systemPrompt) {
+// Call Gemini API with tool calling support
+async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
 
@@ -222,6 +267,7 @@ async function callGeminiAPI(messages, systemPrompt) {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
+    // Build request body
     const requestBody = {
       contents: contents,
       systemInstruction: {
@@ -229,7 +275,12 @@ async function callGeminiAPI(messages, systemPrompt) {
       }
     };
 
-    const response = await fetch(url, {
+    // Only add tools if we have a pitch deck
+    if (pitchDeckInfo && pitchDeckInfo.url && pitchDeckInfo.pageCount > 0) {
+      requestBody.tools = tools;
+    }
+
+    let response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -237,14 +288,79 @@ async function callGeminiAPI(messages, systemPrompt) {
       body: JSON.stringify(requestBody)
     });
 
-    const data = await response.json();
+    let data = await response.json();
 
     if (!response.ok) {
       throw new Error(data.error?.message || 'Gemini API request failed');
     }
 
-    const text = data.candidates[0].content.parts[0].text;
-    return text;
+    // Check if model wants to call a tool
+    let candidate = data.candidates?.[0];
+    let displayAction = null;
+
+    if (candidate?.content?.parts?.[0]?.functionCall) {
+      const functionCall = candidate.content.parts[0].functionCall;
+      console.log('[ChatPublic] Tool call:', functionCall.name, functionCall.args);
+
+      // Handle show_slide tool
+      if (functionCall.name === 'show_slide' && pitchDeckInfo) {
+        const slideNumber = functionCall.args?.slideNumber || 1;
+        const reason = functionCall.args?.reason || '';
+
+        // Validate slide number
+        const validSlideNumber = Math.max(1, Math.min(slideNumber, pitchDeckInfo.pageCount));
+
+        // Create display action for frontend
+        displayAction = {
+          type: 'slide',
+          pdfUrl: pitchDeckInfo.url,
+          slideNumber: validSlideNumber,
+          totalSlides: pitchDeckInfo.pageCount,
+          reason: reason
+        };
+
+        // Add the function call and response to contents
+        contents.push({
+          role: 'model',
+          parts: [{ functionCall: functionCall }]
+        });
+
+        contents.push({
+          role: 'user',
+          parts: [{
+            functionResponse: {
+              name: functionCall.name,
+              response: {
+                success: true,
+                message: `Showing slide ${validSlideNumber} of ${pitchDeckInfo.pageCount}`,
+                slideNumber: validSlideNumber
+              }
+            }
+          }]
+        });
+
+        // Call API again to get the text response
+        requestBody.contents = contents;
+        response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error?.message || 'Gemini API request failed after tool call');
+        }
+
+        candidate = data.candidates?.[0];
+      }
+    }
+
+    const text = candidate?.content?.parts?.[0]?.text || 'I apologize, I was unable to generate a response.';
+    return { text, displayAction };
   } catch (error) {
     console.error('Gemini API error:', error);
     throw error;
@@ -444,8 +560,34 @@ module.exports = async (req, res) => {
     // Add the new user message
     contextMessages.push(lastMessage);
 
+    // Extract pitch deck info for tool calling
+    let pitchDeckInfo = null;
+    if (knowledgeBase?.documents?.pitch_deck) {
+      const pd = knowledgeBase.documents.pitch_deck;
+      const pdfUrl = pd.url || pd.fileUrl; // Support both field names
+      console.log('[ChatPublic] Pitch deck found:', { url: pdfUrl, pageCount: pd.pageCount });
+      if (pdfUrl && pd.pageCount) {
+        pitchDeckInfo = {
+          url: pdfUrl,
+          pageCount: pd.pageCount
+        };
+        // Add tool usage instruction to system prompt
+        enhancedSystemPrompt += `\n\n## VISUAL DISPLAY CAPABILITY
+You can SHOW slides from your pitch deck to visitors using the show_slide tool.
+When a visitor asks to SEE or SHOW a specific slide, or when you want to visually demonstrate something, use the show_slide tool with the slide number.
+Your pitch deck has ${pd.pageCount} slides.
+Example: If asked "show me the team slide", use show_slide with the appropriate slide number.
+IMPORTANT: Only use show_slide when explicitly asked to SHOW or SEE something visual, not for every question about the deck.`;
+        console.log('[ChatPublic] Tools enabled for pitch deck');
+      } else {
+        console.log('[ChatPublic] Pitch deck missing URL or pageCount');
+      }
+    } else {
+      console.log('[ChatPublic] No pitch deck in knowledge base');
+    }
+
     // Call Gemini API with enhanced system prompt
-    const aiResponse = await callGeminiAPI(contextMessages, enhancedSystemPrompt);
+    const { text: aiResponse, displayAction } = await callGeminiAPI(contextMessages, enhancedSystemPrompt, pitchDeckInfo);
 
     // Save AI response
     await saveVisitorMessage(userId, visitorId, 'assistant', aiResponse);
@@ -465,12 +607,17 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Return response with media metadata
+    // Return response with media and display action
+    if (displayAction) {
+      console.log('[ChatPublic] Returning display action:', displayAction);
+    }
+
     return res.status(200).json({
       success: true,
       content: aiResponse,
       visitorId: visitorId,
-      media: mediaToDisplay.length > 0 ? mediaToDisplay : null
+      media: mediaToDisplay.length > 0 ? mediaToDisplay : null,
+      display: displayAction
     });
 
   } catch (error) {

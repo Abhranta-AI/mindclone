@@ -23,17 +23,188 @@
             padding: 20px;
         }
 
+        /* Main wrapper for split view */
+        .main-wrapper {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            gap: 0;
+            height: 90vh;
+            max-height: 900px;
+        }
+
         .container {
             width: 100%;
-            max-width: 700px;
+            max-width: 500px;
+            min-width: 380px;
             background: #0d0d0d;
-            border-radius: 16px;
+            border-radius: 16px 0 0 16px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            height: 90vh;
-            max-height: 800px;
+            height: 100%;
+        }
+
+        /* When no display panel, container takes full width */
+        .main-wrapper.chat-only .container {
+            max-width: 700px;
+            border-radius: 16px;
+        }
+
+        /* Visual Display Panel */
+        .display-panel {
+            flex: 1;
+            background: #111;
+            border-radius: 0 16px 16px 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-left: 1px solid #333;
+        }
+
+        .main-wrapper.chat-only .display-panel {
+            display: none;
+        }
+
+        .display-panel-header {
+            padding: 16px 20px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .display-panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #999;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .display-panel-close {
+            background: transparent;
+            border: none;
+            color: #666;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .display-panel-close:hover {
+            background: #333;
+            color: white;
+        }
+
+        .display-panel-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        .display-panel-empty {
+            text-align: center;
+            color: #555;
+        }
+
+        .display-panel-empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .display-panel-empty-text {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Slide Display */
+        .slide-container {
+            width: 100%;
+            max-width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .slide-image {
+            max-width: 100%;
+            max-height: calc(100% - 80px);
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .slide-caption {
+            font-size: 13px;
+            color: #888;
+            text-align: center;
+        }
+
+        .slide-navigation {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }
+
+        .slide-nav-btn {
+            background: #333;
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .slide-nav-btn:hover:not(:disabled) {
+            background: #4CAF50;
+        }
+
+        .slide-nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .slide-counter {
+            font-size: 14px;
+            color: #888;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        /* PDF Viewer */
+        .pdf-viewer {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 8px;
+        }
+
+        /* Image Display */
+        .display-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
         }
 
         /* Profile Header */
@@ -500,11 +671,44 @@
         }
 
         /* Mobile Responsive */
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
+            body {
+                padding: 0;
+            }
+
+            .main-wrapper {
+                height: 100vh;
+                max-height: none;
+            }
+
             .container {
+                min-width: 100%;
+                max-width: 100%;
                 height: 100vh;
                 max-height: none;
                 border-radius: 0;
+            }
+
+            /* Display panel as overlay on mobile */
+            .display-panel {
+                position: fixed;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                max-width: 100%;
+                border-radius: 0;
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+                z-index: 1000;
+            }
+
+            .display-panel.mobile-open {
+                transform: translateX(0);
+            }
+
+            .main-wrapper.chat-only .display-panel {
+                display: flex; /* Still render on mobile, just hidden */
             }
 
             .profile-header {
@@ -528,29 +732,55 @@
                 padding: 15px;
             }
         }
+
+        /* View Slide button in chat */
+        .view-slide-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #333;
+            color: white;
+            border: 1px solid #444;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.2s;
+        }
+
+        .view-slide-btn:hover {
+            background: #4CAF50;
+            border-color: #4CAF50;
+        }
+
+        .view-slide-btn .btn-icon {
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Profile Header -->
-        <div id="profileHeader" class="profile-header" style="display: none;">
-            <img id="profileAvatar" class="profile-avatar" alt="Profile">
-            <div id="profileName" class="profile-name"></div>
-            <div id="profileUsername" class="profile-username"></div>
-            <div id="profileBio" class="profile-bio"></div>
-            <div id="profileGreeting" class="profile-greeting"></div>
-        </div>
+    <div id="mainWrapper" class="main-wrapper chat-only">
+        <div class="container">
+            <!-- Profile Header -->
+            <div id="profileHeader" class="profile-header" style="display: none;">
+                <img id="profileAvatar" class="profile-avatar" alt="Profile">
+                <div id="profileName" class="profile-name"></div>
+                <div id="profileUsername" class="profile-username"></div>
+                <div id="profileBio" class="profile-bio"></div>
+                <div id="profileGreeting" class="profile-greeting"></div>
+            </div>
 
-        <!-- Loading State -->
-        <div id="loadingContainer" class="loading-container">
-            <div class="loading-spinner"></div>
-        </div>
+            <!-- Loading State -->
+            <div id="loadingContainer" class="loading-container">
+                <div class="loading-spinner"></div>
+            </div>
 
-        <!-- Error State -->
-        <div id="errorContainer" class="error-container" style="display: none;">
-            <div class="error-icon">⚠️</div>
-            <div id="errorTitle" class="error-title">Oops!</div>
-            <div id="errorMessage" class="error-message">Something went wrong.</div>
+            <!-- Error State -->
+            <div id="errorContainer" class="error-container" style="display: none;">
+                <div class="error-icon">⚠️</div>
+                <div id="errorTitle" class="error-title">Oops!</div>
+                <div id="errorMessage" class="error-message">Something went wrong.</div>
             <a href="https://mindclone-studio.vercel.app" class="error-button">Create Your Own Mindclone</a>
         </div>
 
@@ -583,16 +813,39 @@
             </div>
         </div>
 
-        <!-- Footer CTA -->
-        <div class="footer-cta">
-            <a href="https://mindclone-studio.vercel.app" target="_blank">
-                🔮 Create your own Mindclone →
-            </a>
+            <!-- Footer CTA -->
+            <div class="footer-cta">
+                <a href="https://mindclone-studio.vercel.app" target="_blank">
+                    🔮 Create your own Mindclone →
+                </a>
+            </div>
+        </div>
+
+        <!-- Visual Display Panel -->
+        <div id="displayPanel" class="display-panel">
+            <div class="display-panel-header">
+                <div class="display-panel-title">
+                    <span>📊</span>
+                    <span id="displayPanelTitle">Presentation</span>
+                </div>
+                <button id="displayPanelClose" class="display-panel-close">×</button>
+            </div>
+            <div id="displayPanelContent" class="display-panel-content">
+                <div class="display-panel-empty">
+                    <div class="display-panel-empty-icon">📄</div>
+                    <div class="display-panel-empty-text">
+                        Ask me to show you a slide<br>from my pitch deck
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Markdown library -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- PDF.js for rendering slides -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
     <script type="module">
         // Firebase imports
@@ -642,11 +895,20 @@
         const typingIndicator = document.getElementById('typingIndicator');
         const rateLimitWarning = document.getElementById('rateLimitWarning');
 
+        // Display Panel Elements
+        const mainWrapper = document.getElementById('mainWrapper');
+        const displayPanel = document.getElementById('displayPanel');
+        const displayPanelTitle = document.getElementById('displayPanelTitle');
+        const displayPanelContent = document.getElementById('displayPanelContent');
+        const displayPanelClose = document.getElementById('displayPanelClose');
+
         // State
         let profile = null;
         let visitorId = null;
         let conversationHistory = [];
         let isProcessing = false;
+        let slideImages = []; // Store slide image URLs
+        let currentSlideIndex = 0;
 
         // Initialize
         init();
@@ -853,6 +1115,7 @@
                 });
 
                 const data = await response.json();
+                console.log('[API Response]', data);
 
                 if (!response.ok) {
                     if (response.status === 429) {
@@ -869,6 +1132,14 @@
                 // Add AI response with media if available
                 addMessage('ai', data.content, new Date(), data.media);
                 conversationHistory.push({ role: 'assistant', content: data.content });
+
+                // Handle display panel actions (show slides, images, etc.)
+                if (data.display) {
+                    console.log('[Display] Found display action in response');
+                    handleDisplayAction(data.display);
+                } else {
+                    console.log('[Display] No display action in response');
+                }
 
             } catch (error) {
                 console.error('Error sending message:', error);
@@ -968,6 +1239,208 @@
         function scrollToBottom() {
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
+
+        // ==================== DISPLAY PANEL FUNCTIONS ====================
+
+        // PDF state
+        let currentPdfDoc = null;
+        let currentPdfUrl = null;
+        let totalPdfPages = 0;
+
+        // Initialize display panel
+        function initDisplayPanel() {
+            // Close button handler
+            displayPanelClose.addEventListener('click', closeDisplayPanel);
+
+            // Set PDF.js worker
+            if (window.pdfjsLib) {
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
+        }
+
+        // Open display panel
+        function openDisplayPanel() {
+            mainWrapper.classList.remove('chat-only');
+            displayPanel.classList.add('mobile-open');
+        }
+
+        // Close display panel
+        function closeDisplayPanel() {
+            mainWrapper.classList.add('chat-only');
+            displayPanel.classList.remove('mobile-open');
+        }
+
+        // Render a specific page from PDF
+        async function renderPdfPage(pdfDoc, pageNumber) {
+            try {
+                const page = await pdfDoc.getPage(pageNumber);
+                const canvas = document.getElementById('slideCanvas');
+                const ctx = canvas.getContext('2d');
+
+                // Calculate scale to fit the container
+                const containerWidth = displayPanelContent.clientWidth - 40;
+                const containerHeight = displayPanelContent.clientHeight - 100;
+                const viewport = page.getViewport({ scale: 1 });
+
+                const scaleX = containerWidth / viewport.width;
+                const scaleY = containerHeight / viewport.height;
+                const scale = Math.min(scaleX, scaleY, 2); // Cap at 2x for quality
+
+                const scaledViewport = page.getViewport({ scale });
+
+                canvas.width = scaledViewport.width;
+                canvas.height = scaledViewport.height;
+
+                await page.render({
+                    canvasContext: ctx,
+                    viewport: scaledViewport
+                }).promise;
+
+            } catch (error) {
+                console.error('Error rendering PDF page:', error);
+            }
+        }
+
+        // Show slide from PDF in display panel
+        async function showPdfSlide(pdfUrl, slideNumber, totalSlides, reason = '') {
+            openDisplayPanel();
+            displayPanelTitle.textContent = `Slide ${slideNumber} of ${totalSlides}`;
+
+            // Show loading state
+            displayPanelContent.innerHTML = `
+                <div class="slide-container">
+                    <div style="text-align: center; padding: 40px; color: #666;">
+                        <div class="loading-spinner" style="margin: 0 auto 20px;"></div>
+                        Loading slide...
+                    </div>
+                </div>
+            `;
+
+            try {
+                // Load PDF if not already loaded or different URL
+                if (!currentPdfDoc || currentPdfUrl !== pdfUrl) {
+                    currentPdfDoc = await window.pdfjsLib.getDocument(pdfUrl).promise;
+                    currentPdfUrl = pdfUrl;
+                    totalPdfPages = currentPdfDoc.numPages;
+                }
+
+                // Update total if different from what we were told
+                const actualTotal = totalPdfPages || totalSlides;
+                const validSlideNum = Math.max(1, Math.min(slideNumber, actualTotal));
+
+                currentSlideIndex = validSlideNum;
+
+                // Create canvas and navigation
+                displayPanelContent.innerHTML = `
+                    <div class="slide-container">
+                        <canvas id="slideCanvas" class="slide-image"></canvas>
+                        ${reason ? `<div class="slide-caption">${reason}</div>` : ''}
+                        <div class="slide-navigation">
+                            <button class="slide-nav-btn" onclick="navigatePdfSlide(-1)" ${validSlideNum <= 1 ? 'disabled' : ''}>◀</button>
+                            <span class="slide-counter">${validSlideNum} / ${actualTotal}</span>
+                            <button class="slide-nav-btn" onclick="navigatePdfSlide(1)" ${validSlideNum >= actualTotal ? 'disabled' : ''}>▶</button>
+                        </div>
+                    </div>
+                `;
+
+                // Render the page
+                await renderPdfPage(currentPdfDoc, validSlideNum);
+
+            } catch (error) {
+                console.error('Error showing PDF slide:', error);
+                displayPanelContent.innerHTML = `
+                    <div class="display-panel-empty">
+                        <div class="display-panel-empty-icon">⚠️</div>
+                        <div class="display-panel-empty-text">
+                            Could not load the slide.<br>
+                            Please try again.
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Navigate PDF slides
+        window.navigatePdfSlide = async function(direction) {
+            const newIndex = currentSlideIndex + direction;
+            if (newIndex >= 1 && newIndex <= totalPdfPages && currentPdfDoc) {
+                currentSlideIndex = newIndex;
+
+                // Update counter
+                const counter = displayPanelContent.querySelector('.slide-counter');
+                if (counter) counter.textContent = `${newIndex} / ${totalPdfPages}`;
+
+                // Update buttons
+                const buttons = displayPanelContent.querySelectorAll('.slide-nav-btn');
+                if (buttons[0]) buttons[0].disabled = newIndex <= 1;
+                if (buttons[1]) buttons[1].disabled = newIndex >= totalPdfPages;
+
+                // Update title
+                displayPanelTitle.textContent = `Slide ${newIndex} of ${totalPdfPages}`;
+
+                // Render new page
+                await renderPdfPage(currentPdfDoc, newIndex);
+            }
+        };
+
+        // Show image in display panel
+        function showImage(imageUrl, caption = '') {
+            openDisplayPanel();
+            displayPanelTitle.textContent = 'Image';
+
+            displayPanelContent.innerHTML = `
+                <img src="${imageUrl}" alt="${caption || 'Image'}" class="display-image" />
+                ${caption ? `<div class="slide-caption">${caption}</div>` : ''}
+            `;
+        }
+
+        // Show PDF in display panel (full document)
+        function showPDF(pdfUrl, title = 'Document') {
+            openDisplayPanel();
+            displayPanelTitle.textContent = title;
+
+            displayPanelContent.innerHTML = `
+                <iframe src="${pdfUrl}" class="pdf-viewer" title="${title}"></iframe>
+            `;
+        }
+
+        // Handle display action from API response
+        function handleDisplayAction(displayData) {
+            if (!displayData) {
+                console.log('[Display] No display action received');
+                return;
+            }
+
+            console.log('[Display] Handling display action:', displayData);
+
+            switch (displayData.type) {
+                case 'slide':
+                    if (displayData.pdfUrl) {
+                        // New PDF-based slide display
+                        showPdfSlide(
+                            displayData.pdfUrl,
+                            displayData.slideNumber || 1,
+                            displayData.totalSlides || 1,
+                            displayData.reason || ''
+                        );
+                    } else if (displayData.slides && displayData.slides.length > 0) {
+                        // Legacy image-based slides (fallback)
+                        slideImages = displayData.slides.map(s => s.url);
+                        const slideNum = displayData.slideNumber || 1;
+                        showImage(displayData.slides[slideNum - 1]?.url || displayData.slides[0].url);
+                    }
+                    break;
+                case 'image':
+                    showImage(displayData.url, displayData.caption);
+                    break;
+                case 'pdf':
+                    showPDF(displayData.url, displayData.title);
+                    break;
+            }
+        }
+
+        // Initialize on load
+        initDisplayPanel();
     </script>
 </body>
 </html>
