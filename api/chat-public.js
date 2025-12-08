@@ -293,7 +293,7 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
       parts: [{ text: msg.content }]
     }));
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${apiKey}`;
 
     // Build request body
     const requestBody = {
@@ -334,6 +334,12 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
     if (hasTools) {
       console.log('[ChatPublic] Adding tools to API request');
       requestBody.tools = tools;
+      // Configure tool calling mode to AUTO
+      requestBody.tool_config = {
+        function_calling_config: {
+          mode: "AUTO"
+        }
+      };
     } else {
       console.log('[ChatPublic] No tools available - no PDF or Excel documents found');
     }
