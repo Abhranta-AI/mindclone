@@ -1103,15 +1103,26 @@
             scrollToBottom();
 
             try {
+                // Add current slide context if viewing a slide
+                const requestBody = {
+                    username,
+                    visitorId,
+                    messages: conversationHistory
+                };
+
+                // Include current slide context if display panel is open with a slide
+                if (currentPdfDoc && currentSlideIndex > 0 && !mainWrapper.classList.contains('chat-only')) {
+                    requestBody.currentSlide = {
+                        slideNumber: currentSlideIndex,
+                        totalSlides: totalPdfPages
+                    };
+                }
+
                 // Call public chat API
                 const response = await fetch('/api/chat-public', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        username,
-                        visitorId,
-                        messages: conversationHistory
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 const data = await response.json();

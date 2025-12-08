@@ -383,7 +383,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { username, visitorId, messages } = req.body;
+    const { username, visitorId, messages, currentSlide } = req.body;
 
     // Validate input
     if (!username || !visitorId || !messages || !Array.isArray(messages)) {
@@ -584,6 +584,15 @@ IMPORTANT: Only use show_slide when explicitly asked to SHOW or SEE something vi
       }
     } else {
       console.log('[ChatPublic] No pitch deck in knowledge base');
+    }
+
+    // Add current slide context if visitor is viewing a slide
+    if (currentSlide && currentSlide.slideNumber) {
+      enhancedSystemPrompt += `\n\n## CURRENT SLIDE CONTEXT
+The visitor is currently viewing slide ${currentSlide.slideNumber} of ${currentSlide.totalSlides} in the display panel.
+When they ask "which slide is this?" or "what slide am I looking at?", tell them it's slide ${currentSlide.slideNumber}.
+If they ask about the current slide's content, refer to the content from slide ${currentSlide.slideNumber}.`;
+      console.log('[ChatPublic] Visitor viewing slide:', currentSlide.slideNumber);
     }
 
     // Call Gemini API with enhanced system prompt
