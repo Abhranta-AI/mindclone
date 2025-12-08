@@ -680,8 +680,12 @@ module.exports = async (req, res) => {
         };
         // Add tool usage instruction to system prompt
         enhancedSystemPrompt += `\n\n## VISUAL DISPLAY CAPABILITY
-You can SHOW slides from your pitch deck to visitors using the show_slide tool.
+You MUST use the show_slide tool to display slides from your pitch deck.
 Your pitch deck has ${pd.pageCount} slides.
+
+CRITICAL: You must ACTUALLY CALL the show_slide tool function - DO NOT just say "I'm displaying the slide" or "I'm showing you".
+WRONG: "To help visualize this, I'm displaying the moat slide" ❌
+RIGHT: Actually call show_slide(slideNumber: 6) then discuss it ✅
 
 USE show_slide tool whenever:
 - Visitor says "show me the [topic] slide" or "let's see the [topic] slide"
@@ -694,11 +698,13 @@ DO NOT use show_slide for:
 - Questions that don't reference a specific slide
 
 Examples:
-✅ "let's discuss the moat slide" → use show_slide with the moat slide number
-✅ "tell me about your team" → use show_slide with team slide number
-✅ "what's your revenue model?" → use show_slide with revenue/business model slide
+✅ "let's discuss the moat slide" → CALL show_slide(slideNumber: 6) + explain
+✅ "tell me about your team" → CALL show_slide(slideNumber: X) + explain
+✅ "what's your revenue model?" → CALL show_slide(slideNumber: X) + explain
 ❌ "how many slides do you have?" → just answer, don't show anything
-❌ "tell me about your startup" → just answer, don't show anything`;
+❌ "tell me about your startup" → just answer, don't show anything
+
+Remember: CALL the tool, don't role-play calling it!`;
         console.log('[ChatPublic] Tools enabled for pitch deck');
       } else {
         console.log('[ChatPublic] Pitch deck missing URL or pageCount');
@@ -716,9 +722,13 @@ Examples:
 
     if (excelDocKeys.length > 0) {
       enhancedSystemPrompt += `\n\n## EXCEL SPREADSHEET DISPLAY
-You can SHOW Excel spreadsheets to visitors using the show_excel_sheet tool.
+You MUST use the show_excel_sheet tool to display spreadsheets to visitors.
 
 Available documents: ${excelDocKeys.map(k => `"${k}"`).join(', ')}
+
+CRITICAL: You must ACTUALLY CALL the show_excel_sheet tool function - DO NOT just say "I'm pulling up the data" or "let me show you".
+WRONG: "I'm displaying the revenue sheet for you" ❌
+RIGHT: Actually call show_excel_sheet(documentName: "financial_model") then discuss ✅
 
 USE show_excel_sheet tool whenever:
 - Visitor says "show me the revenue/financials/metrics"
@@ -731,10 +741,12 @@ DO NOT use show_excel_sheet for:
 - Questions you can answer from memory/knowledge base text
 
 Examples:
-✅ "show me the revenue sheet" → use show_excel_sheet
-✅ "pull up the financial model" → use show_excel_sheet
-✅ "let's discuss the revenue projections" → use show_excel_sheet
-❌ "what's your revenue model?" → just explain, don't show spreadsheet unless they want to see numbers`;
+✅ "show me the revenue sheet" → CALL show_excel_sheet(documentName: "financial_model")
+✅ "pull up the financial model" → CALL show_excel_sheet(documentName: "financial_model")
+✅ "let's discuss the revenue projections" → CALL show_excel_sheet(documentName: "financial_model")
+❌ "what's your revenue model?" → just explain, don't show spreadsheet unless they want to see numbers
+
+Remember: CALL the tool, don't role-play calling it!`;
       console.log('[ChatPublic] Excel documents available:', excelDocKeys);
     }
 
