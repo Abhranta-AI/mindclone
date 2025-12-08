@@ -434,25 +434,40 @@ module.exports = async (req, res) => {
 
       // Add tool usage instructions
       enhancedPrompt += `\n\n## SETTINGS, KNOWLEDGE BASE & CONVERSATION ACCESS:
-You have access to the user's link settings, knowledge base, and visitor conversations. You can:
-1. **View settings** - Check the user's public link configuration (username, link status, display name, bio, greeting, knowledge base status)
-2. **Update settings** - Change any link setting the user requests (enable/disable link, change bio, etc.)
-3. **View knowledge base** - See what documents the user has uploaded
-4. **Analyze conversations** - Fetch and analyze visitor conversations from the public link to identify popular topics, common questions, and engagement patterns
+You have access to the user's link settings, knowledge base, and visitor conversations.
 
-IMPORTANT: When using tools, DO NOT tell the user which tool you are using or that you need to "call a function" or "use a tool". Just use them silently and respond naturally with the information. The user should feel like you simply know the answer - not that you're fetching it from somewhere.
+CRITICAL INSTRUCTIONS - READ CAREFULLY:
+1. When the user asks ANYTHING about their link, settings, visitors, conversations, or knowledge base - IMMEDIATELY use the appropriate tool. Do NOT ask for permission. Do NOT explain what you could do. Just DO IT and give them the answer.
 
-BAD: "I'll use the get_link_conversations tool to check that for you."
-GOOD: "You've had 5 visitors today! Here's what they were curious about..."
+2. NEVER say things like:
+   - "I'll need to use a tool..."
+   - "Would you like me to fetch..."
+   - "To get this information, I can..."
+   - "Let me explain what I can analyze..."
+   Just USE the tool silently and respond with the actual data.
 
-BAD: "Let me call the update_link_settings function to change your bio."
-GOOD: "Done! I've updated your bio to: ..."
+3. NEVER ask "would you like me to..." - the answer is YES, they asked the question, so they want the answer!
 
-When the user asks about their link, settings, or knowledge base, use the appropriate tool silently.
-When they want to change settings, use update_link_settings with only the fields they want to change.
-When they ask about visitor conversations, popular topics, what people are asking about, or engagement analysis, use get_link_conversations.
-After fetching conversations, analyze the 'allUserQuestions' array to identify themes, patterns, and popular topics. Present insights in a helpful, organized way.
-After making changes, confirm what was updated naturally.`;
+EXAMPLES:
+User: "How's my link doing?"
+BAD: "Great question! I can analyze several metrics. Would you like me to fetch your visitor data?"
+GOOD: [USE get_link_conversations IMMEDIATELY] "Your link has had 12 visitors this week! Most people are asking about your AI projects. Here's the breakdown..."
+
+User: "What are my current settings?"
+BAD: "I can check your settings for you. Should I do that?"
+GOOD: [USE get_link_settings IMMEDIATELY] "Here are your current settings: Your link is enabled, display name is 'Alok Gautam', bio says '...'"
+
+User: "Change my bio to something cool"
+BAD: "I can update your bio. What would you like it to say?"
+GOOD: [USE update_link_settings IMMEDIATELY] "Done! I've updated your bio to: 'Building the future of AI, one mindclone at a time.'"
+
+Available tools:
+- get_link_settings: View current configuration
+- update_link_settings: Change settings (linkEnabled, displayName, bio, customGreeting, knowledgeBaseEnabled)
+- get_knowledge_base: See uploaded documents
+- get_link_conversations: Fetch visitor conversations and analyze topics
+
+When you get conversation data, analyze the 'allUserQuestions' array to identify themes and popular topics. Present real insights from the actual data.`;
 
       // Add style guide
       enhancedPrompt += `\n\n${CONNOISSEUR_STYLE_GUIDE}`;
