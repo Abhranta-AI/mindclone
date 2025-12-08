@@ -1,6 +1,9 @@
 // Knowledge Base API - Handles CoF and structured knowledge for public links
-const admin = require('firebase-admin');
-const { getFirebaseAdmin } = require('./_firebase-admin');
+const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
+
+// Initialize Firebase Admin SDK
+initializeFirebaseAdmin();
+const db = admin.firestore();
 
 module.exports = async (req, res) => {
   // CORS
@@ -13,7 +16,6 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const db = getFirebaseAdmin().firestore();
 
     // Extract and verify auth token
     const authHeader = req.headers.authorization;
