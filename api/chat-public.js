@@ -648,6 +648,7 @@ module.exports = async (req, res) => {
     console.log('[ChatPublic] Knowledge base loaded:', {
       hasSections: Object.keys(knowledgeBase?.sections || {}).length,
       hasDocuments: Object.keys(knowledgeBase?.documents || {}).length,
+      documentKeys: Object.keys(knowledgeBase?.documents || {}),
       hasPitchDeck: !!knowledgeBase?.documents?.pitch_deck,
       hasFinancialModel: !!knowledgeBase?.documents?.financial_model,
       financialMetrics: knowledgeBase?.documents?.financial_model?.keyMetrics ? Object.keys(knowledgeBase.documents.financial_model.keyMetrics) : []
@@ -750,15 +751,22 @@ module.exports = async (req, res) => {
       }
 
       // Add ALL other documents with text content (e.g., mission/vision/values docs)
+      const otherDocKeys = Object.keys(docs).filter(key => key !== 'pitch_deck' && key !== 'financial_model');
+      console.log('[ChatPublic] Processing other documents:', otherDocKeys);
+
       for (const [docKey, docData] of Object.entries(docs)) {
         // Skip documents we've already handled
         if (docKey === 'pitch_deck' || docKey === 'financial_model') continue;
 
         // Skip documents without text content
-        if (!docData || !docData.text) continue;
+        if (!docData || !docData.text) {
+          console.log('[ChatPublic] Skipping document (no text):', docKey, 'hasData:', !!docData, 'hasText:', !!docData?.text);
+          continue;
+        }
 
         // Add the document text to the prompt
         const docTitle = docData.fileName || docKey;
+        console.log('[ChatPublic] Adding document to prompt:', docTitle, 'textLength:', docData.text?.length);
         enhancedSystemPrompt += `\n\n## ${docTitle.toUpperCase()}\n`;
         enhancedSystemPrompt += 'The following is extracted text from this uploaded document:\n\n';
 
