@@ -783,31 +783,23 @@
             saveSettingsBtn.innerHTML = '<span class="loading-spinner"></span> Saving...';
 
             try {
-                const idToken = await currentUser.getIdToken();
-                const settings = {
+                // Save directly to Firestore (bypass broken API)
+                const userDocRef = doc(db, 'users', currentUser.uid);
+
+                await setDoc(userDocRef, {
                     linkEnabled: linkEnabledToggle.checked,
-                    displayName: displayNameInput.value.trim() || currentUser.displayName,
+                    displayName: displayNameInput.value.trim() || currentUser.displayName || currentUsername,
                     bio: bioInput.value.trim(),
-                    customGreeting: greetingInput.value.trim()
-                };
+                    customGreeting: greetingInput.value.trim(),
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
 
-                const response = await fetch('/api/link/settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ idToken, ...settings })
-                });
+                showAlert('Settings saved successfully!', 'success');
 
-                const data = await response.json();
-
-                if (response.ok && data.success) {
-                    showAlert('Settings saved successfully!', 'success');
-                    if (settings.linkEnabled) {
-                        showLinkPreview(currentUsername);
-                    } else {
-                        linkPreviewSection.style.display = 'none';
-                    }
+                if (linkEnabledToggle.checked) {
+                    showLinkPreview(currentUsername);
                 } else {
-                    showAlert(data.error || 'Failed to save settings', 'error');
+                    linkPreviewSection.style.display = 'none';
                 }
             } catch (error) {
                 console.error('Error saving settings:', error);
