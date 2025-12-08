@@ -1328,52 +1328,6 @@
             font-size: 14px;
         }
 
-        .toggle-label {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .toggle-switch {
-            position: relative;
-            width: 44px;
-            height: 24px;
-            appearance: none;
-            background: #333;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: background 0.3s ease;
-            flex-shrink: 0;
-        }
-
-        .toggle-switch:checked {
-            background: white;
-        }
-
-        .toggle-switch::before {
-            content: '';
-            position: absolute;
-            top: 3px;
-            left: 3px;
-            width: 18px;
-            height: 18px;
-            background: white;
-            border-radius: 50%;
-            transition: transform 0.3s ease;
-        }
-
-        .toggle-switch:checked::before {
-            transform: translateX(20px);
-            background: #0d0d0d;
-        }
-
-        .toggle-text {
-            font-size: 13px;
-            color: white;
-        }
-
         .sidebar-header {
             padding: 30px 20px;
             text-align: center;
@@ -3444,11 +3398,12 @@
                             <p class="panel-section-subtitle">Upload documents that visitors can ask about through your public link</p>
 
                             <!-- Include in conversations toggle -->
-                            <div class="panel-field">
-                                <label class="toggle-label">
-                                    <input type="checkbox" id="knowledgeBaseEnabledToggle" class="toggle-switch">
+                            <div class="panel-form-group">
+                                <label class="panel-label">Include in Link Conversations</label>
+                                <span class="panel-hint">Allow visitors to query your knowledge base through your public link</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="knowledgeBaseEnabledToggle">
                                     <span class="toggle-slider"></span>
-                                    <span class="toggle-text">Include knowledge base in link conversations</span>
                                 </label>
                             </div>
 
