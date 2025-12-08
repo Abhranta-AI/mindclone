@@ -1,14 +1,85 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Username Check</title>
+    <title>Username Registration Tool</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #0a0a0a;
+            color: white;
+        }
+        h1 {
+            color: #4CAF50;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 10px 5px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #333;
+            cursor: not-allowed;
+        }
+        pre {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success {
+            color: #4CAF50;
+        }
+        .error {
+            color: #f44336;
+        }
+        .info {
+            color: #2196F3;
+        }
+        .warning {
+            color: #ff9800;
+        }
+        .instructions {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #4CAF50;
+            margin: 20px 0;
+        }
+    </style>
 </head>
 <body>
-    <h1>Username Registration Check</h1>
-    <button onclick="checkUsername()">Check if 'alok' is registered</button>
-    <button onclick="checkLink()">Check link status</button>
-    <button onclick="registerUsername()">Register 'alok' username</button>
-    <pre id="output"></pre>
+    <h1>🔧 Username Registration Tool</h1>
+    <div class="instructions">
+        <h3>Instructions:</h3>
+        <ol>
+            <li>First, <strong>sign in</strong> at <a href="https://mindclone.link" target="_blank" style="color: #4CAF50;">mindclone.link</a></li>
+            <li>Come back to this page</li>
+            <li>Click "Register 'alok' username" below</li>
+        </ol>
+    </div>
+
+    <div>
+        <button onclick="checkUsername()">1. Check if 'alok' is registered</button>
+        <button onclick="checkLink()">2. Check your account status</button>
+        <button onclick="registerUsername()">3. Register 'alok' username</button>
+        <button onclick="testLink()">4. Test public link</button>
+    </div>
+
+    <pre id="output">Click a button above to get started...</pre>
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
@@ -30,39 +101,44 @@
 
         window.checkUsername = async function() {
             const output = document.getElementById('output');
+            output.innerHTML = '<span class="info">⏳ Checking username...</span>';
             try {
                 const usernameDoc = await getDoc(doc(db, 'usernames', 'alok'));
                 if (usernameDoc.exists()) {
-                    output.textContent = 'Username "alok" EXISTS!\n' + JSON.stringify(usernameDoc.data(), null, 2);
+                    const data = usernameDoc.data();
+                    output.innerHTML = `<span class="success">✅ Username "alok" is REGISTERED!</span>\n\nDetails:\n${JSON.stringify(data, null, 2)}`;
                 } else {
-                    output.textContent = 'Username "alok" NOT FOUND - needs to be registered';
+                    output.innerHTML = '<span class="warning">⚠️ Username "alok" is NOT registered yet</span>\n\nClick "3. Register \'alok\' username" to claim it.';
                 }
             } catch (error) {
-                output.textContent = 'ERROR: ' + error.message;
+                output.innerHTML = `<span class="error">❌ ERROR: ${error.message}</span>`;
             }
         };
 
         window.checkLink = async function() {
             const output = document.getElementById('output');
+            output.innerHTML = '<span class="info">⏳ Checking account status...</span>';
             try {
                 const user = auth.currentUser;
                 if (!user) {
-                    output.textContent = 'Please sign in first';
+                    output.innerHTML = '<span class="warning">⚠️ Not signed in</span>\n\nPlease sign in at https://mindclone.link first, then come back here.';
                     return;
                 }
                 const userDoc = await getDoc(doc(db, 'users', user.uid));
-                output.textContent = 'User data:\n' + JSON.stringify(userDoc.data(), null, 2);
+                const data = userDoc.data() || {};
+                output.innerHTML = `<span class="success">✅ Signed in as: ${user.email}</span>\n\nAccount data:\n${JSON.stringify(data, null, 2)}`;
             } catch (error) {
-                output.textContent = 'ERROR: ' + error.message;
+                output.innerHTML = `<span class="error">❌ ERROR: ${error.message}</span>`;
             }
         };
 
         window.registerUsername = async function() {
             const output = document.getElementById('output');
+            output.innerHTML = '<span class="info">⏳ Registering username...</span>';
             try {
                 const user = auth.currentUser;
                 if (!user) {
-                    output.textContent = 'Please sign in first at https://mindclone-studio.vercel.app';
+                    output.innerHTML = '<span class="error">❌ Not signed in</span>\n\nPlease sign in at https://mindclone.link first!';
                     return;
                 }
 
@@ -78,9 +154,26 @@
                     username: 'alok'
                 }, { merge: true });
 
-                output.textContent = 'SUCCESS! Username "alok" registered and link enabled';
+                output.innerHTML = '<span class="success">✅ SUCCESS!</span>\n\nUsername "alok" has been registered!\nYour public link is enabled at:\n\n🔗 https://mindclone.link/alok\n\nClick "4. Test public link" to verify it works.';
             } catch (error) {
-                output.textContent = 'ERROR: ' + error.message;
+                output.innerHTML = `<span class="error">❌ ERROR: ${error.message}</span>\n\nDetails: ${error.stack}`;
+            }
+        };
+
+        window.testLink = async function() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<span class="info">⏳ Testing public link...</span>';
+            try {
+                const response = await fetch('https://mindclone.link/api/profile?username=alok');
+                const data = await response.json();
+
+                if (response.ok) {
+                    output.innerHTML = `<span class="success">✅ Public link is WORKING!</span>\n\nProfile data:\n${JSON.stringify(data, null, 2)}\n\nYour public link: https://mindclone.link/alok`;
+                } else {
+                    output.innerHTML = `<span class="error">❌ Public link failed</span>\n\nStatus: ${response.status}\nError: ${data.error || data.message}\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ ERROR: ${error.message}</span>`;
             }
         };
     </script>
