@@ -122,22 +122,27 @@ async function loadVisitorHistory(userId, visitorId, limit = 20) {
   }
 }
 
-// Load owner's knowledge base
+// Load owner's knowledge base and processed documents
 async function loadKnowledgeBase(userId) {
   try {
+    // Load main config
     const kbDoc = await db.collection('users').doc(userId)
       .collection('linkKnowledgeBase').doc('config').get();
 
-    if (!kbDoc.exists) {
-      return null;
-    }
+    // Also load processed documents
+    const docsDoc = await db.collection('users').doc(userId)
+      .collection('linkKnowledgeBase').doc('documents').get();
 
-    const data = kbDoc.data();
+    const configData = kbDoc.exists ? kbDoc.data() : {};
+    const docsData = docsDoc.exists ? docsDoc.data() : {};
+
     return {
-      cof: data.cof || null,
-      sections: data.sections || {},
-      pitch_deck: data.pitch_deck || null,
-      financial_model: data.financial_model || null
+      cof: configData.cof || null,
+      sections: configData.sections || {},
+      pitch_deck: configData.pitch_deck || null,
+      financial_model: configData.financial_model || null,
+      // Processed documents
+      documents: docsData.documents || {}
     };
   } catch (error) {
     console.error('Error loading knowledge base:', error);
@@ -352,6 +357,63 @@ module.exports = async (req, res) => {
       }
 
       enhancedSystemPrompt += '\nIMPORTANT: Only share information from the knowledge base above. If asked about something not covered, politely say you don\'t have that information available.';
+    }
+
+    // Add processed document content (pitch deck, financial model)
+    if (knowledgeBase && knowledgeBase.documents) {
+      const docs = knowledgeBase.documents;
+
+      // Add pitch deck content
+      if (docs.pitch_deck) {
+        enhancedSystemPrompt += '\n\n## PITCH DECK CONTENT\n';
+        enhancedSystemPrompt += 'The following is extracted text from the pitch deck:\n\n';
+
+        if (docs.pitch_deck.sections && docs.pitch_deck.sections.length > 0) {
+          for (const section of docs.pitch_deck.sections) {
+            enhancedSystemPrompt += `### ${section.title}\n${section.content}\n\n`;
+          }
+        } else if (docs.pitch_deck.text) {
+          // Fallback to raw text if no sections identified
+          const truncatedText = docs.pitch_deck.text.substring(0, 8000); // Limit size
+          enhancedSystemPrompt += truncatedText + '\n\n';
+        }
+
+        if (docs.pitch_deck.pageCount) {
+          enhancedSystemPrompt += `(Pitch deck has ${docs.pitch_deck.pageCount} pages/slides)\n`;
+        }
+      }
+
+      // Add financial model data
+      if (docs.financial_model) {
+        enhancedSystemPrompt += '\n\n## FINANCIAL MODEL DATA\n';
+        enhancedSystemPrompt += 'The following financial metrics and projections are available:\n\n';
+
+        if (docs.financial_model.keyMetrics) {
+          for (const [sheetName, metrics] of Object.entries(docs.financial_model.keyMetrics)) {
+            enhancedSystemPrompt += `### ${sheetName}\n`;
+
+            // Add periods/headers if available
+            if (metrics._periods) {
+              enhancedSystemPrompt += `Periods: ${metrics._periods.join(', ')}\n`;
+            }
+
+            // Add each metric
+            for (const [metricName, values] of Object.entries(metrics)) {
+              if (metricName !== '_periods') {
+                const valuesStr = Array.isArray(values) ? values.join(' → ') : values;
+                enhancedSystemPrompt += `- ${metricName}: ${valuesStr}\n`;
+              }
+            }
+            enhancedSystemPrompt += '\n';
+          }
+        }
+
+        if (docs.financial_model.sheetNames) {
+          enhancedSystemPrompt += `(Financial model contains sheets: ${docs.financial_model.sheetNames.join(', ')})\n`;
+        }
+      }
+
+      enhancedSystemPrompt += '\nWhen answering questions about the business, pitch, or financials, reference the specific data above. Quote numbers accurately.';
     }
 
     // 4. Build conversation context

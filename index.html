@@ -5016,7 +5016,36 @@ Is there anything else you'd like to configure?`;
                             }
 
                             const data = await response.json();
-                            resolve(data.url);
+                            const fileUrl = data.url;
+
+                            // Auto-process PDFs and Excel files
+                            const fileExt = file.name.split('.').pop().toLowerCase();
+                            if (['pdf', 'xlsx', 'xls', 'csv'].includes(fileExt)) {
+                                console.log('[Upload] Processing document for Knowledge Base...');
+                                try {
+                                    const processResponse = await fetch('/api/process-document', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            fileUrl: fileUrl,
+                                            fileType: file.type,
+                                            userId: auth.currentUser.uid,
+                                            documentType: fileExt === 'pdf' ? 'pitch_deck' : 'financial_model'
+                                        })
+                                    });
+
+                                    if (processResponse.ok) {
+                                        const processData = await processResponse.json();
+                                        console.log('[Upload] Document processed:', processData);
+                                    } else {
+                                        console.warn('[Upload] Document processing failed, but file uploaded');
+                                    }
+                                } catch (processError) {
+                                    console.warn('[Upload] Document processing error:', processError);
+                                }
+                            }
+
+                            resolve(fileUrl);
                         } catch (error) {
                             reject(error);
                         }
