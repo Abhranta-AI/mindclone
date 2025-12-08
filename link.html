@@ -386,8 +386,9 @@
             border-color: #444;
         }
 
-        .profile-header.compact .profile-expand-btn {
-            display: block !important;
+        /* Show button only after first message */
+        .profile-header.has-messages .profile-expand-btn {
+            display: block;
         }
 
         /* Chat Container */
@@ -1269,6 +1270,7 @@
         function collapseHeader() {
             console.log('[Header] Collapsing header to compact mode');
             profileHeader.classList.add('compact');
+            profileExpandBtn.textContent = 'View Profile';
             localStorage.setItem(`header_compact_${username}`, 'true');
             console.log('[Header] Compact class added:', profileHeader.classList.contains('compact'));
         }
@@ -1276,6 +1278,7 @@
         // Expand header to full mode
         function expandHeader() {
             profileHeader.classList.remove('compact');
+            profileExpandBtn.textContent = 'Hide Profile';
             localStorage.setItem(`header_compact_${username}`, 'false');
         }
 
@@ -1316,8 +1319,11 @@
             conversationHistory.push({ role: 'user', content });
 
             // Auto-collapse header after first user message
-            if (conversationHistory.length === 1 && !profileHeader.classList.contains('compact')) {
-                setTimeout(() => collapseHeader(), 300);
+            if (conversationHistory.length === 1) {
+                profileHeader.classList.add('has-messages');
+                if (!profileHeader.classList.contains('compact')) {
+                    setTimeout(() => collapseHeader(), 300);
+                }
             }
 
             // Show typing indicator
