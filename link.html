@@ -742,7 +742,11 @@
             chatContainer.style.display = 'flex';
             inputContainer.style.display = 'block';
 
-            profileAvatar.src = profile.photoURL || 'https://via.placeholder.com/80';
+            // Generate avatar from display name or username if no photoURL
+            const name = profile.displayName || profile.username;
+            const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=80&background=4CAF50&color=fff&bold=true`;
+
+            profileAvatar.src = profile.photoURL || defaultAvatar;
             profileName.textContent = profile.displayName;
             profileUsername.textContent = `@${profile.username}`;
             profileBio.textContent = profile.bio || '';
