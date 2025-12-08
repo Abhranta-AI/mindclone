@@ -137,8 +137,12 @@ module.exports = async (req, res) => {
 
         // Create a text summary of the sheet (first 50 rows, max 500 chars per cell)
         // Store as text to avoid Firestore nested array limitations
+        // Convert Excel date serial numbers to readable dates
         const summaryRows = jsonData.slice(0, 50).map(row =>
-          row.map(cell => String(cell || '').substring(0, 500)).join('\t')
+          row.map(cell => {
+            const formatted = formatCellValue(cell);
+            return String(formatted || '').substring(0, 500);
+          }).join('\t')
         ).join('\n');
         sheetSummaries[sheetName] = summaryRows.substring(0, 50000); // Limit total size
       }
@@ -265,6 +269,35 @@ function extractSectionsFromPDF(text) {
   return sections;
 }
 
+// Helper function to convert Excel serial number to readable date
+function excelSerialToDate(serial) {
+  // Excel dates are days since January 1, 1900
+  // But Excel incorrectly treats 1900 as a leap year, so we subtract 1 for dates after Feb 28, 1900
+  if (typeof serial !== 'number' || serial < 25569 || serial > 60000) {
+    return null; // Not a valid date serial in reasonable range (1970-2064)
+  }
+
+  // Convert to JavaScript date
+  // Excel epoch is Jan 1, 1900 = day 1
+  // JavaScript epoch is Jan 1, 1970
+  const excelEpoch = new Date(1899, 11, 30); // Dec 30, 1899 (accounting for Excel's leap year bug)
+  const jsDate = new Date(excelEpoch.getTime() + serial * 24 * 60 * 60 * 1000);
+
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[jsDate.getMonth()]} ${jsDate.getFullYear()}`;
+}
+
+// Helper function to format a cell value (convert Excel dates to readable format)
+function formatCellValue(value) {
+  if (typeof value === 'number') {
+    const dateStr = excelSerialToDate(value);
+    if (dateStr) {
+      return dateStr;
+    }
+  }
+  return value;
+}
+
 // Helper function to extract financial metrics from Excel
 function extractFinancialMetrics(data, sheetName) {
   const metrics = {};
@@ -295,10 +328,13 @@ function extractFinancialMetrics(data, sheetName) {
   }
 
   // Also try to get column headers (likely years/periods)
+  // Convert Excel date serial numbers to readable dates
   if (data.length > 0) {
     const headers = data[0];
     if (headers && headers.length > 1) {
-      metrics['_periods'] = headers.slice(1).filter(h => h !== '');
+      metrics['_periods'] = headers.slice(1)
+        .filter(h => h !== '')
+        .map(h => formatCellValue(h));
     }
   }
 
