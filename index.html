@@ -3395,7 +3395,7 @@
         const fileSize = document.getElementById('fileSize');
         const fileIcon = document.getElementById('fileIcon');
         const removeFile = document.getElementById('removeFile');
-        const activityFeed = document.getElementById('activityFeed');
+        // activityFeed removed - left sidebar no longer exists after consolidation
         const activityList = document.getElementById('activityList');
         const activityEmpty = document.getElementById('activityEmpty');
         const activityCount = document.getElementById('activityCount');
@@ -4745,7 +4745,7 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
             // Hide sidebar components
             sidebarAuth.classList.add('hidden');
             sidebarProfile.classList.add('hidden');
-            activityFeed.classList.add('hidden');
+            // activityFeed removed - no longer exists after consolidation
 
             // Clean up activity listener
             if (activityListener) {
@@ -4787,7 +4787,7 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
             // Hide sidebar components (not needed with header layout)
             sidebarAuth.classList.add('hidden');
             sidebarProfile.classList.add('hidden');
-            activityFeed.classList.add('hidden');
+            // activityFeed removed - no longer exists after consolidation
 
             // Update header avatar and dropdown
             const headerAvatar = document.getElementById('headerAvatar');
