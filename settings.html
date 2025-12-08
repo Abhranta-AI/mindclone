@@ -869,36 +869,50 @@
             if (!currentUser) return;
 
             try {
-                const idToken = await currentUser.getIdToken();
-                const response = await fetch('/api/link/settings', {
-                    headers: { 'Authorization': `Bearer ${idToken}` }
-                });
+                // Load username directly from Firestore (bypass broken API)
+                const userDocRef = doc(db, 'users', currentUser.uid);
+                const userDoc = await getDoc(userDocRef);
 
-                if (response.ok) {
-                    const data = await response.json();
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
 
-                    if (data.username) {
-                        currentUsername = data.username;
-                        updateUIForClaimedUsername(data.username);
+                    if (userData.username) {
+                        currentUsername = userData.username;
+                        updateUIForClaimedUsername(userData.username);
                     }
 
-                    linkEnabledToggle.checked = data.linkEnabled || false;
-                    displayNameInput.value = data.displayName || currentUser.displayName || '';
-                    bioInput.value = data.bio || '';
+                    linkEnabledToggle.checked = userData.linkEnabled || false;
+                    displayNameInput.value = userData.displayName || currentUser.displayName || '';
+                    bioInput.value = userData.bio || '';
                     bioCharCount.textContent = bioInput.value.length;
-                    greetingInput.value = data.customGreeting || '';
+                    greetingInput.value = userData.customGreeting || '';
 
-                    if (data.linkEnabled && data.username) {
-                        showLinkPreview(data.username);
+                    if (userData.linkEnabled && userData.username) {
+                        showLinkPreview(userData.username);
                     }
+                }
 
-                    // Show analytics if available
-                    if (data.stats) {
-                        document.getElementById('totalVisitors').textContent = data.stats.totalVisitors || 0;
-                        document.getElementById('totalMessages').textContent = data.stats.totalMessages || 0;
-                        document.getElementById('publicMessages').textContent = data.stats.publicMessages || 0;
-                        document.getElementById('analyticsSection').style.display = 'block';
+                // Try to load analytics from API (optional, can fail)
+                try {
+                    const idToken = await currentUser.getIdToken();
+                    const response = await fetch('/api/link/settings', {
+                        headers: { 'Authorization': `Bearer ${idToken}` }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+
+                        // Show analytics if available
+                        if (data.stats) {
+                            document.getElementById('totalVisitors').textContent = data.stats.totalVisitors || 0;
+                            document.getElementById('totalMessages').textContent = data.stats.totalMessages || 0;
+                            document.getElementById('publicMessages').textContent = data.stats.publicMessages || 0;
+                            document.getElementById('analyticsSection').style.display = 'block';
+                        }
                     }
+                } catch (apiError) {
+                    // Analytics API failed, but that's okay - we already loaded the username
+                    console.log('Analytics unavailable:', apiError);
                 }
             } catch (error) {
                 console.error('Error loading settings:', error);
