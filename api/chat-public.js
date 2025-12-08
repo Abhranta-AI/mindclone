@@ -658,10 +658,24 @@ module.exports = async (req, res) => {
         // Add tool usage instruction to system prompt
         enhancedSystemPrompt += `\n\n## VISUAL DISPLAY CAPABILITY
 You can SHOW slides from your pitch deck to visitors using the show_slide tool.
-When a visitor asks to SEE or SHOW a specific slide, or when you want to visually demonstrate something, use the show_slide tool with the slide number.
 Your pitch deck has ${pd.pageCount} slides.
-Example: If asked "show me the team slide", use show_slide with the appropriate slide number.
-IMPORTANT: Only use show_slide when explicitly asked to SHOW or SEE something visual, not for every question about the deck.`;
+
+USE show_slide tool whenever:
+- Visitor says "show me the [topic] slide" or "let's see the [topic] slide"
+- Visitor says "discuss [topic] slide" or "talk about [topic] slide" or "tell me about [topic] slide"
+- Visitor mentions a specific slide topic (team, moat, financials, product, etc.) and you're about to discuss it
+- You're explaining something that would be clearer with a visual reference
+
+DO NOT use show_slide for:
+- General questions about the pitch deck as a whole
+- Questions that don't reference a specific slide
+
+Examples:
+✅ "let's discuss the moat slide" → use show_slide with the moat slide number
+✅ "tell me about your team" → use show_slide with team slide number
+✅ "what's your revenue model?" → use show_slide with revenue/business model slide
+❌ "how many slides do you have?" → just answer, don't show anything
+❌ "tell me about your startup" → just answer, don't show anything`;
         console.log('[ChatPublic] Tools enabled for pitch deck');
       } else {
         console.log('[ChatPublic] Pitch deck missing URL or pageCount');
@@ -680,12 +694,24 @@ IMPORTANT: Only use show_slide when explicitly asked to SHOW or SEE something vi
     if (excelDocKeys.length > 0) {
       enhancedSystemPrompt += `\n\n## EXCEL SPREADSHEET DISPLAY
 You can SHOW Excel spreadsheets to visitors using the show_excel_sheet tool.
-When a visitor asks to SEE financial data, revenue projections, metrics, or any spreadsheet data, use the show_excel_sheet tool.
 
 Available documents: ${excelDocKeys.map(k => `"${k}"`).join(', ')}
 
-Example: If asked "show me the revenue sheet", use show_excel_sheet with documentName matching the document key.
-IMPORTANT: Only use show_excel_sheet when explicitly asked to SHOW or SEE data, not for every question about financials.`;
+USE show_excel_sheet tool whenever:
+- Visitor says "show me the revenue/financials/metrics"
+- Visitor says "pull the revenue sheet" or "let's discuss financials"
+- Visitor asks about specific financial data that's in a spreadsheet
+- You're explaining financial projections and want to show the actual numbers
+
+DO NOT use show_excel_sheet for:
+- General questions about the business that don't need the raw data
+- Questions you can answer from memory/knowledge base text
+
+Examples:
+✅ "show me the revenue sheet" → use show_excel_sheet
+✅ "pull up the financial model" → use show_excel_sheet
+✅ "let's discuss the revenue projections" → use show_excel_sheet
+❌ "what's your revenue model?" → just explain, don't show spreadsheet unless they want to see numbers`;
       console.log('[ChatPublic] Excel documents available:', excelDocKeys);
     }
 
