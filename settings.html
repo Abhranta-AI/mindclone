@@ -646,22 +646,37 @@
 
             checkUsernameTimeout = setTimeout(async () => {
                 try {
-                    const response = await fetch('/api/username?action=check', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username })
-                    });
+                    // Validate username client-side
+                    if (username.length < 3) {
+                        availabilityIndicator.textContent = '✗ Too short (min 3 chars)';
+                        availabilityIndicator.className = 'availability-indicator invalid';
+                        claimUsernameBtn.disabled = true;
+                        return;
+                    }
+                    if (username.length > 20) {
+                        availabilityIndicator.textContent = '✗ Too long (max 20 chars)';
+                        availabilityIndicator.className = 'availability-indicator invalid';
+                        claimUsernameBtn.disabled = true;
+                        return;
+                    }
+                    if (!/^[a-z][a-z0-9_]*$/.test(username)) {
+                        availabilityIndicator.textContent = '✗ Invalid format';
+                        availabilityIndicator.className = 'availability-indicator invalid';
+                        claimUsernameBtn.disabled = true;
+                        return;
+                    }
 
-                    const data = await response.json();
+                    // Check availability via Firestore
+                    const usernameDoc = await firebase.firestore().collection('usernames').doc(username).get();
 
-                    if (data.available) {
+                    if (usernameDoc.exists) {
+                        availabilityIndicator.textContent = '✗ Already taken';
+                        availabilityIndicator.className = 'availability-indicator taken';
+                        claimUsernameBtn.disabled = true;
+                    } else {
                         availabilityIndicator.textContent = '✓ Available';
                         availabilityIndicator.className = 'availability-indicator available';
                         claimUsernameBtn.disabled = false;
-                    } else {
-                        availabilityIndicator.textContent = `✗ ${data.message}`;
-                        availabilityIndicator.className = 'availability-indicator ' + data.reason;
-                        claimUsernameBtn.disabled = true;
                     }
                 } catch (error) {
                     console.error('Error checking username:', error);
@@ -681,27 +696,33 @@
             claimUsernameBtn.innerHTML = '<span class="loading-spinner"></span> Claiming...';
 
             try {
-                const idToken = await currentUser.getIdToken();
-                const response = await fetch('/api/username?action=claim', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, idToken })
+                const db = firebase.firestore();
+
+                // Check if username is still available
+                const usernameDoc = await db.collection('usernames').doc(username).get();
+                if (usernameDoc.exists) {
+                    throw new Error('Username is already taken');
+                }
+
+                // Claim the username
+                await db.collection('usernames').doc(username).set({
+                    userId: currentUser.uid,
+                    claimedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                const data = await response.json();
+                // Update user document
+                await db.collection('users').doc(currentUser.uid).set({
+                    username: username,
+                    linkEnabled: true,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
 
-                if (response.ok && data.success) {
-                    currentUsername = data.username;
-                    showAlert('Username claimed successfully!', 'success');
-                    updateUIForClaimedUsername(data.username);
-                } else {
-                    showAlert(data.error || 'Failed to claim username', 'error');
-                    claimUsernameBtn.disabled = false;
-                    claimUsernameBtn.textContent = 'Claim Username';
-                }
+                currentUsername = username;
+                showAlert('Username claimed successfully!', 'success');
+                updateUIForClaimedUsername(username);
             } catch (error) {
                 console.error('Error claiming username:', error);
-                showAlert('Failed to claim username. Please try again.', 'error');
+                showAlert(error.message || 'Failed to claim username. Please try again.', 'error');
                 claimUsernameBtn.disabled = false;
                 claimUsernameBtn.textContent = 'Claim Username';
             }
@@ -717,27 +738,32 @@
             releaseUsernameBtn.innerHTML = '<span class="loading-spinner"></span> Releasing...';
 
             try {
-                const idToken = await currentUser.getIdToken();
-                const response = await fetch('/api/username?action=release', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ idToken })
+                const db = firebase.firestore();
+
+                // Get current username
+                const userDoc = await db.collection('users').doc(currentUser.uid).get();
+                const username = userDoc.data()?.username;
+
+                if (!username) {
+                    throw new Error('No username to release');
+                }
+
+                // Remove username claim
+                await db.collection('usernames').doc(username).delete();
+
+                // Update user document
+                await db.collection('users').doc(currentUser.uid).update({
+                    username: firebase.firestore.FieldValue.delete(),
+                    linkEnabled: false,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                const data = await response.json();
-
-                if (response.ok && data.success) {
-                    currentUsername = null;
-                    showAlert('Username released successfully', 'success');
-                    updateUIForNoUsername();
-                } else {
-                    showAlert(data.error || 'Failed to release username', 'error');
-                    releaseUsernameBtn.disabled = false;
-                    releaseUsernameBtn.textContent = 'Release Username';
-                }
+                currentUsername = null;
+                showAlert('Username released successfully', 'success');
+                updateUIForNoUsername();
             } catch (error) {
                 console.error('Error releasing username:', error);
-                showAlert('Failed to release username. Please try again.', 'error');
+                showAlert(error.message || 'Failed to release username. Please try again.', 'error');
                 releaseUsernameBtn.disabled = false;
                 releaseUsernameBtn.textContent = 'Release Username';
             }
