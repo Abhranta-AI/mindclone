@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix Username Registration</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #0a0a0a;
+            color: white;
+        }
+        h1 { color: #4CAF50; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 10px 5px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover { background: #45a049; }
+        button:disabled {
+            background: #333;
+            cursor: not-allowed;
+        }
+        pre {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .info { color: #2196F3; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Fix Username Registration</h1>
+
+    <div>
+        <button onclick="checkStatus()">1. Check Current Status</button>
+        <button onclick="fixRegistration()">2. Fix Registration</button>
+    </div>
+
+    <pre id="output">Click "Check Current Status" to diagnose the issue...</pre>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getAuth } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+        import { getFirestore, doc, getDoc, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyARpf7PGV81K5t1HdD31IkT2WqsOTOFRiw",
+            authDomain: "mindclone-studio.firebaseapp.com",
+            projectId: "mindclone-studio",
+            storageBucket: "mindclone-studio.firebasestorage.app",
+            messagingSenderId: "422365396809",
+            appId: "1:422365396809:web:eb2d815ffd5bb8b8cf27ad"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.checkStatus = async function() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<span class="info">⏳ Checking status...</span>';
+
+            try {
+                const user = auth.currentUser;
+                if (!user) {
+                    output.innerHTML = '<span class="error">❌ Not signed in</span>\n\nPlease sign in at https://mindclone.link first.';
+                    return;
+                }
+
+                // Check username document
+                const usernameDoc = await getDoc(doc(db, 'usernames', 'alok'));
+                const usernameData = usernameDoc.exists() ? usernameDoc.data() : null;
+
+                // Check user document
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                const userData = userDoc.exists() ? userDoc.data() : null;
+
+                output.innerHTML = `<span class="info">📊 Current Status:</span>
+
+<span class="success">Your User ID:</span> ${user.uid}
+<span class="success">Your Email:</span> ${user.email}
+
+<span class="info">Username 'alok' Registration:</span>
+${usernameData ? `✅ Registered to: ${usernameData.userId}\n${usernameData.userId === user.uid ? '<span class="success">This is YOUR user ID! ✓</span>' : '<span class="error">This is NOT your user ID ✗</span>'}` : '❌ Not registered'}
+
+<span class="info">Your User Document:</span>
+${userData ? `Username field: ${userData.username || '(not set)'}\nLink enabled: ${userData.linkEnabled || false}` : '❌ User document not found'}
+
+<span class="info">Diagnosis:</span>
+${usernameData && usernameData.userId === user.uid && userData?.username === 'alok'
+    ? '<span class="success">✅ Everything looks correct! Try refreshing settings page.</span>'
+    : '<span class="error">⚠️ Mismatch detected. Click "Fix Registration" to repair.</span>'}`;
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ ERROR: ${error.message}</span>`;
+            }
+        };
+
+        window.fixRegistration = async function() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<span class="info">⏳ Fixing registration...</span>';
+
+            try {
+                const user = auth.currentUser;
+                if (!user) {
+                    output.innerHTML = '<span class="error">❌ Not signed in</span>\n\nPlease sign in at https://mindclone.link first.';
+                    return;
+                }
+
+                // Check who owns 'alok'
+                const usernameDoc = await getDoc(doc(db, 'usernames', 'alok'));
+
+                if (usernameDoc.exists()) {
+                    const ownerId = usernameDoc.data().userId;
+
+                    if (ownerId === user.uid) {
+                        // User owns it, just update their user document
+                        output.innerHTML = '<span class="info">⏳ You own "alok", updating your user document...</span>';
+
+                        await setDoc(doc(db, 'users', user.uid), {
+                            username: 'alok',
+                            linkEnabled: true,
+                            updatedAt: new Date()
+                        }, { merge: true });
+
+                        output.innerHTML = '<span class="success">✅ FIXED!</span>\n\nYour user document has been updated.\n\nNow refresh your settings page and you should see the "Release Username" button.';
+                    } else {
+                        // Someone else owns it
+                        output.innerHTML = `<span class="error">❌ Cannot fix automatically</span>\n\nUsername "alok" is owned by a different user ID:\n${ownerId}\n\nYour user ID:\n${user.uid}\n\nYou need to either:\n1. Release "alok" from that other account\n2. Choose a different username`;
+                    }
+                } else {
+                    // Username not registered, claim it
+                    output.innerHTML = '<span class="info">⏳ Username is available, claiming it...</span>';
+
+                    await setDoc(doc(db, 'usernames', 'alok'), {
+                        userId: user.uid,
+                        claimedAt: new Date()
+                    });
+
+                    await setDoc(doc(db, 'users', user.uid), {
+                        username: 'alok',
+                        linkEnabled: true,
+                        updatedAt: new Date()
+                    }, { merge: true });
+
+                    output.innerHTML = '<span class="success">✅ SUCCESS!</span>\n\nUsername "alok" has been claimed!\n\nRefresh your settings page and you should see it registered.';
+                }
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ ERROR: ${error.message}</span>\n\nDetails: ${error.stack}`;
+            }
+        };
+    </script>
+</body>
+</html>
