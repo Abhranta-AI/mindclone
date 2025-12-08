@@ -207,6 +207,64 @@
             border-radius: 8px;
         }
 
+        /* Excel Viewer */
+        .excel-tabs {
+            display: flex;
+            gap: 4px;
+            padding: 12px 12px 0 12px;
+            background: #0d0d0d;
+            border-bottom: 1px solid #333;
+            overflow-x: auto;
+        }
+
+        .excel-tab {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            transition: all 0.2s;
+            white-space: nowrap;
+            font-size: 13px;
+        }
+
+        .excel-tab:hover {
+            background: #1a1a1a;
+            color: white;
+        }
+
+        .excel-tab.active {
+            background: #1a1a1a;
+            color: white;
+            font-weight: 600;
+        }
+
+        .excel-container {
+            flex: 1;
+            overflow: auto;
+            padding: 16px;
+            background: #0d0d0d;
+        }
+
+        .excel-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .excel-container::-webkit-scrollbar-track {
+            background: #0d0d0d;
+        }
+
+        .excel-container::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        .excel-container::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+
         /* Profile Header */
         .profile-header {
             background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
@@ -951,6 +1009,9 @@
     <!-- PDF.js for rendering slides -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
+    <!-- SheetJS for Excel rendering -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
     <script type="module">
         // Firebase imports
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
@@ -1557,6 +1618,116 @@
             `;
         }
 
+        // Show Excel sheet in display panel
+        async function showExcelSheet(excelUrl, sheetName = null, title = 'Spreadsheet') {
+            openDisplayPanel();
+            displayPanelTitle.textContent = title;
+
+            // Show loading state
+            displayPanelContent.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <div class="loading-spinner" style="margin: 0 auto 20px;"></div>
+                    Loading spreadsheet...
+                </div>
+            `;
+
+            try {
+                console.log('[Excel] Fetching:', excelUrl);
+
+                // Fetch the Excel file
+                const response = await fetch(excelUrl);
+                const arrayBuffer = await response.arrayBuffer();
+
+                // Parse with SheetJS
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+
+                // Get the specified sheet or first sheet
+                const targetSheetName = sheetName || workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[targetSheetName];
+
+                if (!worksheet) {
+                    throw new Error(`Sheet "${sheetName}" not found`);
+                }
+
+                // Convert to HTML table
+                const htmlTable = XLSX.utils.sheet_to_html(worksheet, {
+                    editable: false,
+                    header: '',
+                    footer: ''
+                });
+
+                console.log('[Excel] Rendered sheet:', targetSheetName);
+
+                // Create sheet tabs if multiple sheets exist
+                let tabsHtml = '';
+                if (workbook.SheetNames.length > 1) {
+                    tabsHtml = `
+                        <div class="excel-tabs">
+                            ${workbook.SheetNames.map(name => `
+                                <button class="excel-tab ${name === targetSheetName ? 'active' : ''}"
+                                        onclick="switchExcelSheet('${excelUrl}', '${name}', '${title}')">
+                                    ${name}
+                                </button>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                // Display the table with custom styling
+                displayPanelContent.innerHTML = `
+                    ${tabsHtml}
+                    <div class="excel-container">
+                        ${htmlTable}
+                    </div>
+                `;
+
+                // Apply custom styling to the table
+                const table = displayPanelContent.querySelector('table');
+                if (table) {
+                    table.style.width = '100%';
+                    table.style.borderCollapse = 'collapse';
+                    table.style.fontSize = '12px';
+                    table.style.color = '#fff';
+                    table.style.backgroundColor = '#1a1a1a';
+
+                    // Style cells
+                    const cells = table.querySelectorAll('td, th');
+                    cells.forEach(cell => {
+                        cell.style.border = '1px solid #333';
+                        cell.style.padding = '8px';
+                        cell.style.textAlign = 'left';
+                    });
+
+                    // Style header row
+                    const headerCells = table.querySelectorAll('th');
+                    headerCells.forEach(cell => {
+                        cell.style.backgroundColor = '#2a2a2a';
+                        cell.style.fontWeight = '600';
+                        cell.style.position = 'sticky';
+                        cell.style.top = '0';
+                        cell.style.zIndex = '10';
+                    });
+                }
+
+            } catch (error) {
+                console.error('[Excel] Error loading spreadsheet:', error);
+                displayPanelContent.innerHTML = `
+                    <div class="display-panel-empty">
+                        <div class="display-panel-empty-icon">⚠️</div>
+                        <div class="display-panel-empty-text">
+                            Could not load the spreadsheet.<br>
+                            ${error.message}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Switch between Excel sheets
+        window.switchExcelSheet = function(excelUrl, sheetName, title) {
+            showExcelSheet(excelUrl, sheetName, title);
+        };
+
         // Handle display action from API response
         function handleDisplayAction(displayData) {
             if (!displayData) {
@@ -1588,6 +1759,9 @@
                     break;
                 case 'pdf':
                     showPDF(displayData.url, displayData.title);
+                    break;
+                case 'excel':
+                    showExcelSheet(displayData.url, displayData.sheetName, displayData.title);
                     break;
             }
         }

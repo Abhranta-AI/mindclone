@@ -78,6 +78,24 @@ const tools = [
           },
           required: ["slideNumber"]
         }
+      },
+      {
+        name: "show_excel_sheet",
+        description: "Display an Excel spreadsheet to the visitor. Use this when the visitor asks to SEE financial data, revenue projections, metrics, or any data from uploaded Excel files. The spreadsheet will appear in a display panel next to the chat with interactive sheet tabs if multiple sheets exist.",
+        parameters: {
+          type: "object",
+          properties: {
+            sheetName: {
+              type: "string",
+              description: "The name of the sheet to display (e.g., 'Revenue', 'Financials'). If not specified, the first sheet will be shown."
+            },
+            documentName: {
+              type: "string",
+              description: "The name/identifier of the Excel document (e.g., 'financial_model', 'revenue_projections'). This should match the key in linkKnowledgeBase.documents."
+            }
+          },
+          required: ["documentName"]
+        }
       }
     ]
   }
@@ -251,7 +269,7 @@ async function saveVisitorMessage(userId, visitorId, role, content) {
 }
 
 // Call Gemini API with tool calling support
-async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null) {
+async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowledgeBaseDocuments = null) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
 
@@ -356,6 +374,72 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null) {
         }
 
         candidate = data.candidates?.[0];
+      }
+
+      // Handle show_excel_sheet tool
+      if (functionCall.name === 'show_excel_sheet' && knowledgeBaseDocuments) {
+        const documentName = functionCall.args?.documentName;
+        const sheetName = functionCall.args?.sheetName || null;
+
+        console.log('[ChatPublic] Looking for Excel document:', documentName, 'in:', Object.keys(knowledgeBaseDocuments));
+
+        if (documentName && knowledgeBaseDocuments[documentName]) {
+          const excelDoc = knowledgeBaseDocuments[documentName];
+          const excelUrl = excelDoc.url || excelDoc.fileUrl;
+
+          if (excelUrl) {
+            // Create display action for frontend
+            displayAction = {
+              type: 'excel',
+              url: excelUrl,
+              sheetName: sheetName,
+              title: excelDoc.fileName || documentName
+            };
+
+            // Add the function call and response to contents
+            contents.push({
+              role: 'model',
+              parts: [{ functionCall: functionCall }]
+            });
+
+            contents.push({
+              role: 'user',
+              parts: [{
+                functionResponse: {
+                  name: functionCall.name,
+                  response: {
+                    success: true,
+                    message: `Showing ${sheetName ? 'sheet "' + sheetName + '" from' : ''} ${excelDoc.fileName || documentName}`,
+                    documentName: documentName,
+                    sheetName: sheetName
+                  }
+                }
+              }]
+            });
+
+            // Call API again to get the text response
+            requestBody.contents = contents;
+            response = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(requestBody)
+            });
+
+            data = await response.json();
+
+            if (!response.ok) {
+              throw new Error(data.error?.message || 'Gemini API request failed after tool call');
+            }
+
+            candidate = data.candidates?.[0];
+          } else {
+            console.error('[ChatPublic] Excel document found but no URL:', documentName);
+          }
+        } else {
+          console.error('[ChatPublic] Excel document not found:', documentName);
+        }
       }
     }
 
@@ -586,6 +670,25 @@ IMPORTANT: Only use show_slide when explicitly asked to SHOW or SEE something vi
       console.log('[ChatPublic] No pitch deck in knowledge base');
     }
 
+    // Check for Excel documents and add tool usage instruction
+    const excelDocuments = knowledgeBase?.documents || {};
+    const excelDocKeys = Object.keys(excelDocuments).filter(key => {
+      const doc = excelDocuments[key];
+      return doc && (doc.type?.includes('spreadsheet') || doc.fileName?.match(/\.(xlsx?|csv)$/i));
+    });
+
+    if (excelDocKeys.length > 0) {
+      enhancedSystemPrompt += `\n\n## EXCEL SPREADSHEET DISPLAY
+You can SHOW Excel spreadsheets to visitors using the show_excel_sheet tool.
+When a visitor asks to SEE financial data, revenue projections, metrics, or any spreadsheet data, use the show_excel_sheet tool.
+
+Available documents: ${excelDocKeys.map(k => `"${k}"`).join(', ')}
+
+Example: If asked "show me the revenue sheet", use show_excel_sheet with documentName matching the document key.
+IMPORTANT: Only use show_excel_sheet when explicitly asked to SHOW or SEE data, not for every question about financials.`;
+      console.log('[ChatPublic] Excel documents available:', excelDocKeys);
+    }
+
     // Add current slide context if visitor is viewing a slide
     if (currentSlide && currentSlide.slideNumber) {
       enhancedSystemPrompt += `\n\n## CURRENT SLIDE CONTEXT
@@ -596,7 +699,7 @@ If they ask about the current slide's content, refer to the content from slide $
     }
 
     // Call Gemini API with enhanced system prompt
-    const { text: aiResponse, displayAction } = await callGeminiAPI(contextMessages, enhancedSystemPrompt, pitchDeckInfo);
+    const { text: aiResponse, displayAction } = await callGeminiAPI(contextMessages, enhancedSystemPrompt, pitchDeckInfo, excelDocuments);
 
     // Save AI response
     await saveVisitorMessage(userId, visitorId, 'assistant', aiResponse);
