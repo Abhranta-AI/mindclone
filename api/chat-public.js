@@ -903,6 +903,16 @@ If they ask about the current slide's content, refer to the content from slide $
 
   } catch (error) {
     console.error('Public chat API error:', error);
+
+    // Check for quota exceeded errors
+    const errorMessage = error.message || '';
+    if (errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('Quota exceeded')) {
+      return res.status(503).json({
+        error: 'Service temporarily unavailable. Please try again in a few minutes.',
+        code: 'QUOTA_EXCEEDED'
+      });
+    }
+
     return res.status(500).json({
       error: error.message || 'Internal server error'
     });

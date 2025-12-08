@@ -1327,8 +1327,12 @@
                         showRateLimitWarning(data.message || 'Rate limit exceeded. Please try again later.');
                         // Remove the user message we just added
                         conversationHistory.pop();
-                        // TODO: Remove from UI as well
                         throw new Error('Rate limit exceeded');
+                    }
+                    if (response.status === 503 || data.code === 'QUOTA_EXCEEDED') {
+                        // Service temporarily unavailable
+                        conversationHistory.pop();
+                        throw new Error('Service temporarily unavailable');
                     }
                     throw new Error(data.error || 'Failed to send message');
                 }
@@ -1347,9 +1351,16 @@
 
             } catch (error) {
                 console.error('Error sending message:', error);
-                if (error.message !== 'Rate limit exceeded') {
-                    addMessage('error', 'Sorry, I encountered an error. Please try again.');
+                // Don't show message for rate limit (already shown)
+                if (error.message === 'Rate limit exceeded') {
+                    return;
                 }
+                // Show appropriate error message
+                let errorMsg = 'Sorry, I encountered an error. Please try again.';
+                if (error.message === 'Service temporarily unavailable') {
+                    errorMsg = 'Service is temporarily busy. Please try again in a few minutes.';
+                }
+                addMessage('error', errorMsg);
             } finally {
                 // Hide typing indicator
                 typingIndicator.classList.remove('active');
