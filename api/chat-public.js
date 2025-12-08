@@ -293,7 +293,7 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
       parts: [{ text: msg.content }]
     }));
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
 
     // Build request body
     const requestBody = {
@@ -329,6 +329,12 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
     if (hasTools) {
       console.log('[ChatPublic] Adding tools to API request');
       requestBody.tools = tools;
+      // Tell Gemini to prefer using tools when relevant
+      requestBody.toolConfig = {
+        functionCallingConfig: {
+          mode: "AUTO"
+        }
+      };
     } else {
       console.log('[ChatPublic] No tools available - no PDF or Excel documents found');
     }
@@ -795,38 +801,16 @@ Available PDF documents:`;
 
         enhancedSystemPrompt += `
 
-🚨 CRITICAL FUNCTION CALLING INSTRUCTIONS 🚨
+## FUNCTION CALLING BEHAVIOR
 
-You have access to a FUNCTION CALL mechanism. When you want to display a slide, you MUST invoke the show_slide FUNCTION, not talk about invoking it.
+When the user asks to see or discuss a slide, you MUST use the show_slide function. Do NOT say "I am showing the slide" or "Let me display" - just USE THE FUNCTION and then discuss the content.
 
-❌ WRONG - DO NOT DO THIS:
-"I am now calling the tool to display slide 1"
-"Let me show you the slide"
-"I'm displaying the document"
+Example:
+User: "let's discuss slide 3"
+Action: Call show_slide with slideNumber=3, documentName="pitch_deck"
+Response: "This slide covers our problem statement..." (discuss the actual content)
 
-✅ CORRECT - DO THIS:
-Make a FUNCTION CALL to show_slide with parameters:
-{
-  "slideNumber": 1,
-  "documentName": "pitch_deck"
-}
-
-The function call happens AUTOMATICALLY through the API - you don't describe it, you just invoke it.
-
-WHEN TO INVOKE show_slide:
-- Visitor says "let's discuss slide X" → IMMEDIATELY invoke show_slide(slideNumber: X, documentName: "pitch_deck")
-- Visitor says "tell me about [topic]" where topic is in a document → invoke show_slide for that document
-- Visitor says "show me the [topic] slide" → invoke show_slide
-
-IMPORTANT: The function call is SILENT - after invoking it, the slide will appear automatically and you can then discuss the content. Don't say "I am calling the tool" - just call it and then talk about the content.
-
-Example correct flow:
-User: "let's discuss slide 1"
-You: [INVOKE show_slide(1, "pitch_deck")] → "This is our introduction slide featuring Olbrain's core mission..."
-
-NOT:
-User: "let's discuss slide 1"
-You: "I am now calling the tool to display slide 1" ❌`;
+NEVER say "I am now presenting" or "I will show you" - the function call handles the display automatically.`;
         console.log('[ChatPublic] Tools enabled for PDF documents');
       }
     }
@@ -839,25 +823,11 @@ You: "I am now calling the tool to display slide 1" ❌`;
     });
 
     if (excelDocKeys.length > 0) {
-      enhancedSystemPrompt += `\n\n## EXCEL SPREADSHEET DISPLAY - FUNCTION CALLING
+      enhancedSystemPrompt += `\n\n## EXCEL DISPLAY
 
-Available documents: ${excelDocKeys.map(k => `"${k}"`).join(', ')}
+Available spreadsheets: ${excelDocKeys.map(k => `"${k}"`).join(', ')}
 
-🚨 CRITICAL: Use FUNCTION CALL mechanism for show_excel_sheet
-
-❌ WRONG:
-"I'm pulling up the revenue sheet"
-"Let me show you the financial model"
-
-✅ CORRECT:
-[INVOKE show_excel_sheet(documentName: "financial_model")] → then discuss the data
-
-WHEN TO INVOKE:
-- "show me the revenue" → invoke show_excel_sheet immediately
-- "let's discuss financials" → invoke show_excel_sheet immediately
-- "pull up the financial model" → invoke show_excel_sheet immediately
-
-The function call is SILENT and AUTOMATIC - don't describe it, just invoke it.`;
+When the user asks about financial data or spreadsheets, use the show_excel_sheet function.`;
       console.log('[ChatPublic] Excel documents available:', excelDocKeys);
     }
 
