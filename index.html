@@ -5037,11 +5037,44 @@ Is there anything else you'd like to configure?`;
                                     if (processResponse.ok) {
                                         const processData = await processResponse.json();
                                         console.log('[Upload] Document processed:', processData);
+
+                                        // Show visible confirmation message
+                                        const docType = processData.documentType === 'pitch_deck' ? 'Pitch Deck' : 'Financial Model';
+                                        let summaryMsg = `✅ **${docType} processed successfully!**\n\n`;
+
+                                        if (processData.summary) {
+                                            if (processData.summary.pageCount) {
+                                                summaryMsg += `- Pages: ${processData.summary.pageCount}\n`;
+                                            }
+                                            if (processData.summary.sectionsFound) {
+                                                summaryMsg += `- Sections identified: ${processData.summary.sectionsFound}\n`;
+                                            }
+                                            if (processData.summary.sheetsFound) {
+                                                summaryMsg += `- Sheets found: ${processData.summary.sheetsFound}\n`;
+                                            }
+                                            if (processData.summary.metricsExtracted) {
+                                                summaryMsg += `- Financial metrics extracted: ${processData.summary.metricsExtracted}\n`;
+                                            }
+                                        }
+
+                                        summaryMsg += `\nThis content is now available in your public MindClone link's knowledge base.`;
+
+                                        // Add as system message to chat
+                                        if (typeof addMessage === 'function') {
+                                            addMessage('assistant', summaryMsg);
+                                        }
                                     } else {
-                                        console.warn('[Upload] Document processing failed, but file uploaded');
+                                        const errorData = await processResponse.json().catch(() => ({}));
+                                        console.warn('[Upload] Document processing failed:', errorData);
+                                        if (typeof addMessage === 'function') {
+                                            addMessage('assistant', `⚠️ File uploaded but processing failed: ${errorData.error || 'Unknown error'}. The file is stored but not yet in your knowledge base.`);
+                                        }
                                     }
                                 } catch (processError) {
                                     console.warn('[Upload] Document processing error:', processError);
+                                    if (typeof addMessage === 'function') {
+                                        addMessage('assistant', `⚠️ File uploaded but processing encountered an error. The file is stored but may not be in your knowledge base.`);
+                                    }
                                 }
                             }
 
