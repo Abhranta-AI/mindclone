@@ -655,6 +655,31 @@ module.exports = async (req, res) => {
         }
       }
 
+      // Add ALL other documents with text content (e.g., mission/vision/values docs)
+      for (const [docKey, docData] of Object.entries(docs)) {
+        // Skip documents we've already handled
+        if (docKey === 'pitch_deck' || docKey === 'financial_model') continue;
+
+        // Skip documents without text content
+        if (!docData || !docData.text) continue;
+
+        // Add the document text to the prompt
+        const docTitle = docData.fileName || docKey;
+        enhancedSystemPrompt += `\n\n## ${docTitle.toUpperCase()}\n`;
+        enhancedSystemPrompt += 'The following is extracted text from this uploaded document:\n\n';
+
+        if (docData.sections && docData.sections.length > 0) {
+          // If document has sections, use them
+          for (const section of docData.sections) {
+            enhancedSystemPrompt += `### ${section.title}\n${section.content}\n\n`;
+          }
+        } else {
+          // Otherwise use the raw text (truncate if too long)
+          const truncatedText = docData.text.substring(0, 8000);
+          enhancedSystemPrompt += truncatedText + '\n\n';
+        }
+      }
+
       enhancedSystemPrompt += '\nWhen answering questions about the business, pitch, or financials, reference the specific data above. Quote numbers accurately. You have FULL ACCESS to the uploaded documents.';
     }
 
