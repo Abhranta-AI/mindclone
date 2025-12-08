@@ -3740,11 +3740,68 @@
         // Start knowledge base workflow
         async function startKnowledgeBaseWorkflow() {
             workflowState.active = true;
-            workflowState.step = 'intro';
             saveWorkflowState(); // Persist state
 
             // Show workflow indicator
             showWorkflowIndicator('🚀 Setting up your public link...');
+
+            // Check if knowledge base already exists
+            try {
+                const currentUser = auth.currentUser;
+                if (currentUser) {
+                    const idToken = await currentUser.getIdToken();
+                    const kbResponse = await fetch('/api/link-knowledge-base', {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${idToken}`
+                        }
+                    });
+
+                    const kbData = await kbResponse.json();
+
+                    // If knowledge base exists and has content, skip to username claim
+                    if (kbData.success && !kbData.isEmpty &&
+                        (kbData.knowledgeBase && Object.keys(kbData.knowledgeBase).length > 0)) {
+                        console.log('[Workflow] Knowledge base already exists, skipping to username claim');
+
+                        await addWorkflowMessage('ai', `Great news! You already have a knowledge base set up for your public link.
+
+I just need to claim your username to make your link active. Let me do that now...`);
+
+                        // Wait a moment then trigger the save
+                        setTimeout(async () => {
+                            try {
+                                // Load existing knowledge base into workflow state
+                                workflowState.data.cof = kbData.cof || { purpose: '', targetAudiences: [], desiredActions: [] };
+                                workflowState.data.sections = kbData.knowledgeBase || {};
+
+                                // Show preview and trigger save
+                                showKnowledgeBasePreview();
+
+                                // Auto-click save button after preview loads
+                                setTimeout(() => {
+                                    const saveBtn = document.querySelector('.kb-btn-primary');
+                                    if (saveBtn) {
+                                        saveBtn.click();
+                                    }
+                                }, 500);
+                            } catch (error) {
+                                console.error('[Workflow] Error auto-completing:', error);
+                                await addWorkflowMessage('ai', 'Something went wrong. Please go to Settings to claim your username manually.');
+                            }
+                        }, 1000);
+
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('[Workflow] Error checking existing knowledge base:', error);
+                // Continue with normal workflow if check fails
+            }
+
+            // No existing knowledge base, start full workflow
+            workflowState.step = 'intro';
+            saveWorkflowState();
 
             const introMessage = `I'll help you set up your public link! This is your business card to the world - a way to share authentic information about yourself or your business with investors, customers, talent, and other stakeholders.
 
