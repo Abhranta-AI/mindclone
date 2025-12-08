@@ -101,9 +101,15 @@ const tools = [
   }
 ];
 
-// Rate limit check (20 messages per hour per visitor)
-async function checkRateLimit(visitorId, userId) {
+// Rate limit check (50 messages per hour per visitor, unlimited for owner)
+async function checkRateLimit(visitorId, userId, isOwner = false) {
   try {
+    // Owner bypass - no rate limit
+    if (isOwner) {
+      console.log('[RateLimit] Owner bypass - no rate limit applied');
+      return true;
+    }
+
     const now = Date.now();
     const hourAgo = now - (60 * 60 * 1000);
 
@@ -114,8 +120,8 @@ async function checkRateLimit(visitorId, userId) {
       const requests = rateLimitDoc.data().requests || [];
       const recentRequests = requests.filter(timestamp => timestamp > hourAgo);
 
-      if (recentRequests.length >= 20) {
-        throw new Error('Rate limit exceeded: Maximum 20 messages per hour');
+      if (recentRequests.length >= 50) {
+        throw new Error('Rate limit exceeded: Maximum 50 messages per hour');
       }
 
       // Update with new request
@@ -456,7 +462,7 @@ module.exports = async (req, res) => {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -507,9 +513,26 @@ module.exports = async (req, res) => {
       return res.status(403).json({ error: 'This Mindclone link is disabled' });
     }
 
-    // Check rate limit
+    // Check if visitor is the owner (for rate limit bypass)
+    let isOwner = false;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const idToken = authHeader.split('Bearer ')[1];
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        isOwner = decodedToken.uid === userId;
+        if (isOwner) {
+          console.log('[ChatPublic] Owner detected - bypassing rate limit');
+        }
+      } catch (error) {
+        // Invalid token - just continue as non-owner
+        console.log('[ChatPublic] Invalid auth token, treating as visitor');
+      }
+    }
+
+    // Check rate limit (bypassed for owner)
     try {
-      await checkRateLimit(visitorId, userId);
+      await checkRateLimit(visitorId, userId, isOwner);
     } catch (error) {
       return res.status(429).json({
         error: 'Rate limit exceeded',

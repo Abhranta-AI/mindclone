@@ -1016,6 +1016,7 @@
         // Firebase imports
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getFirestore, doc, getDoc, collection } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
         // Initialize Firebase
         const firebaseConfig = {
@@ -1030,6 +1031,24 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Track if current user is the owner of this link
+        let currentUserAuthToken = null;
+
+        // Check if user is logged in
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    currentUserAuthToken = await user.getIdToken();
+                    console.log('[Auth] User logged in, token available for owner bypass');
+                } catch (error) {
+                    console.error('[Auth] Error getting token:', error);
+                }
+            } else {
+                currentUserAuthToken = null;
+            }
+        });
 
         // Get username from URL path or query parameter
         const urlParams = new URLSearchParams(window.location.search);
@@ -1322,9 +1341,16 @@
                 }
 
                 // Call public chat API
+                const headers = { 'Content-Type': 'application/json' };
+
+                // Add auth token if available (for owner bypass)
+                if (currentUserAuthToken) {
+                    headers['Authorization'] = `Bearer ${currentUserAuthToken}`;
+                }
+
                 const response = await fetch('/api/chat-public', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: headers,
                     body: JSON.stringify(requestBody)
                 });
 
