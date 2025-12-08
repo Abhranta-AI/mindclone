@@ -367,28 +367,53 @@
             display: none !important;
         }
 
-        .profile-expand-btn {
-            background: transparent;
-            border: 1px solid #333;
-            color: #888;
-            padding: 5px 10px;
-            border-radius: 6px;
-            font-size: 11px;
+        /* Header toggle area */
+        .profile-header-clickable {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: default;
+            transition: background 0.2s;
+            border-radius: 8px;
+            padding: 4px;
+            margin: -4px;
+        }
+
+        .profile-header.has-messages .profile-header-clickable {
             cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
+        }
+
+        .profile-header.has-messages .profile-header-clickable:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        /* Toggle indicator */
+        .profile-toggle-indicator {
             display: none;
+            margin-left: auto;
+            color: #666;
+            transition: transform 0.3s, color 0.2s;
+            font-size: 10px;
+            line-height: 1;
         }
 
-        .profile-expand-btn:hover {
-            background: #1a1a1a;
-            color: white;
-            border-color: #444;
+        .profile-header.has-messages .profile-toggle-indicator {
+            display: inline-block;
         }
 
-        /* Show button only after first message */
-        .profile-header.has-messages .profile-expand-btn {
-            display: block;
+        .profile-header.compact .profile-toggle-indicator {
+            transform: rotate(180deg);
+        }
+
+        .profile-header-clickable:hover .profile-toggle-indicator {
+            color: #999;
+        }
+
+        /* Adjust compact layout for clickable area */
+        .profile-header.compact .profile-header-clickable {
+            flex: 1;
+            margin: 0;
+            padding: 0;
         }
 
         /* Chat Container */
@@ -924,12 +949,14 @@
         <div class="container">
             <!-- Profile Header -->
             <div id="profileHeader" class="profile-header" style="display: none;">
-                <img id="profileAvatar" class="profile-avatar" alt="Profile">
-                <div class="profile-info">
-                    <div id="profileName" class="profile-name"></div>
-                    <div id="profileUsername" class="profile-username"></div>
+                <div id="profileHeaderClickable" class="profile-header-clickable">
+                    <img id="profileAvatar" class="profile-avatar" alt="Profile">
+                    <div class="profile-info">
+                        <div id="profileName" class="profile-name"></div>
+                        <div id="profileUsername" class="profile-username"></div>
+                    </div>
+                    <span class="profile-toggle-indicator">▼</span>
                 </div>
-                <button id="profileExpandBtn" class="profile-expand-btn">View Profile</button>
                 <div id="profileBio" class="profile-bio"></div>
                 <div id="profileGreeting" class="profile-greeting"></div>
             </div>
@@ -1073,7 +1100,7 @@
         const profileUsername = document.getElementById('profileUsername');
         const profileBio = document.getElementById('profileBio');
         const profileGreeting = document.getElementById('profileGreeting');
-        const profileExpandBtn = document.getElementById('profileExpandBtn');
+        const profileHeaderClickable = document.getElementById('profileHeaderClickable');
         const chatContainer = document.getElementById('chatContainer');
         const inputContainer = document.getElementById('inputContainer');
         const messageInput = document.getElementById('messageInput');
@@ -1211,8 +1238,13 @@
                 collapseHeader();
             }
 
-            // Profile expand/collapse button
-            profileExpandBtn.addEventListener('click', toggleHeaderState);
+            // Profile header click to toggle
+            profileHeaderClickable.addEventListener('click', () => {
+                // Only allow toggle after first message
+                if (profileHeader.classList.contains('has-messages')) {
+                    toggleHeaderState();
+                }
+            });
 
             // Auto-resize textarea
             messageInput.addEventListener('input', autoResizeTextarea);
@@ -1270,7 +1302,6 @@
         function collapseHeader() {
             console.log('[Header] Collapsing header to compact mode');
             profileHeader.classList.add('compact');
-            profileExpandBtn.textContent = 'View Profile';
             localStorage.setItem(`header_compact_${username}`, 'true');
             console.log('[Header] Compact class added:', profileHeader.classList.contains('compact'));
         }
@@ -1278,7 +1309,6 @@
         // Expand header to full mode
         function expandHeader() {
             profileHeader.classList.remove('compact');
-            profileExpandBtn.textContent = 'Hide Profile';
             localStorage.setItem(`header_compact_${username}`, 'false');
         }
 
