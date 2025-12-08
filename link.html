@@ -1201,8 +1201,37 @@
 
         // Load conversation history
         async function loadConversation() {
-            // For now, just show empty state
-            // Conversation history will be loaded from the server when we implement chat-public API
+            try {
+                // Fetch conversation history from server
+                const response = await fetch(`/api/chat-public?username=${encodeURIComponent(username)}&visitorId=${encodeURIComponent(visitorId)}`);
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data.messages && data.messages.length > 0) {
+                        // Populate conversation history
+                        conversationHistory = data.messages;
+
+                        // Clear any existing empty state
+                        const emptyState = chatContainer.querySelector('.empty-state');
+                        if (emptyState) emptyState.remove();
+
+                        // Render messages in UI
+                        for (const msg of data.messages) {
+                            const type = msg.role === 'user' ? 'user' : 'ai';
+                            addMessage(type, msg.content, new Date());
+                        }
+
+                        // Scroll to bottom
+                        scrollToBottom();
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading conversation:', error);
+            }
+
+            // Show empty state if no messages
             if (conversationHistory.length === 0) {
                 showEmptyState();
             }

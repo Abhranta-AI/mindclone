@@ -528,11 +528,44 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
 module.exports = async (req, res) => {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  // GET request - fetch conversation history
+  if (req.method === 'GET') {
+    try {
+      const { username, visitorId } = req.query;
+
+      if (!username || !visitorId) {
+        return res.status(400).json({ error: 'username and visitorId are required' });
+      }
+
+      // Normalize username
+      const normalizedUsername = username.trim().toLowerCase();
+
+      // Look up username
+      const usernameDoc = await db.collection('usernames').doc(normalizedUsername).get();
+      if (!usernameDoc.exists) {
+        return res.status(404).json({ error: 'Username not found' });
+      }
+
+      const userId = usernameDoc.data().userId;
+
+      // Load conversation history
+      const history = await loadVisitorHistory(userId, visitorId, 50);
+
+      return res.status(200).json({
+        success: true,
+        messages: history
+      });
+    } catch (error) {
+      console.error('Error loading conversation history:', error);
+      return res.status(500).json({ error: 'Failed to load conversation history' });
+    }
   }
 
   if (req.method !== 'POST') {
