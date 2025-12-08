@@ -1221,11 +1221,11 @@
             background: #0d0d0d;
             border: 1px solid #333;
             border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 12px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
             display: flex;
-            align-items: center;
-            gap: 12px;
+            align-items: flex-start;
+            gap: 14px;
             transition: all 0.3s ease;
         }
 
@@ -1235,8 +1235,9 @@
         }
 
         .kb-file-icon {
-            font-size: 32px;
+            font-size: 28px;
             flex-shrink: 0;
+            padding-top: 2px;
         }
 
         .kb-file-info {
@@ -1248,29 +1249,31 @@
             font-size: 13px;
             font-weight: 600;
             color: white;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
+            /* Allow 2 lines with ellipsis */
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
             overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            word-break: break-word;
+            line-height: 1.4;
         }
 
         .kb-file-meta {
             display: flex;
-            gap: 12px;
+            flex-wrap: wrap;
+            gap: 8px 12px;
             font-size: 11px;
-            color: #999;
-        }
-
-        .kb-file-size {
-            display: flex;
+            color: #888;
             align-items: center;
-            gap: 4px;
         }
 
+        .kb-file-size,
         .kb-file-date {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 4px;
+            white-space: nowrap;
         }
 
         .kb-file-status {
@@ -1296,32 +1299,46 @@
             display: flex;
             gap: 6px;
             flex-shrink: 0;
+            align-self: center;
         }
 
         .kb-action-btn {
-            padding: 6px 10px;
+            width: 32px;
+            height: 32px;
+            padding: 0;
             background: #1a1a1a;
             border: 1px solid #333;
             border-radius: 6px;
-            color: #999;
+            color: #888;
             cursor: pointer;
-            font-size: 11px;
-            transition: all 0.3s ease;
+            font-size: 14px;
+            transition: all 0.2s ease;
             display: flex;
             align-items: center;
-            gap: 4px;
+            justify-content: center;
+        }
+
+        .kb-action-btn .btn-text {
+            display: none;
         }
 
         .kb-action-btn:hover {
             background: #2a2a2a;
             border-color: #555;
             color: white;
+            transform: scale(1.05);
         }
 
         .kb-action-btn.delete:hover {
             background: rgba(255, 107, 107, 0.1);
             border-color: #ff6b6b;
             color: #ff6b6b;
+        }
+
+        .kb-action-btn.view:hover {
+            background: rgba(74, 144, 226, 0.1);
+            border-color: #4a90e2;
+            color: #4a90e2;
         }
 
         .button-icon {
@@ -4353,24 +4370,28 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
 
                 const item = document.createElement('div');
                 item.className = 'knowledge-base-item';
+
+                // Determine status based on text extraction
+                const hasText = data.extractedText || data.textExtractionType === 'pdf' || data.textExtractionType === 'docx';
+                const statusText = hasText ? 'Ready' : (data.textExtractionError ? 'No Text' : 'Ready');
+                const statusClass = hasText ? 'ready' : 'processing';
+
                 item.innerHTML = `
                     <div class="kb-file-icon">${getFileIcon(data.type)}</div>
                     <div class="kb-file-info">
-                        <div class="kb-file-name">${data.fileName}</div>
+                        <div class="kb-file-name" title="${data.fileName}">${data.fileName}</div>
                         <div class="kb-file-meta">
-                            <span class="kb-file-size">📦 ${formatFileSize(data.size)}</span>
-                            <span class="kb-file-date">📅 ${formatDate(data.uploadedAt)}</span>
-                            <span class="kb-file-status ready">Ready</span>
+                            <span class="kb-file-size">${formatFileSize(data.size)}</span>
+                            <span class="kb-file-date">${formatDateShort(data.uploadedAt)}</span>
+                            <span class="kb-file-status ${statusClass}">${statusText}</span>
                         </div>
                     </div>
                     <div class="kb-file-actions">
-                        <button class="kb-action-btn view" data-url="${data.url}">
-                            <span>👁️</span>
-                            <span>View</span>
+                        <button class="kb-action-btn view" data-url="${data.url}" title="Open file">
+                            👁️
                         </button>
-                        <button class="kb-action-btn delete" data-id="${docId}">
-                            <span>🗑️</span>
-                            <span>Delete</span>
+                        <button class="kb-action-btn delete" data-id="${docId}" title="Delete file">
+                            🗑️
                         </button>
                     </div>
                 `;
@@ -4566,6 +4587,26 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
             if (days < 7) return `${days} days ago`;
 
             return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        // Short date format for compact displays
+        function formatDateShort(timestamp) {
+            if (!timestamp) return 'Just now';
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+            if (days === 0) return 'Today';
+            if (days === 1) return 'Yesterday';
+            if (days < 7) return `${days}d ago`;
+
+            // Compact format: Dec 9 or Dec 9, 24 (if different year)
+            const sameYear = date.getFullYear() === now.getFullYear();
+            if (sameYear) {
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
         }
 
         // ==================== PANEL ANALYTICS TAB ====================
