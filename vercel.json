@@ -54,6 +54,10 @@
       "dest": "/api/messages/mark-public.js"
     },
     {
+      "src": "^/api/upload-kb$",
+      "dest": "/api/upload-kb.js"
+    },
+    {
       "src": "^/settings$",
       "dest": "/settings.html"
     },

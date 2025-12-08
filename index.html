@@ -4326,6 +4326,8 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
             docs.forEach(docSnapshot => {
                 const data = docSnapshot.data();
                 const docId = docSnapshot.id;
+                // Support both old (storagePath) and new (blobUrl) documents
+                const deleteUrl = data.blobUrl || data.url || data.storagePath;
 
                 const item = document.createElement('div');
                 item.className = 'knowledge-base-item';
@@ -4344,7 +4346,7 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
                             <span>👁️</span>
                             <span>View</span>
                         </button>
-                        <button class="kb-action-btn delete" data-id="${docId}" data-path="${data.storagePath}">
+                        <button class="kb-action-btn delete" data-id="${docId}">
                             <span>🗑️</span>
                             <span>Delete</span>
                         </button>
@@ -4361,7 +4363,7 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
                 const deleteBtn = item.querySelector('.delete');
                 deleteBtn.addEventListener('click', async () => {
                     if (confirm(`Delete "${data.fileName}"?`)) {
-                        await deleteKnowledgeBaseDocument(docId, data.storagePath);
+                        await deleteKnowledgeBaseDocument(docId, deleteUrl);
                     }
                 });
 
@@ -4381,7 +4383,7 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
             `;
         }
 
-        // Upload documents
+        // Upload documents via Vercel Blob API
         async function uploadKnowledgeBaseDocuments(files) {
             console.log('[KB] uploadKnowledgeBaseDocuments called with', files.length, 'files');
 
@@ -4392,39 +4394,45 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
             }
 
             try {
-                const userId = auth.currentUser.uid;
-                console.log('[KB] Uploading for user:', userId);
+                console.log('[KB] Getting auth token...');
+                const idToken = await auth.currentUser.getIdToken();
                 showPanelAlert('Uploading documents...', 'info');
 
                 for (const file of files) {
                     console.log('[KB] Processing file:', file.name, 'size:', file.size, 'type:', file.type);
 
-                    // Upload to Storage
-                    const timestamp = Date.now();
-                    const storagePath = `knowledgeBase/${userId}/${timestamp}_${file.name}`;
-                    const storageRef = ref(storage, storagePath);
-                    console.log('[KB] Storage path:', storagePath);
+                    // Check file size (max 10MB)
+                    if (file.size > 10 * 1024 * 1024) {
+                        showPanelAlert(`${file.name} is too large (max 10MB)`, 'error');
+                        continue;
+                    }
 
-                    console.log('[KB] Starting upload to Firebase Storage...');
-                    await uploadBytes(storageRef, file);
-                    console.log('[KB] Upload complete, getting download URL...');
+                    // Convert file to base64
+                    console.log('[KB] Converting to base64...');
+                    const base64Data = await fileToBase64(file);
 
-                    const downloadURL = await getDownloadURL(storageRef);
-                    console.log('[KB] Download URL obtained');
-
-                    // Save metadata to Firestore
-                    const kbDocRef = doc(db, 'users', userId, 'knowledgeBase', `${timestamp}`);
-                    console.log('[KB] Saving metadata to Firestore...');
-                    await setDoc(kbDocRef, {
-                        fileName: file.name,
-                        type: file.type,
-                        size: file.size,
-                        url: downloadURL,
-                        storagePath: storagePath,
-                        uploadedAt: serverTimestamp()
+                    // Upload via API
+                    console.log('[KB] Uploading via API...');
+                    const response = await fetch('/api/upload-kb', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${idToken}`
+                        },
+                        body: JSON.stringify({
+                            fileName: file.name,
+                            fileType: file.type,
+                            fileData: base64Data
+                        })
                     });
 
-                    console.log('[KB] Successfully uploaded:', file.name);
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(result.error || 'Upload failed');
+                    }
+
+                    console.log('[KB] Successfully uploaded:', file.name, result);
                 }
 
                 showPanelAlert(`Successfully uploaded ${files.length} document(s)`, 'success');
@@ -4432,25 +4440,49 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
                 await loadKnowledgeBase(); // Refresh list
             } catch (error) {
                 console.error('[KB] Upload error:', error);
-                console.error('[KB] Error details:', error.message, error.code);
                 showPanelAlert(`Failed to upload: ${error.message}`, 'error');
             }
         }
 
-        // Delete document
-        async function deleteKnowledgeBaseDocument(docId, storagePath) {
+        // Helper: Convert file to base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    // Remove the data URL prefix (e.g., "data:application/pdf;base64,")
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Delete document via API
+        async function deleteKnowledgeBaseDocument(docId, blobUrl) {
             if (!auth.currentUser) return;
 
             try {
-                const userId = auth.currentUser.uid;
+                console.log('[KB] Deleting document:', docId);
+                const idToken = await auth.currentUser.getIdToken();
 
-                // Delete from Storage
-                const storageRef = ref(storage, storagePath);
-                await deleteObject(storageRef);
+                const response = await fetch('/api/upload-kb', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({
+                        docId: docId,
+                        blobUrl: blobUrl
+                    })
+                });
 
-                // Delete from Firestore
-                const kbDocRef = doc(db, 'users', userId, 'knowledgeBase', docId);
-                await deleteDoc(kbDocRef);
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'Delete failed');
+                }
 
                 showPanelAlert('Document deleted successfully', 'success');
                 await loadKnowledgeBase(); // Refresh list
