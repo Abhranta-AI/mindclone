@@ -2975,10 +2975,10 @@
                         </div>
                     </div>
                     <hr class="dropdown-divider">
-                    <a href="/settings" class="header-dropdown-item">
-                        <span class="dropdown-icon">⚙️</span>
-                        <span>Settings</span>
-                    </a>
+                    <button id="headerProfileBtn" class="header-dropdown-item">
+                        <span class="dropdown-icon">👤</span>
+                        <span>Profile</span>
+                    </button>
                     <button id="headerSignOutBtn" class="header-dropdown-item">
                         <span class="dropdown-icon">🚪</span>
                         <span>Sign Out</span>
@@ -4202,6 +4202,7 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
         const dropdownProfileBtn = document.getElementById('dropdownProfileBtn');
         dropdownProfileBtn?.addEventListener('click', () => {
             showPanelAlert('Profile settings coming soon!', 'info');
+            switchPanelTab('settings'); // Open settings tab as temporary alternative
             avatarDropdown.classList.add('hidden');
         });
 
@@ -6364,6 +6365,19 @@ Is there anything else you'd like to configure?`;
                 }
             }
         });
+
+        // Header profile button
+        const headerProfileBtn = document.getElementById('headerProfileBtn');
+        if (headerProfileBtn) {
+            headerProfileBtn.addEventListener('click', () => {
+                showPanelAlert('Profile settings coming soon!', 'info');
+                switchPanelTab('settings'); // Open settings tab as temporary alternative
+                const headerDropdown = document.getElementById('headerDropdown');
+                if (headerDropdown) {
+                    headerDropdown.classList.add('hidden');
+                }
+            });
+        }
 
         // Header sign-out button
         const headerSignOutBtn = document.getElementById('headerSignOutBtn');
