@@ -4254,8 +4254,13 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
                     }
                 }
 
-                // Load knowledge base
-                await loadKnowledgeBase();
+                // Load knowledge base (don't let this break settings loading)
+                try {
+                    await loadKnowledgeBase();
+                } catch (kbError) {
+                    console.error('[KB] Error loading knowledge base:', kbError);
+                    // Don't show error to user, just log it
+                }
             } catch (error) {
                 console.error('Error loading panel settings:', error);
                 showPanelAlert('Failed to load settings', 'error');
@@ -4294,6 +4299,10 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
         // Load knowledge base documents
         async function loadKnowledgeBase() {
             if (!auth.currentUser) return;
+            if (!knowledgeBaseList || !knowledgeBaseEnabledToggle) {
+                console.log('[KB] Knowledge base elements not found, skipping load');
+                return;
+            }
 
             try {
                 console.log('[KB] Loading knowledge base...');
@@ -4304,7 +4313,9 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
                 const userDoc = await getDoc(userDocRef);
                 if (userDoc.exists()) {
                     const data = userDoc.data();
-                    knowledgeBaseEnabledToggle.checked = data.knowledgeBaseEnabled || false;
+                    if (knowledgeBaseEnabledToggle) {
+                        knowledgeBaseEnabledToggle.checked = data.knowledgeBaseEnabled || false;
+                    }
                 }
 
                 // Load documents from Firestore
@@ -4320,12 +4331,16 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
                 console.log('[KB] Loaded', kbSnapshot.size, 'documents');
             } catch (error) {
                 console.error('[KB] Error loading knowledge base:', error);
-                showPanelAlert('Failed to load knowledge base', 'error');
+                // Don't show alert if it's just missing elements
+                if (showPanelAlert) {
+                    showPanelAlert('Failed to load knowledge base', 'error');
+                }
             }
         }
 
         // Display documents in list
         function displayKnowledgeBaseDocuments(docs) {
+            if (!knowledgeBaseList) return;
             knowledgeBaseList.innerHTML = '';
 
             docs.forEach(docSnapshot => {
@@ -4376,6 +4391,7 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
 
         // Show empty state
         function showEmptyKnowledgeBase() {
+            if (!knowledgeBaseList) return;
             knowledgeBaseList.innerHTML = `
                 <div class="knowledge-base-empty">
                     <div class="empty-icon">📄</div>
