@@ -323,97 +323,45 @@
             transition: all 0.3s ease;
         }
 
-        /* Compact Header State - Sticky bar at top */
-        .profile-header.compact {
-            padding: 10px 16px !important;
-            text-align: left !important;
+        /* Simple static header */
+        .profile-header {
+            padding: 12px 16px;
+            background: #0d0d0d;
+            border-bottom: 1px solid #333;
+            position: sticky;
+            top: 0;
+            z-index: 100;
             display: flex !important;
-            align-items: center !important;
-            gap: 10px !important;
-            position: sticky !important;
-            top: 0 !important;
-            z-index: 100 !important;
-            background: #0d0d0d !important;
-            border-bottom: 1px solid #333 !important;
-        }
-
-        .profile-header.compact .profile-avatar {
-            width: 32px !important;
-            height: 32px !important;
-            margin: 0 !important;
-            border-width: 2px !important;
-        }
-
-        .profile-header.compact .profile-info {
-            flex: 1 !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-        }
-
-        .profile-header.compact .profile-name {
-            font-size: 15px !important;
-            margin: 0 !important;
-        }
-
-        .profile-header.compact .profile-username {
-            font-size: 12px !important;
-            margin: 0 !important;
-            opacity: 0.7 !important;
-        }
-
-        .profile-header.compact .profile-bio,
-        .profile-header.compact .profile-greeting {
-            display: none !important;
-        }
-
-        /* Header toggle area */
-        .profile-header-clickable {
-            display: flex;
             align-items: center;
-            gap: 10px;
-            cursor: default;
-            transition: background 0.2s;
-            border-radius: 8px;
-            padding: 4px;
-            margin: -4px;
+            gap: 12px;
+            text-align: left;
         }
 
-        .profile-header.has-messages .profile-header-clickable {
-            cursor: pointer;
-        }
-
-        .profile-header.has-messages .profile-header-clickable:hover {
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        /* Toggle indicator */
-        .profile-toggle-indicator {
-            display: none;
-            margin-left: auto;
-            color: #666;
-            transition: transform 0.3s, color 0.2s;
-            font-size: 10px;
-            line-height: 1;
-        }
-
-        .profile-header.has-messages .profile-toggle-indicator {
-            display: inline-block;
-        }
-
-        .profile-header.compact .profile-toggle-indicator {
-            transform: rotate(180deg);
-        }
-
-        .profile-header-clickable:hover .profile-toggle-indicator {
-            color: #999;
-        }
-
-        /* Adjust compact layout for clickable area */
-        .profile-header.compact .profile-header-clickable {
-            flex: 1;
+        .profile-header .profile-avatar {
+            width: 36px;
+            height: 36px;
             margin: 0;
-            padding: 0;
+        }
+
+        .profile-header .profile-info {
+            text-align: left;
+            margin: 0;
+            flex: 1;
+        }
+
+        .profile-header .profile-name {
+            font-size: 15px;
+            margin: 0;
+        }
+
+        .profile-header .profile-username {
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .profile-header .profile-bio,
+        .profile-header .profile-greeting {
+            display: none !important;
         }
 
         /* Chat Container */
@@ -949,16 +897,11 @@
         <div class="container">
             <!-- Profile Header -->
             <div id="profileHeader" class="profile-header" style="display: none;">
-                <div id="profileHeaderClickable" class="profile-header-clickable">
-                    <img id="profileAvatar" class="profile-avatar" alt="Profile">
-                    <div class="profile-info">
-                        <div id="profileName" class="profile-name"></div>
-                        <div id="profileUsername" class="profile-username"></div>
-                    </div>
-                    <span class="profile-toggle-indicator">▼</span>
+                <img id="profileAvatar" class="profile-avatar" alt="Profile">
+                <div class="profile-info">
+                    <div id="profileName" class="profile-name"></div>
+                    <div id="profileUsername" class="profile-username"></div>
                 </div>
-                <div id="profileBio" class="profile-bio"></div>
-                <div id="profileGreeting" class="profile-greeting"></div>
             </div>
 
             <!-- Loading State -->
@@ -1100,7 +1043,6 @@
         const profileUsername = document.getElementById('profileUsername');
         const profileBio = document.getElementById('profileBio');
         const profileGreeting = document.getElementById('profileGreeting');
-        const profileHeaderClickable = document.getElementById('profileHeaderClickable');
         const chatContainer = document.getElementById('chatContainer');
         const inputContainer = document.getElementById('inputContainer');
         const messageInput = document.getElementById('messageInput');
@@ -1232,20 +1174,6 @@
                 profileBio.style.display = 'none';
             }
 
-            // Check if header should be compact (from localStorage or after first message)
-            const headerCompact = localStorage.getItem(`header_compact_${username}`);
-            if (headerCompact === 'true') {
-                collapseHeader();
-            }
-
-            // Profile header click to toggle
-            profileHeaderClickable.addEventListener('click', () => {
-                // Only allow toggle after first message
-                if (profileHeader.classList.contains('has-messages')) {
-                    toggleHeaderState();
-                }
-            });
-
             // Auto-resize textarea
             messageInput.addEventListener('input', autoResizeTextarea);
 
@@ -1298,29 +1226,6 @@
             messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
         }
 
-        // Collapse header to compact mode
-        function collapseHeader() {
-            console.log('[Header] Collapsing header to compact mode');
-            profileHeader.classList.add('compact');
-            localStorage.setItem(`header_compact_${username}`, 'true');
-            console.log('[Header] Compact class added:', profileHeader.classList.contains('compact'));
-        }
-
-        // Expand header to full mode
-        function expandHeader() {
-            profileHeader.classList.remove('compact');
-            localStorage.setItem(`header_compact_${username}`, 'false');
-        }
-
-        // Toggle header state
-        function toggleHeaderState() {
-            if (profileHeader.classList.contains('compact')) {
-                expandHeader();
-            } else {
-                collapseHeader();
-            }
-        }
-
         // Send message
         async function sendMessage() {
             const content = messageInput.value.trim();
@@ -1347,14 +1252,6 @@
 
             // Add to conversation history
             conversationHistory.push({ role: 'user', content });
-
-            // Auto-collapse header after first user message
-            if (conversationHistory.length === 1) {
-                profileHeader.classList.add('has-messages');
-                if (!profileHeader.classList.contains('compact')) {
-                    setTimeout(() => collapseHeader(), 300);
-                }
-            }
 
             // Show typing indicator
             typingIndicator.classList.add('active');
