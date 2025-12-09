@@ -97,12 +97,19 @@ async function getVisitorDetails(userId, visitorId) {
 
     const messages = messagesSnapshot.docs.map(doc => {
       const data = doc.data();
-      return {
+      const message = {
         messageId: doc.id,
         role: data.role,
         content: data.content,
         timestamp: data.timestamp
       };
+
+      // Include displayAction if present (for slide/excel displays)
+      if (data.displayAction) {
+        message.displayAction = data.displayAction;
+      }
+
+      return message;
     });
 
     return {

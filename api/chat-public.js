@@ -255,17 +255,24 @@ async function loadOwnerPublicMessages(userId, limit = 50) {
 }
 
 // Save visitor message
-async function saveVisitorMessage(userId, visitorId, role, content) {
+async function saveVisitorMessage(userId, visitorId, role, content, displayAction = null) {
   try {
     const messageRef = db.collection('users').doc(userId)
       .collection('visitors').doc(visitorId)
       .collection('messages').doc();
 
-    await messageRef.set({
+    const messageData = {
       role: role,
       content: content,
       timestamp: admin.firestore.FieldValue.serverTimestamp()
-    });
+    };
+
+    // Add displayAction if provided (for slide/excel displays)
+    if (displayAction) {
+      messageData.displayAction = displayAction;
+    }
+
+    await messageRef.set(messageData);
 
     // Update visitor metadata
     await db.collection('users').doc(userId)
@@ -907,8 +914,8 @@ If they ask about the current slide's content, refer to the content from slide $
     // Call Gemini API with enhanced system prompt
     const { text: aiResponse, displayAction } = await callGeminiAPI(contextMessages, enhancedSystemPrompt, pitchDeckInfo, excelDocuments);
 
-    // Save AI response
-    await saveVisitorMessage(userId, visitorId, 'assistant', aiResponse);
+    // Save AI response (with displayAction if present)
+    await saveVisitorMessage(userId, visitorId, 'assistant', aiResponse, displayAction);
 
     // Extract media to display (from sections with auto-display media)
     const mediaToDisplay = [];

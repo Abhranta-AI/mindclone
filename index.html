@@ -1934,6 +1934,10 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
         }
 
+        .conversation-modal-content.has-display {
+            max-width: 1400px;
+        }
+
         .conversation-modal-header {
             padding: 20px 24px;
             border-bottom: 1px solid #333;
@@ -1991,6 +1995,12 @@
             color: white;
         }
 
+        .conversation-modal-main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
         .conversation-modal-body {
             flex: 1;
             overflow-y: auto;
@@ -1998,6 +2008,33 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+        }
+
+        .conversation-display-panel {
+            width: 50%;
+            background: #0d0d0d;
+            border-left: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .conversation-display-panel.hidden {
+            display: none;
+        }
+
+        .conversation-display-content {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .conversation-display-content canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
         }
 
         .conversation-modal-body::-webkit-scrollbar {
@@ -3594,8 +3631,15 @@
                 </div>
                 <button id="conversationModalClose" class="conversation-modal-close">×</button>
             </div>
-            <div id="conversationModalBody" class="conversation-modal-body">
-                <!-- Messages will be dynamically added here -->
+            <div class="conversation-modal-main">
+                <div id="conversationModalBody" class="conversation-modal-body">
+                    <!-- Messages will be dynamically added here -->
+                </div>
+                <div id="conversationDisplayPanel" class="conversation-display-panel hidden">
+                    <div id="conversationDisplayContent" class="conversation-display-content">
+                        <!-- Slide or Excel display will be added here -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -3675,8 +3719,11 @@
         const rightPanelToggle = document.getElementById('rightPanelToggle');
 
         const conversationModal = document.getElementById('conversationModal');
+        const conversationModalContent = conversationModal?.querySelector('.conversation-modal-content');
         const conversationModalBody = document.getElementById('conversationModalBody');
         const conversationModalClose = document.getElementById('conversationModalClose');
+        const conversationDisplayPanel = document.getElementById('conversationDisplayPanel');
+        const conversationDisplayContent = document.getElementById('conversationDisplayContent');
         const modalVisitorName = document.getElementById('modalVisitorName');
         const modalVisitorTime = document.getElementById('modalVisitorTime');
         const avatarDropdown = document.getElementById('avatarDropdown');
@@ -5337,6 +5384,9 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
                     // Reverse to show oldest first
                     const messages = [...data.messages].reverse();
 
+                    // Track the latest displayAction (for slides/excel)
+                    let latestDisplayAction = null;
+
                     messages.forEach(msg => {
                         const messageEl = document.createElement('div');
                         messageEl.className = `conversation-message ${msg.role}`;
@@ -5351,16 +5401,32 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
                         `;
 
                         conversationModalBody.appendChild(messageEl);
+
+                        // Track displayAction for slides
+                        if (msg.displayAction) {
+                            latestDisplayAction = msg.displayAction;
+                        }
                     });
 
                     // Scroll to bottom
                     conversationModalBody.scrollTop = conversationModalBody.scrollHeight;
+
+                    // If there's a displayAction, show the display panel
+                    if (latestDisplayAction && latestDisplayAction.type === 'slide') {
+                        await renderSlideInModal(latestDisplayAction);
+                    } else {
+                        // Hide display panel if no slides
+                        conversationDisplayPanel.classList.add('hidden');
+                        conversationModalContent.classList.remove('has-display');
+                    }
                 } else {
                     conversationModalBody.innerHTML = `
                         <div class="conversation-error">
                             No messages found for this visitor.
                         </div>
                     `;
+                    conversationDisplayPanel.classList.add('hidden');
+                    conversationModalContent.classList.remove('has-display');
                 }
             } catch (error) {
                 console.error('[Modal] Error loading conversation:', error);
@@ -5372,9 +5438,60 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
             }
         }
 
+        async function renderSlideInModal(displayAction) {
+            try {
+                console.log('[Modal] Rendering slide:', displayAction);
+
+                // Show display panel
+                conversationDisplayPanel.classList.remove('hidden');
+                conversationModalContent.classList.add('has-display');
+
+                // Clear previous content
+                conversationDisplayContent.innerHTML = '<div class="spinner"></div>';
+
+                // Load PDF
+                const loadingTask = pdfjsLib.getDocument(displayAction.pdfUrl);
+                const pdf = await loadingTask.promise;
+
+                // Get the page
+                const page = await pdf.getPage(displayAction.slideNumber);
+
+                // Create canvas
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+
+                // Calculate scale to fit display panel
+                const viewport = page.getViewport({ scale: 1.5 });
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                // Render page
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport
+                }).promise;
+
+                // Display canvas
+                conversationDisplayContent.innerHTML = '';
+                conversationDisplayContent.appendChild(canvas);
+
+                console.log('[Modal] Slide rendered successfully');
+            } catch (error) {
+                console.error('[Modal] Error rendering slide:', error);
+                conversationDisplayContent.innerHTML = `
+                    <div class="conversation-error">
+                        Failed to load slide: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
         function closeConversationModal() {
             conversationModal.classList.add('hidden');
             conversationModalBody.innerHTML = '';
+            conversationDisplayPanel.classList.add('hidden');
+            conversationDisplayContent.innerHTML = '';
+            conversationModalContent.classList.remove('has-display');
         }
 
         // Helper to escape HTML
