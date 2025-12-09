@@ -312,8 +312,10 @@
             flex: 1;
             min-width: 0;
             display: flex;
+            flex-direction: row;
             align-items: center;
             gap: 8px;
+            flex-wrap: nowrap;
         }
 
         .profile-name {
@@ -324,6 +326,8 @@
             overflow: hidden;
             text-overflow: ellipsis;
             flex-shrink: 1;
+            flex-basis: auto;
+            display: inline-block;
         }
 
         .profile-username {
@@ -333,6 +337,8 @@
             overflow: hidden;
             text-overflow: ellipsis;
             flex-shrink: 0;
+            flex-basis: auto;
+            display: inline-block;
         }
 
         .profile-username::before {
