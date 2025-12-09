@@ -955,6 +955,26 @@
             background: transparent;
         }
 
+        .username-delete-icon {
+            padding: 8px 12px;
+            cursor: pointer;
+            color: var(--color-text-muted);
+            font-size: 16px;
+            display: none;
+            transition: color 0.2s ease;
+            background: transparent;
+            border: none;
+            outline: none;
+        }
+
+        .username-delete-icon:hover {
+            color: var(--color-error);
+        }
+
+        .username-delete-icon.visible {
+            display: block;
+        }
+
         .panel-actions {
             display: flex;
             gap: 10px;
@@ -3406,6 +3426,7 @@
                                     <span class="username-prefix">mindclone.link/</span>
                                     <input type="text" id="panelUsernameInput" class="username-input" placeholder="yourusername" autocomplete="off">
                                     <span id="panelAvailabilityIndicator" class="availability-indicator"></span>
+                                    <button id="panelDeleteUsernameIcon" class="username-delete-icon" title="Release username">🗑️</button>
                                 </div>
                             </div>
 
@@ -3662,6 +3683,7 @@
         const panelAvailabilityIndicator = document.getElementById('panelAvailabilityIndicator');
         const panelClaimUsernameBtn = document.getElementById('panelClaimUsernameBtn');
         const panelReleaseUsernameBtn = document.getElementById('panelReleaseUsernameBtn');
+        const panelDeleteUsernameIcon = document.getElementById('panelDeleteUsernameIcon');
         const panelLinkEnabledToggle = document.getElementById('panelLinkEnabledToggle');
         const panelDisplayNameInput = document.getElementById('panelDisplayNameInput');
         const panelBioInput = document.getElementById('panelBioInput');
@@ -4160,6 +4182,49 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
                 }
             });
 
+            // Delete username icon click handler
+            panelDeleteUsernameIcon.addEventListener('click', async () => {
+                if (!confirm('Are you sure you want to release this username? You may lose it forever as anyone else may claim it.')) {
+                    return;
+                }
+
+                panelDeleteUsernameIcon.disabled = true;
+                panelDeleteUsernameIcon.style.opacity = '0.5';
+
+                try {
+                    const userDocRef = doc(db, 'users', auth.currentUser.uid);
+                    const userDoc = await getDoc(userDocRef);
+                    const username = userDoc.data()?.username;
+
+                    if (!username) {
+                        throw new Error('No username to release');
+                    }
+
+                    // Remove username claim
+                    await deleteDoc(doc(db, 'usernames', username));
+
+                    // Update user document
+                    await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                        username: deleteField(),
+                        linkEnabled: false,
+                        updatedAt: serverTimestamp()
+                    });
+
+                    panelCurrentUsername = null;
+                    showPanelAlert('Username released successfully', 'success');
+                    updatePanelUIForNoUsername();
+
+                    // Reload link status
+                    await loadLinkStatus();
+
+                } catch (error) {
+                    console.error('Error releasing username:', error);
+                    showPanelAlert(error.message || 'Failed to release username', 'error');
+                    panelDeleteUsernameIcon.disabled = false;
+                    panelDeleteUsernameIcon.style.opacity = '1';
+                }
+            });
+
             // Save settings
             panelSaveSettingsBtn.addEventListener('click', async () => {
                 if (!auth.currentUser || !panelCurrentUsername) {
@@ -4225,9 +4290,8 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
             panelAvailabilityIndicator.textContent = '✓ Claimed';
             panelAvailabilityIndicator.className = 'availability-indicator available';
             panelClaimUsernameBtn.classList.add('hidden');
-            panelReleaseUsernameBtn.classList.remove('hidden');
-            panelReleaseUsernameBtn.disabled = false;
-            panelReleaseUsernameBtn.textContent = 'Release Username';
+            panelReleaseUsernameBtn.classList.add('hidden'); // Keep release button hidden
+            panelDeleteUsernameIcon.classList.add('visible'); // Show delete icon
         }
 
         // Update UI for no username
@@ -4240,6 +4304,7 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
             panelClaimUsernameBtn.disabled = true;
             panelClaimUsernameBtn.textContent = 'Claim Username';
             panelReleaseUsernameBtn.classList.add('hidden');
+            panelDeleteUsernameIcon.classList.remove('visible'); // Hide delete icon
             panelLinkPreviewSection.style.display = 'none';
         }
 
