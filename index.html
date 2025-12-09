@@ -2647,6 +2647,25 @@
             color: #999;
         }
 
+        /* Image attachments in messages */
+        .message-image {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 12px;
+            display: block;
+            margin-top: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .message-image:hover {
+            transform: scale(1.02);
+        }
+
+        .message.user .message-content p {
+            margin: 0 0 8px 0;
+        }
+
         /* Workflow Indicator Banner */
         .workflow-indicator {
             position: fixed;
@@ -7048,10 +7067,19 @@ Is there anything else you'd like to configure?`;
                         url: fileUrl
                     };
 
-                    // Update the user message to show upload complete (replace ⏳ with ✓)
+                    // Update the user message to show upload complete
                     const lastUserMessage = chatMessages.querySelector('.message.user:last-of-type .message-content');
                     if (lastUserMessage) {
-                        lastUserMessage.innerHTML = lastUserMessage.innerHTML.replace(' ⏳', ' ✓');
+                        const isImage = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif'].includes(fileMetadata.type);
+
+                        if (isImage) {
+                            // For images, replace with actual image display
+                            const messageText = message ? `<p style="margin: 0 0 8px 0;">${message}</p>` : '';
+                            lastUserMessage.innerHTML = `${messageText}<img src="${fileUrl}" alt="${fileMetadata.name}" class="message-image">`;
+                        } else {
+                            // For other files, just replace the loading indicator
+                            lastUserMessage.innerHTML = lastUserMessage.innerHTML.replace(' ⏳', ' ✓');
+                        }
                     }
 
                     console.log('File uploaded successfully:', fileUrl);
@@ -7069,8 +7097,17 @@ Is there anything else you'd like to configure?`;
 
             // Prepare message with file attachment if present
             let finalMessage = message;
+            let messageHTML = null;
             if (fileUrl) {
-                finalMessage = `${message}\n\n[Attached file: ${fileMetadata.name}]\nFile URL: ${fileUrl}`;
+                const isImage = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif'].includes(fileMetadata.type);
+
+                if (isImage) {
+                    // For images, create HTML to display the image inline
+                    messageHTML = `${message ? `<p>${message}</p>` : ''}<img src="${fileUrl}" alt="${fileMetadata.name}" class="message-image">`;
+                    finalMessage = `${message}\n\n[Image: ${fileMetadata.name}]`;
+                } else {
+                    finalMessage = `${message}\n\n[Attached file: ${fileMetadata.name}]\nFile URL: ${fileUrl}`;
+                }
             }
 
             // === WORKFLOW HANDLING ===
