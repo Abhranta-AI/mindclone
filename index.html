@@ -172,20 +172,7 @@
 
         /* ==================== APP HEADER ==================== */
         .app-header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 360px; /* Stop before right panel */
-            height: 36px;
-            background: var(--color-bg-primary);
-            border-bottom: 1px solid var(--color-border-default);
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding: 0 8px;
-            z-index: 100;
-            backdrop-filter: blur(10px);
-            transition: right 0.3s ease;
+            display: none;
         }
 
         /* When right panel is collapsed */
@@ -559,9 +546,9 @@
 
         .app-container {
             display: flex;
-            height: calc(100vh - 36px);
+            height: 100vh;
             width: 100vw;
-            margin-top: 36px;
+            margin-top: 0;
         }
 
         /* Sidebar - Hidden by default */
@@ -640,6 +627,34 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+        }
+
+        /* Right Panel User Section */
+        .right-panel-user {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 12px 16px;
+            background: var(--color-bg-primary);
+            border-bottom: 1px solid var(--color-border-default);
+        }
+
+        .right-panel-user .header-user-menu {
+            position: relative;
+        }
+
+        .right-panel-user .header-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid #333;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .right-panel-user .header-avatar:hover {
+            border-color: var(--color-accent-primary);
+            transform: scale(1.05);
         }
 
         /* Panel Tab Navigation */
@@ -3396,6 +3411,27 @@
 
         <!-- Right Activity Panel -->
         <div class="right-activity-panel">
+            <!-- User Section -->
+            <div class="right-panel-user">
+                <div class="header-user-menu">
+                    <img id="headerAvatar" class="header-avatar" src="" alt="User Avatar">
+                    <div id="headerDropdown" class="header-dropdown hidden">
+                        <div class="header-dropdown-header">
+                            <img id="headerDropdownAvatar" class="dropdown-avatar" src="" alt="User Avatar">
+                            <div class="dropdown-user-info">
+                                <div id="headerDropdownName" class="dropdown-user-name"></div>
+                                <div id="headerDropdownEmail" class="dropdown-user-email"></div>
+                            </div>
+                        </div>
+                        <hr class="dropdown-divider">
+                        <button id="headerSignOutBtn" class="header-dropdown-item">
+                            <span class="dropdown-icon">🚪</span>
+                            <span>Sign Out</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Tab Navigation -->
             <div class="panel-tabs">
                 <button class="panel-tab active" data-tab="activity">
