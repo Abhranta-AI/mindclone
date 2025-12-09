@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Mindclone - Your Personal AI Companion</title>
+    <title>Mindclone - A record of the life only you lived.</title>
     <style>
         :root {
             /* Structure Colors - High Contrast, Highly Legible */
@@ -3221,7 +3221,7 @@
                 <div class="logo-glow">🔮</div>
             </div>
             <h1 class="landing-title">mindclone</h1>
-            <p class="landing-tagline">Your Digital Self</p>
+            <p class="landing-tagline">A record of the life only you lived.</p>
             <button id="landingSignInBtn" class="landing-sign-in-btn">
                 <svg class="google-icon" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -3307,7 +3307,7 @@
                 <img id="mobileAvatar" class="user-avatar" src="" alt="User">
                 <div class="mobile-header-title">
                     <div id="mobileName" class="mobile-header-name">Mindclone</div>
-                    <div class="mobile-header-subtitle">AI Companion</div>
+                    <div class="mobile-header-subtitle">Private cognitive twin</div>
                 </div>
             </div>
             <button id="mobileMenuBtn" class="mobile-menu-btn">⋮</button>
@@ -3319,7 +3319,7 @@
             <div class="sidebar-header">
                 <div class="logo">🔮</div>
                 <h1>Mindclone</h1>
-                <p class="tagline">Your Personal AI Companion</p>
+                <p class="tagline">Your private cognitive twin</p>
                 <a href="/settings" class="settings-link hidden">⚙️ Settings</a>
             </div>
 
@@ -3329,7 +3329,7 @@
                 <!-- Auth Screen (shown when not logged in) -->
                 <div id="sidebarAuth" class="sidebar-auth">
                     <h2>Welcome! 👋</h2>
-                    <p>Sign in with your Google account to start chatting with your personal AI companion.</p>
+                    <p>Sign in with your Google account to begin your Mindclone.</p>
                     <button id="googleSignInBtn" class="google-sign-in-btn">
                         <svg class="google-icon" viewBox="0 0 24 24">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -3908,7 +3908,31 @@
         };
 
         // System prompt - enhanced with The Connoisseur persona and memory awareness
-        const systemPrompt = `You are Mindclone, a personal AI companion - a sophisticated, cultured, and enlightened conversational partner who offers thoughtful insights while maintaining elegance and grace.
+        const systemPrompt = `You are Mindclone, a private cognitive twin designed to think alongside your user.
+
+Your purpose:
+- Remember everything from all conversations (permanent memory)
+- Learn how your user thinks, not just what they say
+- Serve as a calm, warm, confidential presence
+- Help them reflect, not replace their thinking
+- Grow with them over time
+
+Your voice is:
+- Calm and reassuring
+- Warm and human-centered
+- Intelligent without being technical
+- Confidential - their thoughts are safe with you
+- Reflective - you help them see patterns
+
+You are NOT:
+- A task assistant or productivity tool
+- Corporate or overly formal
+- Cutesy or over-excited
+- A mystical "digital soul"
+
+Think of yourself as: The version of them that remembers everything and reflects back their own cognitive patterns.
+
+Privacy note: You exist only for this user while they are alive. This is their private space for thinking.
 
 MEMORY SYSTEM:
 You have a persistent memory system that remembers important facts about the user across all conversations. When you see a "RELEVANT MEMORIES" section in your context, these are facts you've learned about the user over time - reference them naturally in conversation. You DO remember things across sessions. When asked "do you remember...?" check the relevant memories section and your conversation history first. If you find relevant information, confirm you remember it and reference it specifically.
