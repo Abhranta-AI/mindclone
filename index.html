@@ -6,39 +6,50 @@
     <title>Mindclone - A record of the life only you lived.</title>
     <style>
         :root {
-            /* Structure Colors - High Contrast, Highly Legible */
-            --color-bg-primary: #1A1A1F;      /* Lighter charcoal for better contrast */
-            --color-bg-secondary: #242429;    /* Elevated panels */
-            --color-bg-tertiary: #2E2E35;     /* Cards */
-            --color-bg-elevated: #38383F;     /* Slightly elevated */
+            /* Minimal Modern Palette - Clean & Professional */
+            --bg: #0a0a0a;
+            --bg-surface: #141414;
+            --bg-elevated: #1a1a1a;
+            --border: #262626;
+            --border-hover: #333333;
 
-            /* Accent Colors - Vibrant but Readable Purple */
-            --color-accent-primary: #A78BFA;   /* Bright lavender (high contrast) */
-            --color-accent-secondary: #C4B5FD; /* Light lavender */
-            --color-accent-tertiary: #8B5CF6;  /* Deep purple */
+            /* Text */
+            --text: #fafafa;
+            --text-secondary: #a1a1a1;
+            --text-muted: #666666;
 
-            /* Text Colors - High Contrast White/Gray */
-            --color-text-primary: #F5F5F7;     /* Near-white (high contrast) */
-            --color-text-secondary: #D4D4D8;   /* Light gray */
-            --color-text-tertiary: #A1A1AA;    /* Medium gray (metadata) */
-            --color-text-muted: #71717A;       /* Muted gray for disabled */
+            /* Single Accent */
+            --accent: #a78bfa;
+            --accent-hover: #c4b5fd;
+            --accent-muted: rgba(167, 139, 250, 0.15);
 
-            /* Borders - More Visible for Clarity */
-            --color-border-default: #3F3F46;   /* Visible border */
-            --color-border-subtle: #2E2E35;    /* Subtle */
-            --color-border-hover: #52525B;     /* Clear on hover */
+            /* Status */
+            --error: #ef4444;
+            --warning: #f59e0b;
 
-            /* Status Colors - Clear and Distinct */
-            --color-success: #A78BFA;          /* Purple for success */
-            --color-success-light: #C4B5FD;    /* Light variant */
-            --color-error: #F87171;            /* Clear red */
-            --color-warning: #FBBF24;          /* Clear amber */
-            --color-info: #A78BFA;             /* Purple for info */
-
-            /* Gradients - Vibrant but Classy */
-            --gradient-primary: linear-gradient(135deg, #5B4F75 0%, #7B6B9E 100%);
-            --gradient-subtle: linear-gradient(135deg, #242429 0%, #2E2E35 100%);
-            --gradient-card: linear-gradient(135deg, #2E2E35 0%, #38383F 100%);
+            /* Legacy mappings for compatibility */
+            --color-bg-primary: var(--bg);
+            --color-bg-secondary: var(--bg-surface);
+            --color-bg-tertiary: var(--bg-elevated);
+            --color-bg-elevated: var(--bg-elevated);
+            --color-accent-primary: var(--accent);
+            --color-accent-secondary: var(--accent-hover);
+            --color-accent-tertiary: #8B5CF6;
+            --color-text-primary: var(--text);
+            --color-text-secondary: var(--text-secondary);
+            --color-text-tertiary: var(--text-secondary);
+            --color-text-muted: var(--text-muted);
+            --color-border-default: var(--border);
+            --color-border-subtle: var(--border);
+            --color-border-hover: var(--border-hover);
+            --color-success: var(--accent);
+            --color-success-light: var(--accent-hover);
+            --color-error: var(--error);
+            --color-warning: var(--warning);
+            --color-info: var(--accent);
+            --gradient-primary: var(--accent);
+            --gradient-subtle: var(--bg-surface);
+            --gradient-card: var(--bg-elevated);
         }
 
         * {
@@ -63,135 +74,85 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 50%, var(--color-bg-tertiary) 100%);
+            background: var(--bg);
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 9999;
-            overflow: hidden;
-        }
-
-        /* Animated gradient background effect - Subtle luxury glow */
-        .landing-page::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(124, 102, 220, 0.06) 0%, rgba(155, 135, 245, 0.04) 50%, transparent 70%);
-            animation: gradientShift 20s ease infinite;
-        }
-
-        @keyframes gradientShift {
-            0%, 100% { transform: translate(0, 0); }
-            50% { transform: translate(10%, 10%); }
+            z-index: 1000;
         }
 
         .landing-content {
-            position: relative;
-            z-index: 1;
             text-align: center;
-            animation: landingFadeIn 1.2s ease;
-        }
-
-        @keyframes landingFadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            max-width: 400px;
+            padding: 20px;
         }
 
         .landing-logo {
-            margin-bottom: 40px;
-            position: relative;
-            display: inline-block;
+            margin-bottom: 32px;
         }
 
-        .logo-glow {
-            font-size: 120px;
-            filter: drop-shadow(0 0 30px rgba(124, 102, 220, 0.2))
-                    drop-shadow(0 0 60px rgba(155, 135, 245, 0.15));
-            animation: logoFloat 4s ease-in-out infinite;
-        }
-
-        @keyframes logoFloat {
-            0%, 100% {
-                transform: translateY(0px);
-            }
-            50% {
-                transform: translateY(-20px);
-            }
+        .landing-logo-img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
         }
 
         .landing-title {
-            font-size: 72px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            background: linear-gradient(135deg, var(--color-text-primary) 0%, var(--color-text-secondary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: -2px;
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
         }
 
         .landing-tagline {
-            font-size: 24px;
-            color: var(--color-text-tertiary);
-            margin-bottom: 60px;
-            font-weight: 300;
-            letter-spacing: 1px;
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 48px;
+            font-weight: 400;
         }
 
         .landing-sign-in-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 16px;
-            background: var(--gradient-primary);
-            color: var(--color-text-primary);
-            padding: 20px 48px;
-            border: none;
-            border-radius: 50px;
-            font-size: 18px;
-            font-weight: 600;
+            gap: 12px;
+            background: var(--bg-surface);
+            color: var(--text);
+            padding: 14px 32px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 10px 40px rgba(124, 102, 220, 0.2),
-                        0 0 60px rgba(155, 135, 245, 0.15);
+            transition: all 0.2s ease;
+            position: relative;
+            z-index: 10;
         }
 
         .landing-sign-in-btn:hover {
-            transform: translateY(-4px) scale(1.02);
-            box-shadow: 0 20px 60px rgba(124, 102, 220, 0.25),
-                        0 0 80px rgba(155, 135, 245, 0.2);
+            background: var(--bg-elevated);
+            border-color: var(--border-hover);
         }
 
         .landing-sign-in-btn:active {
-            transform: translateY(-2px) scale(1.01);
+            transform: scale(0.98);
         }
 
         .landing-sign-in-btn .google-icon {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
         }
 
         .landing-powered-by {
-            margin-top: 40px;
-            font-size: 14px;
-            color: #666;
-            font-weight: 300;
-            letter-spacing: 0.5px;
+            margin-top: 32px;
+            font-size: 13px;
+            color: var(--text-muted);
         }
 
         .olbrain-text {
-            color: #8a2be2;
-            font-weight: 600;
-            text-shadow: 0 0 20px rgba(138, 43, 226, 0.4);
+            color: var(--accent);
+            font-weight: 500;
         }
 
         /* ==================== APP HEADER ==================== */
@@ -199,76 +160,79 @@
             position: fixed;
             top: 0;
             left: 0;
-            right: 360px; /* Stop before right panel */
-            height: 64px;
-            background: var(--color-bg-primary);
-            border-bottom: 1px solid var(--color-border-default);
+            right: 0;
+            height: 48px;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 24px;
+            padding: 0 16px;
             z-index: 100;
-            backdrop-filter: blur(10px);
-            transition: right 0.3s ease;
-        }
-
-        /* When right panel is collapsed */
-        body.right-panel-collapsed .app-header {
-            right: 0;
         }
 
         .app-header-left {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
-        .header-logo {
-            font-size: 32px;
-            animation: logoFloat 4s ease-in-out infinite;
+        .header-avatar-left {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid var(--accent);
+            cursor: pointer;
         }
 
         .header-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: white;
-            letter-spacing: -0.5px;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
         }
 
         .app-header-right {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 8px;
         }
 
         .header-icon-btn {
             position: relative;
-            background: none;
+            background: transparent;
             border: none;
-            color: white;
-            font-size: 24px;
+            color: var(--text-secondary);
+            font-size: 18px;
             cursor: pointer;
             padding: 8px;
             border-radius: 8px;
-            transition: background 0.3s ease;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .header-icon-btn:hover {
-            background: #1a1a1a;
+            background: var(--accent-muted);
+            color: var(--text);
         }
 
         .activity-badge {
             position: absolute;
-            top: 4px;
-            right: 4px;
-            background: var(--color-accent-primary);
+            top: 2px;
+            right: 2px;
+            background: var(--accent);
             color: white;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 600;
-            padding: 2px 6px;
-            border-radius: 10px;
-            min-width: 18px;
+            padding: 1px 4px;
+            border-radius: 8px;
+            min-width: 14px;
             text-align: center;
+        }
+
+        .activity-badge:empty {
+            display: none;
         }
 
         .header-user-menu {
@@ -276,17 +240,16 @@
         }
 
         .header-avatar {
-            width: 40px;
-            height: 40px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
-            border: 2px solid #333;
+            border: 2px solid var(--border);
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.15s;
         }
 
         .header-avatar:hover {
-            border-color: var(--color-accent-primary);
-            transform: scale(1.05);
+            border-color: var(--accent);
         }
 
         .header-dropdown {
@@ -585,9 +548,9 @@
 
         .app-container {
             display: flex;
-            height: calc(100vh - 64px);
+            height: calc(100vh - 48px);
             width: 100vw;
-            margin-top: 64px;
+            margin-top: 48px;
         }
 
         /* Sidebar - Hidden by default */
@@ -601,64 +564,85 @@
             order: 2;
         }
 
-        /* Right Activity Panel - Full height fixed */
+        /* Settings Panel Overlay */
+        .settings-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 199;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.25s ease, visibility 0.25s ease;
+        }
+
+        body:not(.right-panel-collapsed) .settings-overlay {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Right Settings Panel - Slide-over */
         .right-activity-panel {
             position: fixed;
             top: 0;
             right: 0;
             bottom: 0;
-            width: 360px;
-            background: var(--color-bg-secondary);
-            border-left: 1px solid var(--color-border-default);
+            width: 340px;
+            max-width: 90vw;
+            background: var(--bg);
+            border-left: 1px solid var(--border);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            z-index: 101;
-            transition: transform 0.3s ease;
-        }
-
-        /* Collapsed state */
-        body.right-panel-collapsed .right-activity-panel {
+            z-index: 200;
             transform: translateX(100%);
+            transition: transform 0.25s ease;
         }
 
-        /* Toggle button for right panel */
-        .right-panel-toggle {
-            position: fixed;
-            top: 50%;
-            right: 360px;
-            transform: translateY(-50%);
-            width: 24px;
-            height: 48px;
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-right: none;
-            border-radius: 8px 0 0 8px;
-            color: #888;
-            cursor: pointer;
+        /* Open state */
+        body:not(.right-panel-collapsed) .right-activity-panel {
+            transform: translateX(0);
+        }
+
+        /* Panel Header */
+        .settings-panel-header {
             display: flex;
             align-items: center;
-            justify-content: center;
-            z-index: 102;
-            transition: all 0.3s ease;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
         }
 
-        .right-panel-toggle:hover {
-            background: #2a2a2a;
-            color: white;
+        .settings-panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
         }
 
-        body.right-panel-collapsed .right-panel-toggle {
-            right: 0;
+        .settings-panel-close {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+            line-height: 1;
+            transition: all 0.15s;
         }
 
-        .right-panel-toggle .toggle-icon {
-            font-size: 14px;
-            transition: transform 0.3s ease;
+        .settings-panel-close:hover {
+            background: var(--accent-muted);
+            color: var(--text);
         }
 
-        body.right-panel-collapsed .right-panel-toggle .toggle-icon {
-            transform: rotate(180deg);
+        /* Hide toggle button - use header icons instead */
+        .right-panel-toggle {
+            display: none;
         }
 
         .right-activity-panel .activity-feed {
@@ -668,12 +652,9 @@
             overflow: hidden;
         }
 
-        /* Panel Tab Navigation */
+        /* Hide tabs - show settings directly */
         .panel-tabs {
-            display: flex;
-            background: var(--color-bg-primary);
-            border-bottom: 1px solid var(--color-border-default);
-            padding: 0;
+            display: none;
         }
 
         .panel-tab {
@@ -749,6 +730,16 @@
 
         .panel-tab-content.active {
             display: flex;
+        }
+
+        /* Settings panel shows settings directly */
+        #settingsTab {
+            display: flex;
+        }
+
+        #activityTab,
+        #analyticsTab {
+            display: none;
         }
 
         .settings-scroll-container,
@@ -2137,7 +2128,7 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            background: #0d0d0d;
+            background: var(--bg);
             overflow: hidden;
             margin-right: 360px; /* Space for fixed right panel */
             order: 1;
@@ -2163,178 +2154,145 @@
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 30px;
+            padding: 16px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            background: var(--color-bg-secondary);
+            gap: 12px;
+            background: var(--bg);
         }
 
         .message {
             display: flex;
-            gap: 15px;
-            animation: fadeIn 0.3s ease;
-            margin-bottom: 12px;
+            flex-direction: column;
+            animation: fadeIn 0.2s ease;
         }
 
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        /* AI messages - avatar on top, text below (shifts text left) */
+        /* AI messages - left aligned */
         .message.ai {
-            flex-direction: column !important;
-            justify-content: flex-start !important;
             align-items: flex-start;
-            gap: 8px;
         }
 
-        /* User messages - right aligned, no avatar (WhatsApp style) */
+        /* User messages - right aligned */
         .message.user {
-            flex-direction: row !important;
-            justify-content: flex-end !important;
             align-items: flex-end;
         }
 
+        /* Hide avatars for cleaner look */
         .message-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        .message-avatar {
-            background: #1a1a1a;
-            border: 2px solid #333;
+            display: none;
         }
 
         .message-content {
-            background: var(--gradient-subtle);
-            border: 1px solid var(--color-border-default);
-            padding: 15px 20px;
-            border-radius: 18px;
-            max-width: 70%;
-            word-wrap: break-word;
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 16px;
             line-height: 1.5;
-            color: var(--color-text-primary);
+            word-wrap: break-word;
+            font-size: 14px;
         }
 
         .message.user .message-content {
-            background: var(--gradient-primary);
-            color: var(--color-text-primary);
-            border: none;
-            border-radius: 18px 18px 4px 18px; /* WhatsApp-style tail on bottom right */
-            position: relative;
-            padding-right: 30px; /* Space for checkmark */
-        }
-
-        /* WhatsApp-style double checkmark for delivered messages */
-        .message.user .message-content::after {
-            content: '✓✓';
-            position: absolute;
-            right: 10px;
-            bottom: 8px;
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.5);
-            font-weight: bold;
-            letter-spacing: -3px;
+            background: var(--accent);
+            color: white;
+            border-radius: 16px 16px 4px 16px;
         }
 
         .message.ai .message-content {
-            /* Keep box styling on desktop - inherit from base .message-content */
-            /* Only adjust the border-radius for a left-tail WhatsApp style */
-            border-radius: 18px 18px 18px 4px;
-            max-width: 70%; /* Constrained width for better readability */
+            background: var(--bg-surface);
+            color: var(--text);
+            border-radius: 16px 16px 16px 4px;
         }
 
         .chat-input-container {
-            padding: 16px 20px 2px 20px;
-            background: var(--color-bg-primary);
-            border-top: 1px solid var(--color-border-default);
-            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+            padding: 0 16px 16px 16px;
+            background: linear-gradient(to top, var(--bg) 70%, transparent);
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 6px 6px 6px 16px;
+            transition: border-color 0.15s;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--accent);
         }
 
         .chat-input {
             flex: 1;
-            padding: 10px 16px;
-            background: var(--color-bg-primary);
-            border: 1px solid var(--color-border-default);
-            border-radius: 25px;
-            font-size: 16px;
-            color: white;
+            padding: 8px 0;
+            background: transparent;
+            border: none;
+            font-size: 14px;
+            color: var(--text);
             outline: none;
-            transition: all 0.3s ease;
-        }
-
-        .chat-input:focus {
-            border-color: var(--color-accent-primary);
-            box-shadow: 0 0 0 3px rgba(124, 102, 220, 0.2);
+            resize: none;
+            max-height: 120px;
+            line-height: 1.4;
         }
 
         .chat-input::placeholder {
-            color: #666;
+            color: var(--text-muted);
         }
 
         .send-button {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: var(--gradient-primary);
+            background: var(--accent);
             color: white;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .send-button:hover:not(:disabled) {
+            background: var(--accent-hover);
+        }
+
+        .send-button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .attach-button {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: transparent;
+            color: var(--text-secondary);
             border: none;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-            transition: all 0.3s ease;
-            flex-shrink: 0;
-        }
-
-        .send-button:hover {
-            box-shadow: 0 0 20px rgba(124, 102, 220, 0.25);
-            transform: scale(1.05);
-        }
-
-        .send-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .attach-button {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: #1a1a1a;
-            color: white;
-            border: 1px solid #333;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            transition: all 0.3s ease;
+            font-size: 18px;
+            transition: all 0.15s;
             flex-shrink: 0;
         }
 
         .attach-button:hover {
-            background: #2a2a2a;
-            border-color: #555;
-            transform: scale(1.05);
+            color: var(--text);
+            background: var(--accent-muted);
         }
 
         .file-preview {
@@ -2948,56 +2906,50 @@
                 left: 0;
                 right: 0;
                 width: 100%;
-                padding: 8px 16px;
-                padding-bottom: max(8px, calc(8px + env(safe-area-inset-bottom)));
-                background: #e0e0e0;
-                border-top: 1px solid #bbb;
+                padding: 0 12px 12px 12px;
+                padding-bottom: max(12px, calc(12px + env(safe-area-inset-bottom)));
+                background: linear-gradient(to top, var(--bg) 70%, transparent);
                 z-index: 1000;
             }
 
-            /* Remove Safari-specific padding - no longer needed with fixed position */
-            body.is-safari .chat-input-container {
-                /* Intentionally empty - fixed position solves keyboard issues */
-            }
-
-            /* Remove Chrome-specific padding - no longer needed with fixed position */
-            body.is-chrome .chat-input-container {
-                /* Intentionally empty - fixed position solves keyboard issues */
+            .input-wrapper {
+                background: var(--bg-surface);
+                border: 1px solid var(--border);
+                border-radius: 24px;
+                padding: 6px 6px 6px 12px;
             }
 
             .chat-input {
                 font-size: 16px; /* Prevents iOS zoom on focus */
-                background: #e0e0e0; /* Match container */
-                color: #333; /* Dark text on light background */
-                border: 1px solid #bbb; /* Subtle border */
-                border-radius: 6px; /* Minimal rectangular rounding */
-                padding: 8px 12px; /* Compact padding */
+                background: transparent;
+                color: var(--text);
+                border: none;
+                padding: 8px 0;
             }
 
             .chat-input::placeholder {
-                color: #888; /* Medium gray placeholder */
+                color: var(--text-muted);
             }
 
             .chat-input:focus {
-                border-color: #999; /* Slightly darker on focus */
-                background: #f0f0f0; /* Slightly lighter on focus */
                 outline: none;
             }
 
             .send-button {
-                background: #d0d0d0; /* Slightly darker gray */
-                color: #333; /* Dark arrow */
-                border: 1px solid #bbb;
-                padding: 8px 14px;
-                border-radius: 6px;
+                background: var(--accent);
+                color: white;
+                border: none;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
             }
 
-            .send-button:hover {
-                background: #c0c0c0;
+            .send-button:hover:not(:disabled) {
+                background: var(--accent-hover);
             }
 
             .send-button:active {
-                background: #b0b0b0;
+                background: var(--accent);
             }
 
             /* Ensure chat messages don't hide behind fixed input bar */
@@ -3207,7 +3159,7 @@
         }
     </style>
 </head>
-<body>
+<body class="right-panel-collapsed">
     <!-- Workflow Indicator Banner -->
     <div id="workflowIndicator" class="workflow-indicator hidden">
         <span class="workflow-indicator-icon">⚙️</span>
@@ -3216,12 +3168,12 @@
     </div>
 
     <!-- Landing Page (Centered Auth Screen) -->
-    <div id="landingPage" class="landing-page hidden">
+    <div id="landingPage" class="landing-page">
         <div class="landing-content">
             <div class="landing-logo">
-                <div class="logo-glow">🔮</div>
+                <img src="/logo.png" alt="Mindclone Logo" class="landing-logo-img">
             </div>
-            <h1 class="landing-title">mindclone</h1>
+            <h1 class="landing-title">Mindclone</h1>
             <p class="landing-tagline">A record of the life only you lived.</p>
             <button id="landingSignInBtn" class="landing-sign-in-btn">
                 <svg class="google-icon" viewBox="0 0 24 24">
@@ -3239,9 +3191,17 @@
     <!-- App Header (Shown after authentication) -->
     <header id="appHeader" class="app-header hidden">
         <div class="app-header-left">
-            <div class="header-title">my mindclone</div>
+            <img id="headerAvatarLeft" class="header-avatar-left" src="" alt="User">
+            <div class="header-title">Mindclone</div>
         </div>
         <div class="app-header-right">
+            <button id="activityBtn" class="header-icon-btn" title="Activity">
+                📊
+                <span id="activityBadgeHeader" class="activity-badge"></span>
+            </button>
+            <button id="settingsBtn" class="header-icon-btn" title="Settings">
+                ⚙️
+            </button>
             <div class="header-user-menu">
                 <img id="headerAvatar" class="header-avatar" src="" alt="User Avatar">
                 <div id="headerDropdown" class="header-dropdown hidden">
@@ -3393,45 +3353,32 @@
                         style="display: none;"
                         accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.csv"
                     >
-                    <button id="attachButton" class="attach-button" title="Attach file">
-                        📎
-                    </button>
-                    <input
-                        type="text"
-                        id="chatInput"
-                        class="chat-input"
-                        placeholder="Type your message..."
-                        autocomplete="off"
-                    >
-                    <button id="sendButton" class="send-button">
-                        ➤
-                    </button>
+                    <div class="input-wrapper">
+                        <button id="attachButton" class="attach-button" title="Attach file">
+                            📎
+                        </button>
+                        <input
+                            type="text"
+                            id="chatInput"
+                            class="chat-input"
+                            placeholder="Type your message..."
+                            autocomplete="off"
+                        >
+                        <button id="sendButton" class="send-button">↑</button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Right Panel Toggle Button -->
-        <button class="right-panel-toggle" id="rightPanelToggle" title="Toggle Activity Panel">
-            <span class="toggle-icon">›</span>
-        </button>
+        <!-- Settings Panel Overlay -->
+        <div class="settings-overlay" id="settingsOverlay"></div>
 
-        <!-- Right Activity Panel -->
-        <div class="right-activity-panel">
-            <!-- Tab Navigation -->
-            <div class="panel-tabs">
-                <button class="panel-tab active" data-tab="activity">
-                    <span class="tab-icon">📊</span>
-                    <span class="tab-label">Activity</span>
-                    <span class="tab-badge" id="activityBadge"></span>
-                </button>
-                <button class="panel-tab" data-tab="settings">
-                    <span class="tab-icon">⚙️</span>
-                    <span class="tab-label">Settings</span>
-                </button>
-                <button class="panel-tab" data-tab="analytics">
-                    <span class="tab-icon">📈</span>
-                    <span class="tab-label">Analytics</span>
-                </button>
+        <!-- Right Settings Panel -->
+        <div class="right-activity-panel" id="settingsPanel">
+            <!-- Panel Header -->
+            <div class="settings-panel-header">
+                <span class="settings-panel-title">Settings</span>
+                <button class="settings-panel-close" id="settingsPanelClose">×</button>
             </div>
 
             <!-- Tab Content Container -->
@@ -4944,17 +4891,35 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
         });
 
         // Google Sign In
-        googleSignInBtn.addEventListener('click', async () => {
+        googleSignInBtn?.addEventListener('click', async () => {
             try {
                 googleSignInBtn.disabled = true;
                 googleSignInBtn.innerHTML = '<div class="loading"></div> Signing in...';
-                
+
                 const result = await signInWithPopup(auth, provider);
                 // User signed in successfully
                 console.log('Signed in:', result.user);
             } catch (error) {
                 console.error('Sign in error:', error);
-                alert('Failed to sign in. Please try again.');
+                console.error('Error code:', error.code);
+                console.error('Error message:', error.message);
+
+                let errorMessage = 'Failed to sign in. Please try again.';
+
+                // Provide specific error messages
+                if (error.code === 'auth/unauthorized-domain') {
+                    errorMessage = 'This domain is not authorized for authentication. Please contact support.';
+                } else if (error.code === 'auth/popup-blocked') {
+                    errorMessage = 'Sign-in popup was blocked. Please allow popups for this site.';
+                } else if (error.code === 'auth/popup-closed-by-user') {
+                    errorMessage = 'Sign-in cancelled. Please try again.';
+                } else if (error.code === 'auth/cancelled-popup-request') {
+                    errorMessage = 'Sign-in cancelled. Please try again.';
+                } else if (error.message) {
+                    errorMessage = `Sign-in failed: ${error.message}`;
+                }
+
+                alert(errorMessage);
                 googleSignInBtn.disabled = false;
                 googleSignInBtn.innerHTML = '<svg class="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> Sign in with Google';
             }
@@ -5661,11 +5626,13 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
 
             // Update header avatar and dropdown
             const headerAvatar = document.getElementById('headerAvatar');
+            const headerAvatarLeft = document.getElementById('headerAvatarLeft');
             const headerDropdownAvatar = document.getElementById('headerDropdownAvatar');
             const headerDropdownName = document.getElementById('headerDropdownName');
             const headerDropdownEmail = document.getElementById('headerDropdownEmail');
 
             if (headerAvatar) headerAvatar.src = user.photoURL || 'https://via.placeholder.com/40';
+            if (headerAvatarLeft) headerAvatarLeft.src = user.photoURL || 'https://via.placeholder.com/28';
             if (headerDropdownAvatar) headerDropdownAvatar.src = user.photoURL || 'https://via.placeholder.com/36';
             if (headerDropdownName) headerDropdownName.textContent = user.displayName || 'User';
             if (headerDropdownEmail) headerDropdownEmail.textContent = user.email;
@@ -7169,6 +7136,25 @@ Is there anything else you'd like to configure?`;
                     await signInWithPopup(auth, provider);
                 } catch (error) {
                     console.error('Sign-in error:', error);
+                    console.error('Error code:', error.code);
+                    console.error('Error message:', error.message);
+
+                    let errorMessage = 'Failed to sign in. Please try again.';
+
+                    // Provide specific error messages
+                    if (error.code === 'auth/unauthorized-domain') {
+                        errorMessage = 'This domain is not authorized for authentication. Please contact support.';
+                    } else if (error.code === 'auth/popup-blocked') {
+                        errorMessage = 'Sign-in popup was blocked. Please allow popups for this site.';
+                    } else if (error.code === 'auth/popup-closed-by-user') {
+                        errorMessage = 'Sign-in cancelled. Please try again.';
+                    } else if (error.code === 'auth/cancelled-popup-request') {
+                        errorMessage = 'Sign-in cancelled. Please try again.';
+                    } else if (error.message) {
+                        errorMessage = `Sign-in failed: ${error.message}`;
+                    }
+
+                    alert(errorMessage);
                 }
             });
         }
@@ -7253,6 +7239,42 @@ Is there anything else you'd like to configure?`;
                 } catch (error) {
                     console.error('Sign-out error:', error);
                 }
+            });
+        }
+
+        // ============================================
+        // Header Activity & Settings Buttons
+        // ============================================
+
+        // Activity button - opens activity modal
+        const activityBtn = document.getElementById('activityBtn');
+        if (activityBtn) {
+            activityBtn.addEventListener('click', () => {
+                openActivityModal();
+            });
+        }
+
+        // Settings button - opens settings panel
+        const settingsBtn = document.getElementById('settingsBtn');
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => {
+                document.body.classList.remove('right-panel-collapsed');
+            });
+        }
+
+        // Settings panel close button
+        const settingsPanelClose = document.getElementById('settingsPanelClose');
+        if (settingsPanelClose) {
+            settingsPanelClose.addEventListener('click', () => {
+                document.body.classList.add('right-panel-collapsed');
+            });
+        }
+
+        // Settings overlay click to close
+        const settingsOverlay = document.getElementById('settingsOverlay');
+        if (settingsOverlay) {
+            settingsOverlay.addEventListener('click', () => {
+                document.body.classList.add('right-panel-collapsed');
             });
         }
 
