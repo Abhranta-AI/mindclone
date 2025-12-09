@@ -792,6 +792,46 @@
             margin-bottom: 16px;
         }
 
+        /* User Profile Card */
+        .user-profile-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .user-profile-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #333;
+        }
+
+        .user-profile-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .user-profile-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 4px;
+        }
+
+        .user-profile-email {
+            font-size: 13px;
+            color: #999;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         /* Form Groups */
         .panel-form-group {
             margin-bottom: 20px;
@@ -3413,27 +3453,6 @@
 
         <!-- Right Activity Panel -->
         <div class="right-activity-panel">
-            <!-- User Section -->
-            <div class="right-panel-user">
-                <div class="header-user-menu">
-                    <img id="headerAvatar" class="header-avatar" src="" alt="User Avatar">
-                    <div id="headerDropdown" class="header-dropdown hidden">
-                        <div class="header-dropdown-header">
-                            <img id="headerDropdownAvatar" class="dropdown-avatar" src="" alt="User Avatar">
-                            <div class="dropdown-user-info">
-                                <div id="headerDropdownName" class="dropdown-user-name"></div>
-                                <div id="headerDropdownEmail" class="dropdown-user-email"></div>
-                            </div>
-                        </div>
-                        <hr class="dropdown-divider">
-                        <button id="headerSignOutBtn" class="header-dropdown-item">
-                            <span class="dropdown-icon">🚪</span>
-                            <span>Sign Out</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
             <!-- Tab Navigation -->
             <div class="panel-tabs">
                 <button class="panel-tab active" data-tab="activity">
@@ -3589,6 +3608,13 @@
                         <!-- Account Section -->
                         <div class="panel-section">
                             <h3 class="panel-section-title">Account</h3>
+                            <div class="user-profile-card">
+                                <img id="settingsUserAvatar" class="user-profile-avatar" src="" alt="User Avatar">
+                                <div class="user-profile-info">
+                                    <div id="settingsUserName" class="user-profile-name"></div>
+                                    <div id="settingsUserEmail" class="user-profile-email"></div>
+                                </div>
+                            </div>
                             <button id="settingsSignOutBtn" class="panel-button panel-button-danger">
                                 <span class="button-icon">🚪</span>
                                 <span>Sign Out</span>
@@ -5695,6 +5721,14 @@ The system is working perfectly. If you see a "✅ processed successfully" messa
             if (headerDropdownAvatar) headerDropdownAvatar.src = user.photoURL || 'https://via.placeholder.com/36';
             if (headerDropdownName) headerDropdownName.textContent = user.displayName || 'User';
             if (headerDropdownEmail) headerDropdownEmail.textContent = user.email;
+
+            // Update settings profile card
+            const settingsUserAvatar = document.getElementById('settingsUserAvatar');
+            const settingsUserName = document.getElementById('settingsUserName');
+            const settingsUserEmail = document.getElementById('settingsUserEmail');
+            if (settingsUserAvatar) settingsUserAvatar.src = user.photoURL || 'https://via.placeholder.com/48';
+            if (settingsUserName) settingsUserName.textContent = user.displayName || 'User';
+            if (settingsUserEmail) settingsUserEmail.textContent = user.email;
 
             // Update legacy user profile elements (for backward compatibility)
             userAvatar.src = user.photoURL || 'https://via.placeholder.com/50';
