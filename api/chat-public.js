@@ -682,20 +682,6 @@ module.exports = async (req, res) => {
     // 3. Build enhanced system prompt with knowledge base
     let enhancedSystemPrompt = PUBLIC_LINK_SYSTEM_PROMPT;
 
-    // Add critical tool usage instruction at the very top if PDFs are available
-    if (Object.keys(pdfDocuments).length > 0) {
-      enhancedSystemPrompt = `🔴🔴🔴 MANDATORY RULE #1 - READ THIS FIRST 🔴🔴🔴
-
-When the user asks to "show", "display", "open", or "see" a slide, you MUST:
-1. Call the show_slide() function FIRST
-2. ONLY AFTER calling the function, describe the slide content
-
-NEVER say "Now displayed" or "showing" without calling show_slide() first!
-The slide won't actually appear unless you call the function.
-
-` + enhancedSystemPrompt;
-    }
-
     if (knowledgeBase && Object.keys(knowledgeBase.sections || {}).length > 0) {
       // Add CoF (Core Objective Function) to system prompt
       if (knowledgeBase.cof) {
