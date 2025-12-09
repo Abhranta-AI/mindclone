@@ -856,7 +856,8 @@
             background: #0d0d0d;
             border: 1px solid #333;
             border-radius: 8px;
-            overflow: visible;
+            overflow: hidden;
+            max-width: 100%;
         }
 
         .username-input-group:focus-within {
@@ -870,10 +871,12 @@
             background: #1a1a1a;
             border-right: 1px solid #333;
             white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .username-input {
             flex: 1;
+            min-width: 0;
             padding: 12px;
             background: transparent;
             border: none;
@@ -887,6 +890,7 @@
             font-size: 11px;
             font-weight: 600;
             white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .availability-indicator.available {
@@ -956,16 +960,18 @@
         }
 
         .username-delete-icon {
-            padding: 8px 12px;
+            padding: 8px;
             cursor: pointer;
             color: var(--color-text-muted);
-            font-size: 18px;
+            font-size: 16px;
             display: none;
             transition: color 0.2s ease;
             background: transparent;
             border: none;
             outline: none;
             flex-shrink: 0;
+            width: 32px;
+            height: 32px;
         }
 
         .username-delete-icon:hover {
