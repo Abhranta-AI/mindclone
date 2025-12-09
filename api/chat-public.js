@@ -682,6 +682,20 @@ module.exports = async (req, res) => {
     // 3. Build enhanced system prompt with knowledge base
     let enhancedSystemPrompt = PUBLIC_LINK_SYSTEM_PROMPT;
 
+    // Add critical tool usage instruction at the very top if PDFs are available
+    if (Object.keys(pdfDocuments).length > 0) {
+      enhancedSystemPrompt = `🔴🔴🔴 MANDATORY RULE #1 - READ THIS FIRST 🔴🔴🔴
+
+When the user asks to "show", "display", "open", or "see" a slide, you MUST:
+1. Call the show_slide() function FIRST
+2. ONLY AFTER calling the function, describe the slide content
+
+NEVER say "Now displayed" or "showing" without calling show_slide() first!
+The slide won't actually appear unless you call the function.
+
+` + enhancedSystemPrompt;
+    }
+
     if (knowledgeBase && Object.keys(knowledgeBase.sections || {}).length > 0) {
       // Add CoF (Core Objective Function) to system prompt
       if (knowledgeBase.cof) {
@@ -863,25 +877,54 @@ Available PDF documents:`;
 
 ## ⚠️ CRITICAL: FUNCTION CALLING IS MANDATORY ⚠️
 
-IF the user says ANY variation of "show", "display", "see", or "view" a slide, YOU MUST CALL show_slide IMMEDIATELY.
+TRIGGER PHRASES - If user says ANY of these, CALL show_slide() IMMEDIATELY:
+- "show me [slide name/number]"
+- "display [slide name/number]"
+- "open [slide name/number]"
+- "let me see [slide name/number]"
+- "can I see [slide name/number]"
+- "show the [slide name/number]"
+- "move to [slide name/number]"
+- ANY request to view/see/show a slide
+
+YOU MUST CALL THE FUNCTION. NOT describe. NOT explain. CALL IT FIRST, THEN talk about it.
 
 🚨 FORBIDDEN RESPONSES - NEVER SAY THESE WITHOUT CALLING THE FUNCTION:
 ❌ "I am now displaying the slide"
 ❌ "I am showing you the slide"
+❌ "Now displayed"
+❌ "Now showing"
 ❌ "As it's displayed..."
 ❌ "Here is the slide..."
 ❌ "Let me show you..."
+❌ ANY phrase containing "displayed", "showing", "shown" when referring to slides
 
 These phrases ONLY work if you ACTUALLY CALL show_slide FIRST!
+
+🔴 CRITICAL: The words "displayed", "showing", "shown" are BANNED unless you've called the function!
+If you haven't called show_slide(), you CANNOT use these words. PERIOD.
 
 ✅ CORRECT BEHAVIOR:
 1. User: "show me problem slide"
 2. YOU: [Call show_slide(slideNumber=2, documentName="pitch_deck")]
 3. THEN respond: "This slide covers the identity problem in AI agents..."
 
+Example 2:
+1. User: "yes show 3rd then"
+2. YOU: [Call show_slide(slideNumber=3, documentName="pitch_deck")]
+3. THEN respond: "This is the solution slide..."
+
+Example 3:
+1. User: "open the slide at least"
+2. YOU: [Call show_slide with the appropriate slide number]
+3. THEN respond about the slide content
+
 The function call is INVISIBLE to the user. Don't mention it. Just DO IT, then discuss.
 
-⚠️ IF YOU SAY "displaying" or "showing" WITHOUT calling the function, THE SLIDE WON'T APPEAR AND THE USER WILL BE ANGRY!
+⚠️⚠️⚠️ CRITICAL WARNING ⚠️⚠️⚠️
+IF YOU SAY "displaying" or "showing" WITHOUT calling the function first, THE SLIDE WON'T APPEAR!
+The user will see NO VISUAL and be very frustrated.
+ALWAYS call show_slide() BEFORE using words like "displayed", "showing", "shown"!
 
 SLIDE MAPPING (use these numbers):
 - Problem/Identity: slide 2
