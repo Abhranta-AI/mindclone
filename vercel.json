@@ -66,12 +66,16 @@
       "dest": "/repair.html"
     },
     {
+      "src": "^/api/discover$",
+      "dest": "/api/discover.js"
+    },
+    {
       "src": "^/([a-z][a-z0-9_]{2,19})$",
       "dest": "/link.html?username=$1"
     },
     {
       "src": "^/$",
-      "dest": "/index.html"
+      "dest": "/discover.html"
     }
   ]
 }

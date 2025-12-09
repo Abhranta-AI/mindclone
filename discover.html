@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discover Mindclones</title>
+
+    <style>
+        :root {
+            /* Minimal Modern Palette - Clean & Professional */
+            --bg: #0a0a0a;
+            --bg-surface: #141414;
+            --bg-elevated: #1a1a1a;
+            --border: #262626;
+            --border-hover: #333333;
+
+            /* Text */
+            --text: #fafafa;
+            --text-secondary: #a1a1a1;
+            --text-muted: #666666;
+
+            /* Single Accent */
+            --accent: #a78bfa;
+            --accent-hover: #c4b5fd;
+            --accent-muted: rgba(167, 139, 250, 0.15);
+
+            /* Status */
+            --error: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .header-subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* Search Container */
+        .search-container {
+            max-width: 600px;
+            margin: 32px auto 24px;
+            padding: 0 20px;
+            width: 100%;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 16px 20px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 16px;
+            transition: all 0.2s;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent);
+            background: var(--bg-elevated);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Results Container */
+        .results-container {
+            flex: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px 40px;
+            width: 100%;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Profile Card */
+        .profile-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .profile-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .profile-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .profile-card-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: 2px solid var(--accent);
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        .profile-card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .profile-card-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .profile-card-username {
+            font-size: 13px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .profile-card-bio {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 42px;
+        }
+
+        /* Loading State */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            gap: 16px;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            gap: 16px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            opacity: 0.5;
+        }
+
+        .empty-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .empty-message {
+            font-size: 14px;
+            color: var(--text-muted);
+            max-width: 400px;
+        }
+
+        /* Load More Button */
+        .load-more-container {
+            text-align: center;
+            padding: 32px 20px;
+        }
+
+        .load-more-btn {
+            padding: 12px 24px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .load-more-btn:hover:not(:disabled) {
+            border-color: var(--accent);
+            background: var(--bg-elevated);
+        }
+
+        .load-more-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Hidden class */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 24px 20px;
+            border-top: 1px solid var(--border);
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            color: var(--accent-hover);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-title">Discover Mindclones</div>
+        <div class="header-subtitle">Search and connect with public mindclone links</div>
+    </div>
+
+    <!-- Search Container -->
+    <div class="search-container">
+        <input
+            id="searchInput"
+            class="search-input"
+            type="text"
+            placeholder="Search by name, username, or bio..."
+            autocomplete="off"
+        >
+    </div>
+
+    <!-- Results Container -->
+    <div class="results-container">
+        <!-- Loading State -->
+        <div id="loadingState" class="loading-container">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading mindclones...</div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state hidden">
+            <div class="empty-icon">🔍</div>
+            <div class="empty-title">No results found</div>
+            <div class="empty-message">Try a different search term or browse all available mindclones</div>
+        </div>
+
+        <!-- Results Grid -->
+        <div id="resultsGrid" class="results-grid hidden">
+            <!-- Profile cards will be inserted here -->
+        </div>
+    </div>
+
+    <!-- Load More Button -->
+    <div id="loadMoreContainer" class="load-more-container hidden">
+        <button id="loadMoreBtn" class="load-more-btn">Load More</button>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <a href="https://mindclone.one" target="_blank">Create your own Mindclone</a>
+    </div>
+
+    <script type="module">
+        // State management
+        let currentOffset = 0;
+        let searchQuery = '';
+        let loading = false;
+        let hasMore = false;
+        let searchTimeout = null;
+
+        // DOM elements
+        const searchInput = document.getElementById('searchInput');
+        const loadingState = document.getElementById('loadingState');
+        const emptyState = document.getElementById('emptyState');
+        const resultsGrid = document.getElementById('resultsGrid');
+        const loadMoreContainer = document.getElementById('loadMoreContainer');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+
+        // Fetch results from API
+        async function fetchResults(append = false) {
+            if (loading) return;
+            loading = true;
+
+            // Update button state
+            if (append) {
+                loadMoreBtn.disabled = true;
+                loadMoreBtn.textContent = 'Loading...';
+            } else {
+                showLoading();
+            }
+
+            const params = new URLSearchParams({
+                q: searchQuery,
+                limit: 20,
+                offset: append ? currentOffset : 0
+            });
+
+            try {
+                const response = await fetch(`/api/discover?${params}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (!append) {
+                    // Clear grid for new search
+                    resultsGrid.innerHTML = '';
+                    currentOffset = 0;
+                }
+
+                // Render results
+                if (data.results.length > 0) {
+                    renderResults(data.results);
+                    currentOffset += data.results.length;
+                    hasMore = data.hasMore;
+
+                    // Show/hide load more button
+                    if (hasMore) {
+                        loadMoreContainer.classList.remove('hidden');
+                    } else {
+                        loadMoreContainer.classList.add('hidden');
+                    }
+
+                    // Show results grid
+                    resultsGrid.classList.remove('hidden');
+                    hideLoading();
+                    hideEmpty();
+                } else if (!append) {
+                    // No results for new search
+                    showEmpty();
+                }
+
+            } catch (error) {
+                console.error('Error fetching results:', error);
+
+                if (!append) {
+                    showEmpty();
+                    emptyState.querySelector('.empty-title').textContent = 'Error loading results';
+                    emptyState.querySelector('.empty-message').textContent = 'Please try again later';
+                }
+            } finally {
+                loading = false;
+                if (append) {
+                    loadMoreBtn.disabled = false;
+                    loadMoreBtn.textContent = 'Load More';
+                }
+            }
+        }
+
+        // Render profile cards
+        function renderResults(results) {
+            results.forEach(profile => {
+                const card = createProfileCard(profile);
+                resultsGrid.appendChild(card);
+            });
+        }
+
+        // Create profile card element
+        function createProfileCard(profile) {
+            const card = document.createElement('div');
+            card.className = 'profile-card';
+            card.onclick = () => navigateToProfile(profile.username);
+
+            // Generate avatar URL
+            const avatarUrl = profile.photoURL ||
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.displayName)}&size=112&background=a78bfa&color=fff&bold=true`;
+
+            card.innerHTML = `
+                <div class="profile-card-header">
+                    <img src="${avatarUrl}" class="profile-card-avatar" alt="${profile.displayName}">
+                    <div class="profile-card-info">
+                        <div class="profile-card-name">${escapeHtml(profile.displayName)}</div>
+                        <div class="profile-card-username">@${escapeHtml(profile.username)}</div>
+                    </div>
+                </div>
+                <div class="profile-card-bio">${escapeHtml(profile.bio) || 'No bio available'}</div>
+            `;
+
+            return card;
+        }
+
+        // Navigate to profile
+        function navigateToProfile(username) {
+            window.location.href = `/${username}`;
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Show/hide states
+        function showLoading() {
+            loadingState.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+            resultsGrid.classList.add('hidden');
+            loadMoreContainer.classList.add('hidden');
+        }
+
+        function hideLoading() {
+            loadingState.classList.add('hidden');
+        }
+
+        function showEmpty() {
+            emptyState.classList.remove('hidden');
+            loadingState.classList.add('hidden');
+            resultsGrid.classList.add('hidden');
+            loadMoreContainer.classList.add('hidden');
+        }
+
+        function hideEmpty() {
+            emptyState.classList.add('hidden');
+        }
+
+        // Search input handler with debounce
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchQuery = e.target.value.trim();
+
+            searchTimeout = setTimeout(() => {
+                fetchResults(false);
+            }, 300); // 300ms debounce
+        });
+
+        // Load more button handler
+        loadMoreBtn.addEventListener('click', () => {
+            fetchResults(true);
+        });
+
+        // Initial load
+        fetchResults(false);
+    </script>
+</body>
+</html>
