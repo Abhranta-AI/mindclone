@@ -676,6 +676,17 @@
             margin-left: 64px;
         }
 
+        /* Hide account sidebar on mobile to save horizontal space */
+        @media (max-width: 768px) {
+            .account-sidebar {
+                display: none;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
         /* Sidebar - Hidden by default */
         .sidebar {
             width: 220px;
