@@ -74,29 +74,12 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 50%, var(--color-bg-tertiary) 100%);
+            background: var(--bg);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 9999;
             overflow: hidden;
-        }
-
-        /* Animated gradient background effect - Subtle luxury glow */
-        .landing-page::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(124, 102, 220, 0.06) 0%, rgba(155, 135, 245, 0.04) 50%, transparent 70%);
-            animation: gradientShift 20s ease infinite;
-        }
-
-        @keyframes gradientShift {
-            0%, 100% { transform: translate(0, 0); }
-            50% { transform: translate(10%, 10%); }
         }
 
         .landing-content {
@@ -143,66 +126,56 @@
             font-size: 72px;
             font-weight: 700;
             margin-bottom: 20px;
-            background: linear-gradient(135deg, var(--color-text-primary) 0%, var(--color-text-secondary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--text);
             letter-spacing: -2px;
         }
 
         .landing-tagline {
             font-size: 24px;
-            color: var(--color-text-tertiary);
+            color: var(--text-secondary);
             margin-bottom: 60px;
-            font-weight: 300;
-            letter-spacing: 1px;
+            font-weight: 400;
         }
 
         .landing-sign-in-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 16px;
-            background: var(--gradient-primary);
-            color: var(--color-text-primary);
-            padding: 20px 48px;
-            border: none;
-            border-radius: 50px;
-            font-size: 18px;
-            font-weight: 600;
+            gap: 12px;
+            background: var(--bg-surface);
+            color: var(--text);
+            padding: 16px 32px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 10px 40px rgba(124, 102, 220, 0.2),
-                        0 0 60px rgba(155, 135, 245, 0.15);
+            transition: all 0.2s ease;
         }
 
         .landing-sign-in-btn:hover {
-            transform: translateY(-4px) scale(1.02);
-            box-shadow: 0 20px 60px rgba(124, 102, 220, 0.25),
-                        0 0 80px rgba(155, 135, 245, 0.2);
+            background: var(--bg-elevated);
+            border-color: var(--border-hover);
         }
 
         .landing-sign-in-btn:active {
-            transform: translateY(-2px) scale(1.01);
+            transform: scale(0.98);
         }
 
         .landing-sign-in-btn .google-icon {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
         }
 
         .landing-powered-by {
-            margin-top: 40px;
-            font-size: 14px;
-            color: #666;
-            font-weight: 300;
-            letter-spacing: 0.5px;
+            margin-top: 48px;
+            font-size: 13px;
+            color: var(--text-muted);
         }
 
         .olbrain-text {
-            color: #8a2be2;
-            font-weight: 600;
-            text-shadow: 0 0 20px rgba(138, 43, 226, 0.4);
+            color: var(--accent);
+            font-weight: 500;
         }
 
         /* ==================== APP HEADER ==================== */
