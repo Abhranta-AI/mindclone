@@ -959,12 +959,13 @@
             padding: 8px 12px;
             cursor: pointer;
             color: var(--color-text-muted);
-            font-size: 16px;
+            font-size: 18px;
             display: none;
             transition: color 0.2s ease;
             background: transparent;
             border: none;
             outline: none;
+            flex-shrink: 0;
         }
 
         .username-delete-icon:hover {
@@ -972,7 +973,9 @@
         }
 
         .username-delete-icon.visible {
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .panel-actions {
