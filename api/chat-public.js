@@ -189,10 +189,17 @@ async function loadVisitorHistory(userId, visitorId, limit = 20) {
 
     return messagesSnapshot.docs.map(doc => {
       const data = doc.data();
-      return {
+      const message = {
         role: data.role,
         content: data.content
       };
+
+      // Include displayAction if present (for slide/excel restoration on page refresh)
+      if (data.displayAction) {
+        message.displayAction = data.displayAction;
+      }
+
+      return message;
     });
   } catch (error) {
     console.error('Error loading visitor history:', error);

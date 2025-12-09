@@ -1255,10 +1255,27 @@
                         const emptyState = chatContainer.querySelector('.empty-state');
                         if (emptyState) emptyState.remove();
 
+                        // Track the latest displayAction
+                        let latestDisplayAction = null;
+
                         // Render messages in UI
                         for (const msg of data.messages) {
                             const type = msg.role === 'user' ? 'user' : 'ai';
                             addMessage(type, msg.content, new Date());
+
+                            // Track displayAction from messages
+                            if (msg.displayAction) {
+                                latestDisplayAction = msg.displayAction;
+                            }
+                        }
+
+                        // Restore display panel if there was a slide shown
+                        if (latestDisplayAction) {
+                            if (latestDisplayAction.type === 'slide') {
+                                await displaySlide(latestDisplayAction.pdfUrl, latestDisplayAction.slideNumber, latestDisplayAction.totalSlides);
+                            } else if (latestDisplayAction.type === 'excel') {
+                                await displayExcel(latestDisplayAction.url, latestDisplayAction.sheetName);
+                            }
                         }
 
                         // Scroll to bottom
