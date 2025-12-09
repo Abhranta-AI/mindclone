@@ -66,6 +66,10 @@
       "dest": "/repair.html"
     },
     {
+      "src": "^/discover$",
+      "dest": "/discover.html"
+    },
+    {
       "src": "^/api/discover$",
       "dest": "/api/discover.js"
     },
@@ -75,7 +79,7 @@
     },
     {
       "src": "^/$",
-      "dest": "/discover.html"
+      "dest": "/index.html"
     }
   ]
 }
