@@ -941,12 +941,14 @@
         }
 
         .panel-button-danger {
-            background: #ff6b6b;
-            border-color: #ff6b6b;
+            background: transparent;
+            border-color: var(--color-error);
+            color: var(--color-error);
         }
 
         .panel-button-danger:hover {
-            background: #ff5252;
+            background: rgba(248, 113, 113, 0.1);
+            border-color: var(--color-error);
         }
 
         .panel-actions {
@@ -2145,19 +2147,19 @@
         }
 
         .message-content {
-            background: #1a1a1a;
-            border: 1px solid #333;
+            background: var(--gradient-subtle);
+            border: 1px solid var(--color-border-default);
             padding: 15px 20px;
             border-radius: 18px;
             max-width: 70%;
             word-wrap: break-word;
             line-height: 1.5;
-            color: white;
+            color: var(--color-text-primary);
         }
 
         .message.user .message-content {
-            background: white;
-            color: black;
+            background: var(--gradient-primary);
+            color: var(--color-text-primary);
             border: none;
             border-radius: 18px 18px 4px 18px; /* WhatsApp-style tail on bottom right */
             position: relative;
@@ -2171,7 +2173,7 @@
             right: 10px;
             bottom: 8px;
             font-size: 14px;
-            color: #999;
+            color: rgba(255, 255, 255, 0.5);
             font-weight: bold;
             letter-spacing: -3px;
         }
