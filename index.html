@@ -6957,13 +6957,10 @@ Is there anything else you'd like to configure?`;
                 const isCollapsed = document.body.classList.contains('right-panel-collapsed');
                 localStorage.setItem('rightPanelCollapsed', isCollapsed);
             });
-
-            // Restore saved preference
-            const savedCollapsed = localStorage.getItem('rightPanelCollapsed');
-            if (savedCollapsed === 'true') {
-                document.body.classList.add('right-panel-collapsed');
-            }
         }
+
+        // Panel is shown by default - clear any old localStorage that might hide it
+        localStorage.removeItem('rightPanelCollapsed');
 
         // File upload handlers
         attachButton.addEventListener('click', () => {
