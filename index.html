@@ -3724,6 +3724,8 @@
             }
         }
     </style>
+    <!-- Razorpay Checkout Script -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
     <!-- Workflow Indicator Banner -->
@@ -8177,16 +8179,16 @@ Is there anything else you'd like to configure?`;
                         </div>
                     `;
                 }
-            } else if (status.status === 'trialing') {
-                // Trial user
+            } else if (status.trialDaysRemaining > 0 || ['created', 'authenticated'].includes(status.status)) {
+                // Trial user (Razorpay uses 'created' or 'authenticated' during trial)
                 banner?.classList.remove('hidden');
                 document.body.classList.add('has-banner');
-                if (bannerText) bannerText.textContent = `Free trial: ${status.trialDaysRemaining} days remaining`;
+                if (bannerText) bannerText.textContent = `Free trial: ${status.trialDaysRemaining || 7} days remaining`;
                 if (currentPlanInfo) {
                     currentPlanInfo.innerHTML = `
                         <div class="plan-card trial">
                             <span class="plan-name">Free Trial</span>
-                            <span class="plan-status">${status.trialDaysRemaining} days left</span>
+                            <span class="plan-status">${status.trialDaysRemaining || 7} days left</span>
                         </div>
                     `;
                 }
@@ -8226,7 +8228,7 @@ Is there anything else you'd like to configure?`;
             }
         }
 
-        // Create checkout session and redirect
+        // Create subscription and open Razorpay checkout
         async function startCheckout() {
             if (!auth.currentUser) return;
 
@@ -8237,23 +8239,63 @@ Is there anything else you'd like to configure?`;
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${idToken}`
-                    },
-                    body: JSON.stringify({ returnUrl: window.location.href })
+                    }
                 });
 
-                if (!response.ok) throw new Error('Failed to create checkout session');
+                if (!response.ok) throw new Error('Failed to create subscription');
 
-                const { checkoutUrl } = await response.json();
-                window.location.href = checkoutUrl;
+                const data = await response.json();
+
+                // Option 1: Use Razorpay hosted checkout page
+                if (data.shortUrl) {
+                    window.location.href = data.shortUrl;
+                    return;
+                }
+
+                // Option 2: Open embedded Razorpay checkout modal
+                const options = {
+                    key: data.keyId,
+                    subscription_id: data.subscriptionId,
+                    name: data.name || 'Mindclone Pro',
+                    description: data.description || 'Monthly subscription with 7-day free trial',
+                    prefill: data.prefill || {},
+                    notes: data.notes || {},
+                    theme: {
+                        color: '#000000'
+                    },
+                    handler: function(response) {
+                        // Payment successful
+                        console.log('[Billing] Payment successful:', response);
+                        alert('Subscription activated! Welcome to Mindclone Pro.');
+                        loadBillingStatus();
+                        hidePaywall();
+                    },
+                    modal: {
+                        ondismiss: function() {
+                            console.log('[Billing] Checkout dismissed');
+                        }
+                    }
+                };
+
+                const rzp = new Razorpay(options);
+                rzp.on('payment.failed', function(response) {
+                    console.error('[Billing] Payment failed:', response.error);
+                    alert('Payment failed: ' + (response.error.description || 'Please try again.'));
+                });
+                rzp.open();
+
             } catch (error) {
                 console.error('[Billing] Checkout error:', error);
                 alert('Failed to start checkout. Please try again.');
             }
         }
 
-        // Open billing portal
+        // Open billing management modal
         async function openBillingPortal() {
             if (!auth.currentUser) return;
+
+            const action = await showBillingOptions();
+            if (!action) return;
 
             try {
                 const idToken = await auth.currentUser.getIdToken();
@@ -8263,17 +8305,39 @@ Is there anything else you'd like to configure?`;
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${idToken}`
                     },
-                    body: JSON.stringify({ returnUrl: window.location.href })
+                    body: JSON.stringify({ action })
                 });
 
-                if (!response.ok) throw new Error('Failed to create portal session');
+                if (!response.ok) throw new Error('Failed to process request');
 
-                const { portalUrl } = await response.json();
-                window.location.href = portalUrl;
+                const result = await response.json();
+
+                if (action === 'cancel') {
+                    alert(result.message || 'Subscription will be cancelled at the end of the billing period.');
+                } else if (action === 'pause') {
+                    alert(result.message || 'Subscription paused.');
+                } else if (action === 'resume') {
+                    alert(result.message || 'Subscription resumed.');
+                }
+
+                await loadBillingStatus();
             } catch (error) {
                 console.error('[Billing] Portal error:', error);
-                alert('Failed to open billing portal. Please try again.');
+                alert('Failed to process request. Please try again.');
             }
+        }
+
+        // Show billing options dialog
+        function showBillingOptions() {
+            return new Promise((resolve) => {
+                const options = [
+                    { value: 'cancel', label: 'Cancel Subscription' },
+                    { value: null, label: 'Close' }
+                ];
+
+                const choice = confirm('Would you like to cancel your subscription?\n\nYour access will continue until the end of the current billing period.');
+                resolve(choice ? 'cancel' : null);
+            });
         }
 
         // Show paywall modal

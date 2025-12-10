@@ -1,8 +1,18 @@
-// Shared billing helper functions
+// Shared billing helper functions (Razorpay)
 
 /**
  * Compute user's access level based on subscription status
  * Returns: "full" or "read_only"
+ *
+ * Razorpay subscription statuses:
+ * - created: Subscription created but not charged
+ * - authenticated: Customer authenticated but not charged
+ * - active: Active subscription
+ * - pending: Payment pending
+ * - halted: Subscription halted due to payment failure
+ * - cancelled: Subscription cancelled
+ * - completed: Subscription completed
+ * - expired: Subscription expired
  */
 function computeAccessLevel(userData) {
   if (!userData) return 'read_only';
@@ -15,13 +25,20 @@ function computeAccessLevel(userData) {
   const billing = userData.billing || {};
   const status = billing.subscriptionStatus;
 
-  // Active or trialing subscriptions have full access
-  if (['active', 'trialing'].includes(status)) {
+  // Active subscriptions have full access
+  if (['active', 'authenticated'].includes(status)) {
     return 'full';
   }
 
-  // Past due gets 3-day grace period
-  if (status === 'past_due') {
+  // Check if in trial period
+  const trialEnd = billing.trialEnd?.toDate?.() ||
+                   (billing.trialEnd ? new Date(billing.trialEnd) : null);
+  if (trialEnd && new Date() < trialEnd) {
+    return 'full';
+  }
+
+  // Pending/halted gets 3-day grace period
+  if (['pending', 'halted'].includes(status)) {
     const periodEnd = billing.currentPeriodEnd?.toDate?.() ||
                       (billing.currentPeriodEnd ? new Date(billing.currentPeriodEnd) : null);
     if (periodEnd) {
@@ -31,13 +48,6 @@ function computeAccessLevel(userData) {
         return 'full';
       }
     }
-  }
-
-  // Check if still in initial trial (for users who signed up but haven't completed checkout)
-  const trialEnd = billing.trialEnd?.toDate?.() ||
-                   (billing.trialEnd ? new Date(billing.trialEnd) : null);
-  if (trialEnd && new Date() < trialEnd) {
-    return 'full';
   }
 
   // Default to read-only
@@ -92,7 +102,8 @@ function getSubscriptionSummary(userData) {
     trialDaysRemaining,
     currentPeriodEnd: periodEnd ? periodEnd.toISOString() : null,
     cancelAtPeriodEnd: billing.cancelAtPeriodEnd || false,
-    accessLevel
+    accessLevel,
+    razorpaySubscriptionId: billing.razorpaySubscriptionId || null
   };
 }
 

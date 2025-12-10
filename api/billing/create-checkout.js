@@ -1,13 +1,16 @@
-// Create Checkout Session API - Start Stripe subscription checkout
-const Stripe = require('stripe');
+// Create Subscription API - Start Razorpay subscription checkout
+const Razorpay = require('razorpay');
 const { initializeFirebaseAdmin, admin } = require('../_firebase-admin');
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
 const db = admin.firestore();
 
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// Initialize Razorpay
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET
+});
 
 module.exports = async (req, res) => {
   // CORS headers
@@ -42,22 +45,19 @@ module.exports = async (req, res) => {
 
     const userId = decodedToken.uid;
     const userEmail = decodedToken.email;
+    const userName = decodedToken.name || userEmail.split('@')[0];
 
-    // Get return URL from request body
-    const { returnUrl } = req.body || {};
-    const successUrl = returnUrl || 'https://mindclone.one';
-    const cancelUrl = returnUrl || 'https://mindclone.one';
-
-    // Check if user already has a Stripe customer ID
+    // Check if user already has a Razorpay customer ID
     const userDoc = await db.collection('users').doc(userId).get();
     const userData = userDoc.exists ? userDoc.data() : {};
-    let customerId = userData.billing?.stripeCustomerId;
+    let customerId = userData.billing?.razorpayCustomerId;
 
-    // Create or retrieve Stripe customer
+    // Create Razorpay customer if not exists
     if (!customerId) {
-      const customer = await stripe.customers.create({
+      const customer = await razorpay.customers.create({
+        name: userName,
         email: userEmail,
-        metadata: {
+        notes: {
           firebaseUid: userId
         }
       });
@@ -66,49 +66,65 @@ module.exports = async (req, res) => {
       // Save customer ID to Firestore
       await db.collection('users').doc(userId).set({
         billing: {
-          stripeCustomerId: customerId
+          razorpayCustomerId: customerId
         }
       }, { merge: true });
     }
 
-    // Create checkout session
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      client_reference_id: userId, // Important: Used in webhook to link subscription
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: process.env.STRIPE_PRICE_ID,
-          quantity: 1
-        }
-      ],
-      subscription_data: {
-        trial_period_days: 7, // 7-day free trial
-        metadata: {
-          firebaseUid: userId
-        }
+    // Calculate trial end date (7 days from now)
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 7);
+
+    // Create subscription with 7-day trial
+    const subscription = await razorpay.subscriptions.create({
+      plan_id: process.env.RAZORPAY_PLAN_ID,
+      customer_id: customerId,
+      quantity: 1,
+      total_count: 120, // 10 years worth of monthly billing
+      start_at: Math.floor(trialEndDate.getTime() / 1000), // Start charging after trial
+      notes: {
+        firebaseUid: userId,
+        userEmail: userEmail
       },
-      success_url: `${successUrl}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${cancelUrl}?checkout=canceled`,
-      allow_promotion_codes: true,
-      billing_address_collection: 'auto',
-      tax_id_collection: {
-        enabled: true
-      }
+      customer_notify: 1
     });
 
-    console.log(`[Create Checkout] Session created for user ${userId}: ${session.id}`);
+    // Save subscription info to Firestore
+    await db.collection('users').doc(userId).set({
+      billing: {
+        razorpayCustomerId: customerId,
+        razorpaySubscriptionId: subscription.id,
+        subscriptionStatus: 'created',
+        trialEnd: trialEndDate
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    console.log(`[Create Checkout] Subscription created for user ${userId}: ${subscription.id}`);
 
     return res.status(200).json({
-      checkoutUrl: session.url,
-      sessionId: session.id
+      subscriptionId: subscription.id,
+      customerId: customerId,
+      keyId: process.env.RAZORPAY_KEY_ID,
+      amount: subscription.plan_id ? undefined : 10000, // Amount in paise (₹100 = 10000 paise)
+      currency: 'INR',
+      name: 'Mindclone Pro',
+      description: 'Monthly subscription with 7-day free trial',
+      prefill: {
+        name: userName,
+        email: userEmail
+      },
+      notes: {
+        firebaseUid: userId
+      },
+      // Short URL for hosted checkout (alternative to embedded)
+      shortUrl: subscription.short_url
     });
 
   } catch (error) {
     console.error('[Create Checkout] Error:', error);
     return res.status(500).json({
-      error: 'Failed to create checkout session',
+      error: 'Failed to create subscription',
       message: error.message
     });
   }
