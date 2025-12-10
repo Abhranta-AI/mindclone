@@ -12,9 +12,9 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Verify admin secret
+  // Verify admin secret (using Razorpay webhook secret as auth)
   const adminSecret = req.headers['x-admin-secret'];
-  if (adminSecret !== process.env.CRON_SECRET) {
+  if (adminSecret !== process.env.RAZORPAY_WEBHOOK_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
