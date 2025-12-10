@@ -8253,6 +8253,7 @@ Is there anything else you'd like to configure?`;
         if (landingSignInBtn) {
             landingSignInBtn.addEventListener('click', async () => {
                 console.log('[Debug] Landing sign-in button clicked!');
+                alert('Button clicked! Opening Google Sign In...');
                 try {
                     await signInWithPopup(auth, provider);
                 } catch (error) {
