@@ -28,6 +28,10 @@
       "dest": "/api/razorpay-webhook.js"
     },
     {
+      "src": "^/api/admin/grandfather-users$",
+      "dest": "/api/admin/grandfather-users.js"
+    },
+    {
       "src": "^/api/chat$",
       "dest": "/api/chat.js"
     },
