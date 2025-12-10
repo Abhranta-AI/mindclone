@@ -4667,6 +4667,8 @@
         const db = getFirestore(app);
         const storage = getStorage(app);
 
+        console.log('[Debug] Firebase initialized, script is running');
+
         // Detect browser and add class to body for browser-specific CSS
         (function detectBrowser() {
             const ua = navigator.userAgent;
