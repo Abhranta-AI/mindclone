@@ -6059,7 +6059,6 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
         });
 
         // Prevent dropdown from closing when clicking on sidebar profile
-        const sidebarProfile = document.getElementById('sidebarProfile');
         sidebarProfile?.addEventListener('click', (e) => {
             // Only stop propagation if the dropdown is visible
             if (avatarDropdown && !avatarDropdown.classList.contains('hidden')) {
