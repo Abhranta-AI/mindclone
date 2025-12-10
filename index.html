@@ -6,9 +6,16 @@
     <title>Mindclone - A record of the life only you lived.</title>
         <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cpath d='M30 90V40L45 55L60 30L75 55L90 40V90' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='60' cy='25' r='4' fill='white'/%3E%3Crect width='120' height='120' fill='%23141414'/%3E%3C/svg%3E">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&display=swap');
+
         :root {
             /* Minimal Modern Palette - Clean & Professional */
             --bg: #0a0a0a;
+
+            /* Luxury Gold Accent */
+            --gold: #c9a962;
+            --gold-light: #e8d5a3;
+            --gold-glow: rgba(201, 169, 98, 0.15);
             --bg-surface: #141414;
             --bg-elevated: #1a1a1a;
             --border: #262626;
@@ -90,7 +97,19 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: radial-gradient(ellipse at 50% 0%, rgba(167, 139, 250, 0.08) 0%, transparent 60%);
+            background: radial-gradient(ellipse at 50% 0%, var(--gold-glow) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .landing-page::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.02;
             pointer-events: none;
         }
 
@@ -98,8 +117,8 @@
             position: relative;
             z-index: 1;
             width: 100%;
-            max-width: 900px;
-            padding: 40px;
+            max-width: 1000px;
+            padding: 60px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -111,87 +130,109 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        @keyframes logoFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
         /* Brand */
         .landing-brand {
             display: flex;
             align-items: center;
-            gap: 16px;
-            margin-bottom: 32px;
+            gap: 20px;
+            margin-bottom: 40px;
         }
 
         .landing-logo-img {
             width: 80px;
             height: 80px;
+            animation: logoFloat 4s ease-in-out infinite;
         }
 
         .landing-title {
-            font-size: 42px;
-            font-weight: 300;
+            font-family: 'Playfair Display', serif;
+            font-size: 44px;
+            font-weight: 400;
             color: var(--text);
-            letter-spacing: 8px;
+            letter-spacing: 12px;
             text-transform: uppercase;
             margin: 0;
         }
 
         /* Tagline */
         .landing-tagline {
-            font-size: 20px;
+            font-size: 22px;
             color: var(--text-secondary);
             font-weight: 300;
             letter-spacing: 1px;
-            margin-bottom: 48px;
+            margin-bottom: 24px;
             font-style: italic;
+        }
+
+        /* Elegant Divider */
+        .landing-divider {
+            width: 60px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            margin-bottom: 48px;
         }
 
         /* Three Value Props */
         .landing-claims {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
+            gap: 28px;
             width: 100%;
-            margin-bottom: 40px;
+            margin-bottom: 56px;
         }
 
         .claim-item {
             text-align: center;
-            padding: 32px 24px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 40px 28px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 16px;
-            background: rgba(255, 255, 255, 0.02);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             transition: all 0.3s ease;
         }
 
         .claim-item:hover {
-            border-color: rgba(167, 139, 250, 0.2);
-            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(201, 169, 98, 0.3);
+            background: rgba(255, 255, 255, 0.04);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
         }
 
         .claim-icon {
-            font-size: 36px;
-            margin-bottom: 16px;
+            font-size: 40px;
+            margin-bottom: 20px;
             display: block;
             color: white;
+            text-shadow: 0 0 30px rgba(201, 169, 98, 0.3);
         }
 
         .claim-title {
-            font-size: 16px;
-            font-weight: 600;
+            font-family: 'Playfair Display', serif;
+            font-size: 15px;
+            font-weight: 500;
             color: var(--text);
-            letter-spacing: 2px;
+            letter-spacing: 3px;
             text-transform: uppercase;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
 
         .claim-text {
             font-size: 14px;
             color: var(--text-secondary);
-            line-height: 1.6;
+            line-height: 1.7;
         }
 
         .claim-subtext {
             font-size: 12px;
             color: var(--text-muted);
-            margin-top: 12px;
+            margin-top: 14px;
             font-style: italic;
         }
 
@@ -200,7 +241,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 16px;
+            gap: 20px;
             margin-bottom: 48px;
         }
 
@@ -208,21 +249,22 @@
             display: inline-flex;
             align-items: center;
             gap: 12px;
-            background: white;
+            background: linear-gradient(135deg, #c9a962 0%, #e8d5a3 50%, #c9a962 100%);
             color: #0a0a0a;
-            padding: 16px 48px;
-            border: none;
+            padding: 18px 52px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 50px;
             font-size: 15px;
             font-weight: 600;
             letter-spacing: 1px;
             cursor: pointer;
             transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(201, 169, 98, 0.3);
         }
 
         .landing-sign-in-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(255, 255, 255, 0.15);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 40px rgba(201, 169, 98, 0.4);
         }
 
         .landing-sign-in-btn .google-icon {
@@ -237,27 +279,28 @@
         }
 
         .landing-pricing strong {
-            color: var(--text-secondary);
+            color: var(--gold-light);
         }
 
         /* Footer */
         .landing-footer {
             position: absolute;
-            bottom: 24px;
+            bottom: 32px;
             left: 0;
             right: 0;
             text-align: center;
         }
 
         .landing-legal {
-            font-size: 10px;
+            font-size: 11px;
             color: var(--text-muted);
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
+            opacity: 0.6;
         }
 
         .landing-legal span {
             opacity: 0.5;
-            margin: 0 8px;
+            margin: 0 10px;
         }
 
         /* ==================== APP HEADER ==================== */
@@ -4080,6 +4123,9 @@
 
             <!-- Tagline -->
             <p class="landing-tagline">A record of the life only you lived.</p>
+
+            <!-- Elegant Divider -->
+            <div class="landing-divider"></div>
 
             <!-- Three Value Props -->
             <div class="landing-claims">
