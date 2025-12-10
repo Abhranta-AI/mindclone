@@ -60,7 +60,7 @@ module.exports = async (req, res) => {
 
     // Get return URL from request body
     const { returnUrl } = req.body || {};
-    const defaultReturnUrl = 'https://mindclone.studio';
+    const defaultReturnUrl = 'https://mindclone.one';
 
     // Create billing portal session
     const session = await stripe.billingPortal.sessions.create({

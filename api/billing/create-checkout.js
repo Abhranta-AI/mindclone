@@ -45,8 +45,8 @@ module.exports = async (req, res) => {
 
     // Get return URL from request body
     const { returnUrl } = req.body || {};
-    const successUrl = returnUrl || 'https://mindclone.studio';
-    const cancelUrl = returnUrl || 'https://mindclone.studio';
+    const successUrl = returnUrl || 'https://mindclone.one';
+    const cancelUrl = returnUrl || 'https://mindclone.one';
 
     // Check if user already has a Stripe customer ID
     const userDoc = await db.collection('users').doc(userId).get();
