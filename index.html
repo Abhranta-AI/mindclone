@@ -2026,6 +2026,7 @@
             display: flex;
             align-items: flex-start;
             gap: 12px;
+            position: relative;
         }
 
         .sidebar-profile .user-avatar {
@@ -2085,8 +2086,10 @@
         /* Avatar Dropdown Menu */
         .avatar-dropdown {
             position: absolute;
-            bottom: 80px;
-            right: 20px;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            margin-bottom: 8px;
             background: #1a1a1a;
             border: 1px solid #333;
             border-radius: 12px;
@@ -4334,22 +4337,21 @@
                         <!-- Public Link badge removed - now in Activity Feed header -->
                         <button id="signOutBtn" class="sign-out-btn hidden">Sign Out</button>
                     </div>
-                </div>
-
-                <!-- Avatar Dropdown Menu -->
-                <div id="avatarDropdown" class="avatar-dropdown hidden">
-                    <div class="avatar-dropdown-header">
-                        <img id="dropdownAvatar" class="dropdown-avatar" src="" alt="User">
-                        <div class="dropdown-user-info">
-                            <div id="dropdownUserName" class="dropdown-user-name"></div>
-                            <div id="dropdownUserEmail" class="dropdown-user-email"></div>
+                    <!-- Avatar Dropdown Menu -->
+                    <div id="avatarDropdown" class="avatar-dropdown hidden">
+                        <div class="avatar-dropdown-header">
+                            <img id="dropdownAvatar" class="dropdown-avatar" src="" alt="User">
+                            <div class="dropdown-user-info">
+                                <div id="dropdownUserName" class="dropdown-user-name"></div>
+                                <div id="dropdownUserEmail" class="dropdown-user-email"></div>
+                            </div>
                         </div>
+                        <hr class="avatar-dropdown-divider">
+                        <button id="dropdownSignOutBtn" class="avatar-dropdown-item">
+                            <span class="avatar-dropdown-icon">🚪</span>
+                            <span>Sign Out</span>
+                        </button>
                     </div>
-                    <hr class="avatar-dropdown-divider">
-                    <button id="dropdownSignOutBtn" class="avatar-dropdown-item">
-                        <span class="avatar-dropdown-icon">🚪</span>
-                        <span>Sign Out</span>
-                    </button>
                 </div>
             </div>
         </div>
