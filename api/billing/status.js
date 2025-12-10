@@ -38,10 +38,40 @@ module.exports = async (req, res) => {
     }
 
     const userId = decodedToken.uid;
+    const userEmail = decodedToken.email;
 
     // Get user document
-    const userDoc = await db.collection('users').doc(userId).get();
-    const userData = userDoc.exists ? userDoc.data() : null;
+    const userRef = db.collection('users').doc(userId);
+    let userDoc = await userRef.get();
+    let userData = userDoc.exists ? userDoc.data() : null;
+
+    // Check if user should be auto-grandfathered
+    if (userEmail && (!userData || !userData.isGrandfathered)) {
+      const preGrandfatheredDoc = await db.collection('pregrandfathered').doc(userEmail).get();
+      if (preGrandfatheredDoc.exists) {
+        console.log(`[Billing Status] Auto-grandfathering user: ${userEmail}`);
+
+        // Update or create user document with grandfather status
+        const grandfatherData = {
+          isGrandfathered: true,
+          grandfatheredAt: admin.firestore.FieldValue.serverTimestamp(),
+          email: userEmail
+        };
+
+        if (userDoc.exists) {
+          await userRef.update(grandfatherData);
+        } else {
+          await userRef.set(grandfatherData);
+        }
+
+        // Remove from pregrandfathered list
+        await db.collection('pregrandfathered').doc(userEmail).delete();
+
+        // Refresh user data
+        userDoc = await userRef.get();
+        userData = userDoc.data();
+      }
+    }
 
     // Get subscription summary
     const summary = getSubscriptionSummary(userData);
