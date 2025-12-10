@@ -949,6 +949,124 @@
             border-color: var(--border-hover);
         }
 
+        /* Knowledge Base Section */
+        .account-kb-section {
+            padding: 12px 0;
+            border-top: 1px solid var(--border);
+            margin-top: 8px;
+        }
+
+        .kb-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .kb-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .kb-count {
+            font-size: 11px;
+            background: var(--bg-elevated);
+            color: var(--text-muted);
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        .kb-file-list {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-bottom: 8px;
+        }
+
+        .kb-file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 8px;
+            background: var(--bg-surface);
+            border-radius: 6px;
+            margin-bottom: 4px;
+            font-size: 11px;
+        }
+
+        .kb-file-info {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            overflow: hidden;
+            flex: 1;
+        }
+
+        .kb-file-icon {
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .kb-file-name {
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .kb-file-delete {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 2px 4px;
+            font-size: 12px;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .kb-file-delete:hover {
+            opacity: 1;
+            color: #f44336;
+        }
+
+        .kb-upload-btn {
+            width: 100%;
+            padding: 8px;
+            background: var(--bg-surface);
+            border: 1px dashed var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .kb-upload-btn:hover {
+            background: var(--bg-elevated);
+            border-color: var(--border-hover);
+            color: var(--text);
+        }
+
+        .kb-upload-btn.uploading {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .kb-hint {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 6px;
+        }
+
+        .kb-empty {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 11px;
+            padding: 8px;
+        }
+
         /* Adjust main content to account for account sidebar */
         .main-content {
             margin-left: 64px;
@@ -4281,6 +4399,21 @@
                         <button id="manageBillingBtn" class="account-manage-btn hidden">
                             Manage Billing
                         </button>
+                    </div>
+                    <!-- Knowledge Base Section -->
+                    <div class="account-kb-section">
+                        <div class="kb-header">
+                            <span class="kb-title">📚 Knowledge Base</span>
+                            <span id="kbCount" class="kb-count">0</span>
+                        </div>
+                        <div id="kbFileList" class="kb-file-list">
+                            <!-- Files will be listed here -->
+                        </div>
+                        <input type="file" id="kbFileInput" class="hidden" accept=".pdf,.doc,.docx,.txt,.md,.json" multiple>
+                        <button id="kbUploadBtn" class="kb-upload-btn">
+                            <span>+ Upload</span>
+                        </button>
+                        <div class="kb-hint">PDF, Word, TXT, JSON (max 10MB)</div>
                     </div>
                     <button id="accountSignOutBtn" class="account-menu-button">
                         <span class="button-icon">🚪</span>
@@ -8790,6 +8923,190 @@ Is there anything else you'd like to configure?`;
 
         // Initialize billing on page load
         initializeBilling();
+
+        // ==================== KNOWLEDGE BASE FUNCTIONS ====================
+
+        // Load knowledge base files
+        async function loadKnowledgeBase() {
+            if (!auth.currentUser) return;
+
+            const kbFileList = document.getElementById('kbFileList');
+            const kbCount = document.getElementById('kbCount');
+            if (!kbFileList) return;
+
+            try {
+                const userId = auth.currentUser.uid;
+                const kbSnapshot = await db.collection('users').doc(userId)
+                    .collection('knowledgeBase')
+                    .orderBy('uploadedAt', 'desc')
+                    .get();
+
+                const files = [];
+                kbSnapshot.forEach(doc => {
+                    files.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Update count
+                if (kbCount) kbCount.textContent = files.length;
+
+                // Render file list
+                if (files.length === 0) {
+                    kbFileList.innerHTML = '<div class="kb-empty">No documents yet</div>';
+                } else {
+                    kbFileList.innerHTML = files.map(file => `
+                        <div class="kb-file-item" data-id="${file.id}" data-url="${file.blobUrl || ''}" data-key="${file.docKey || ''}">
+                            <div class="kb-file-info">
+                                <span class="kb-file-icon">${getFileIcon(file.fileName)}</span>
+                                <span class="kb-file-name" title="${file.fileName}">${file.fileName}</span>
+                            </div>
+                            <button class="kb-file-delete" title="Delete">×</button>
+                        </div>
+                    `).join('');
+
+                    // Add delete listeners
+                    kbFileList.querySelectorAll('.kb-file-delete').forEach(btn => {
+                        btn.addEventListener('click', async (e) => {
+                            const item = e.target.closest('.kb-file-item');
+                            const docId = item.dataset.id;
+                            const blobUrl = item.dataset.url;
+                            const docKey = item.dataset.key;
+                            await deleteKbFile(docId, blobUrl, docKey);
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error('[KB] Error loading knowledge base:', error);
+                kbFileList.innerHTML = '<div class="kb-empty">Error loading files</div>';
+            }
+        }
+
+        // Get icon for file type
+        function getFileIcon(fileName) {
+            const ext = fileName.split('.').pop().toLowerCase();
+            const icons = {
+                'pdf': '📄',
+                'doc': '📝',
+                'docx': '📝',
+                'txt': '📃',
+                'md': '📃',
+                'json': '📋'
+            };
+            return icons[ext] || '📎';
+        }
+
+        // Upload knowledge base file
+        async function uploadKbFile(file) {
+            if (!auth.currentUser) return;
+
+            const kbUploadBtn = document.getElementById('kbUploadBtn');
+            const originalText = kbUploadBtn.innerHTML;
+
+            try {
+                kbUploadBtn.innerHTML = '<span>Uploading...</span>';
+                kbUploadBtn.classList.add('uploading');
+
+                // Read file as base64
+                const reader = new FileReader();
+                const fileData = await new Promise((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+
+                const idToken = await auth.currentUser.getIdToken();
+                const response = await fetch('/api/upload-kb', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({
+                        fileName: file.name,
+                        fileType: file.type,
+                        fileData: fileData
+                    })
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Upload failed');
+
+                console.log('[KB] Upload success:', result);
+                await loadKnowledgeBase();
+
+            } catch (error) {
+                console.error('[KB] Upload error:', error);
+                alert('Upload failed: ' + error.message);
+            } finally {
+                kbUploadBtn.innerHTML = originalText;
+                kbUploadBtn.classList.remove('uploading');
+            }
+        }
+
+        // Delete knowledge base file
+        async function deleteKbFile(docId, blobUrl, docKey) {
+            if (!auth.currentUser) return;
+            if (!confirm('Delete this document?')) return;
+
+            try {
+                const idToken = await auth.currentUser.getIdToken();
+                const response = await fetch('/api/upload-kb', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({ docId, blobUrl, docKey })
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Delete failed');
+
+                console.log('[KB] Delete success:', result);
+                await loadKnowledgeBase();
+
+            } catch (error) {
+                console.error('[KB] Delete error:', error);
+                alert('Delete failed: ' + error.message);
+            }
+        }
+
+        // Initialize knowledge base event listeners
+        function initializeKnowledgeBase() {
+            const kbUploadBtn = document.getElementById('kbUploadBtn');
+            const kbFileInput = document.getElementById('kbFileInput');
+
+            kbUploadBtn?.addEventListener('click', () => {
+                kbFileInput?.click();
+            });
+
+            kbFileInput?.addEventListener('change', async (e) => {
+                const files = e.target.files;
+                if (!files || files.length === 0) return;
+
+                for (const file of files) {
+                    // Check file size (10MB max)
+                    if (file.size > 10 * 1024 * 1024) {
+                        alert(`File "${file.name}" is too large. Max size is 10MB.`);
+                        continue;
+                    }
+                    await uploadKbFile(file);
+                }
+
+                // Reset input
+                kbFileInput.value = '';
+            });
+        }
+
+        // Initialize KB on page load
+        initializeKnowledgeBase();
+
+        // Load KB when user signs in (add to auth state change)
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                // Small delay to ensure Firestore is ready
+                setTimeout(() => loadKnowledgeBase(), 500);
+            }
+        });
     </script>
 </body>
 </html>
