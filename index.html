@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Mindclone - A record of the life only you lived.</title>
     <link rel="icon" type="image/png" href="/logo.png">
+
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mindclone">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&display=swap');
 
@@ -10116,6 +10125,15 @@ Is there anything else you'd like to configure?`;
 
         // Initialize billing on page load
         initializeBilling();
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
+                    .catch(err => console.warn('[PWA] Service Worker registration failed:', err));
+            });
+        }
     </script>
 </body>
 </html>
