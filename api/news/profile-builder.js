@@ -1,7 +1,6 @@
 // Profile Builder - Extract user interests from Mem0 memories
 const { MemoryClient } = require('mem0ai');
 const { initializeFirebaseAdmin, admin } = require('../_firebase-admin');
-const { chat: llmChat, MODELS } = require('../_llm');
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
@@ -79,8 +78,9 @@ async function buildUserInterestProfile(userId) {
  */
 async function parseMemoriesWithGemini(memories, userId) {
   try {
-    if (!process.env.OPENROUTER_API_KEY) {
-      throw new Error('OPENROUTER_API_KEY not configured');
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY not configured');
     }
 
     // Build prompt to analyze memories
@@ -106,17 +106,34 @@ IMPORTANT: Return ONLY the JSON object, no additional text or formatting.`;
 
     const userPrompt = `Analyze these memories and extract the user's interests:\n\n${memories.join('\n\n')}`;
 
-    // Call OpenRouter LLM via abstraction layer
-    const data = await llmChat(
-      [{
-        role: 'user',
-        parts: [{ text: userPrompt }]
-      }],
-      [],
-      systemPrompt,
-      { model: MODELS.default, temperature: 0.3, max_tokens: 2000 }
-    );
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [{ text: userPrompt }]
+        }],
+        systemInstruction: {
+          parts: [{ text: systemPrompt }]
+        },
+        generationConfig: {
+          temperature: 0.3, // Lower temperature for more consistent JSON output
+          maxOutputTokens: 2000
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Gemini API error: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!text) {

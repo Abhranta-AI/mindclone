@@ -1,9 +1,8 @@
-// LLM API handler with Mem0 integration and Tool Calling via OpenRouter
+// Gemini API handler with Mem0 integration and Tool Calling
 const { CONNOISSEUR_STYLE_GUIDE } = require('./_style-guide');
 const { MemoryClient } = require('mem0ai');
 const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
 const { computeAccessLevel } = require('./_billing-helpers');
-const { chat: llmChat, MODELS } = require('./_llm');
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
@@ -345,8 +344,8 @@ module.exports = async (req, res) => {
   if (req.method === 'GET') {
     return res.status(200).json({
       status: 'ok',
-      provider: 'openrouter',
-      hasApiKey: !!process.env.OPENROUTER_API_KEY,
+      provider: 'gemini',
+      hasApiKey: !!process.env.GEMINI_API_KEY,
       hasMem0: !!process.env.MEM0_API_KEY,
       toolsEnabled: true
     });
@@ -357,10 +356,12 @@ module.exports = async (req, res) => {
   }
 
   try {
-    if (!process.env.OPENROUTER_API_KEY) {
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
       return res.status(500).json({
         success: false,
-        error: 'OPENROUTER_API_KEY not configured'
+        error: 'GEMINI_API_KEY not configured'
       });
     }
 
@@ -490,14 +491,32 @@ When you get conversation data, analyze the 'allUserQuestions' array to identify
       };
     }
 
-    // Build system instruction text from Gemini format
-    let systemText = '';
-    if (systemInstruction?.parts) {
-      systemText = systemInstruction.parts.map(p => p.text).join('\n');
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+    // Build request with tools
+    const requestBody = {
+      contents: contents,
+      tools: tools
+    };
+
+    if (systemInstruction) {
+      requestBody.systemInstruction = systemInstruction;
     }
 
-    // Initial API call via OpenRouter with LLM abstraction
-    let data = await llmChat(contents, tools, systemText, { model: MODELS.default });
+    // Initial API call
+    let response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    let data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || 'Gemini API request failed');
+    }
 
     // Check if model wants to call a tool
     let candidate = data.candidates?.[0];
@@ -528,8 +547,21 @@ When you get conversation data, analyze the 'allUserQuestions' array to identify
         }]
       });
 
-      // Call API again with tool result via abstraction
-      data = await llmChat(contents, tools, systemText, { model: MODELS.default });
+      // Call API again with tool result
+      requestBody.contents = contents;
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Gemini API request failed after tool call');
+      }
 
       candidate = data.candidates?.[0];
     }
