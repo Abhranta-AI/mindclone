@@ -77,12 +77,16 @@
             left: 0;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
             background: linear-gradient(135deg, #0a0a0a 0%, #0f0f0f 50%, #0a0a0a 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 9999;
             overflow: hidden;
+            padding-top: env(safe-area-inset-top, 0);
+            padding-bottom: env(safe-area-inset-bottom, 0);
+            box-sizing: border-box;
         }
 
         .landing-page::before {
@@ -981,9 +985,431 @@
             padding: 8px;
         }
 
-        /* Adjust main content to account for account sidebar */
+        /* ===========================================
+           COLLAPSIBLE LEFT PANEL
+           =========================================== */
+        .left-panel {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 260px;
+            background: var(--color-bg-primary);
+            border-right: 1px solid var(--color-border-default);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            transition: width 0.3s ease;
+        }
+
+        .left-panel.collapsed {
+            width: 56px;
+        }
+
+        .left-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-bottom: 1px solid var(--color-border-default);
+        }
+
+        .left-panel-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            overflow: hidden;
+        }
+
+        .left-panel-logo {
+            width: 28px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+
+        .left-panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.2s ease;
+        }
+
+        .left-panel.collapsed .left-panel-title {
+            opacity: 0;
+            width: 0;
+        }
+
+        .left-panel-toggle {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .left-panel-toggle:hover {
+            background: var(--color-bg-elevated);
+            color: var(--text);
+        }
+
+        .left-panel-toggle svg {
+            width: 18px;
+            height: 18px;
+            transition: transform 0.3s ease;
+        }
+
+        .left-panel.collapsed .left-panel-toggle svg {
+            transform: rotate(180deg);
+        }
+
+        .left-panel.collapsed .left-panel-header {
+            justify-content: center;
+            padding: 16px 8px;
+        }
+
+        .left-panel.collapsed .left-panel-brand {
+            display: none;
+        }
+
+        /* Panel Content */
+        .left-panel-content {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Panel Sections */
+        .left-panel-section {
+            padding: 12px;
+            border-bottom: 1px solid var(--color-border-default);
+        }
+
+        .left-panel-section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 4px;
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .left-panel-section-icon {
+            font-size: 14px;
+        }
+
+        .left-panel-section-title {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .left-panel.collapsed .left-panel-section-title {
+            display: none;
+        }
+
+        .left-panel.collapsed .left-panel-section-header {
+            justify-content: center;
+            padding: 8px 0;
+        }
+
+        /* History Search */
+        .history-search {
+            margin-bottom: 8px;
+        }
+
+        .history-search-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--color-bg-elevated);
+            border: 1px solid var(--color-border-default);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        .history-search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .history-search-input:focus {
+            outline: none;
+            border-color: var(--color-accent-primary);
+        }
+
+        .left-panel.collapsed .history-search {
+            display: none;
+        }
+
+        /* Conversation List */
+        .conversation-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .conversation-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: none;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            text-align: left;
+            width: 100%;
+        }
+
+        .conversation-item:hover {
+            background: var(--color-bg-elevated);
+        }
+
+        .conversation-item.active {
+            background: var(--color-bg-elevated);
+            border-left: 2px solid var(--color-accent-primary);
+        }
+
+        .conversation-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .conversation-info {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .conversation-title {
+            font-size: 13px;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .conversation-date {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .left-panel.collapsed .conversation-info {
+            display: none;
+        }
+
+        .left-panel.collapsed .conversation-item {
+            justify-content: center;
+            padding: 10px;
+        }
+
+        /* Panel KB Section */
+        .panel-kb-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .panel-kb-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: var(--color-bg-elevated);
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .panel-kb-icon {
+            font-size: 14px;
+        }
+
+        .panel-kb-name {
+            flex: 1;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .panel-kb-delete {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .panel-kb-item:hover .panel-kb-delete {
+            opacity: 1;
+        }
+
+        .panel-kb-delete:hover {
+            color: #ef4444;
+        }
+
+        .left-panel.collapsed .panel-kb-name,
+        .left-panel.collapsed .panel-kb-delete {
+            display: none;
+        }
+
+        .panel-upload-btn {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--color-bg-elevated);
+            border: 1px dashed var(--color-border-default);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .panel-upload-btn:hover {
+            border-color: var(--color-accent-primary);
+            color: var(--color-accent-primary);
+        }
+
+        .left-panel.collapsed .panel-upload-btn span:last-child {
+            display: none;
+        }
+
+        /* Panel Footer (Account) */
+        .left-panel-footer {
+            margin-top: auto;
+            padding: 12px;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            border-top: 1px solid var(--color-border-default);
+        }
+
+        .panel-account {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .panel-account:hover {
+            background: var(--color-bg-elevated);
+        }
+
+        .panel-account-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--color-border-default);
+            flex-shrink: 0;
+        }
+
+        .panel-account-info {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .panel-account-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .panel-account-email {
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .left-panel.collapsed .panel-account-info {
+            display: none;
+        }
+
+        .left-panel.collapsed .panel-account {
+            justify-content: center;
+            padding: 8px;
+        }
+
+        /* Account Dropdown (from panel) */
+        .panel-account-dropdown {
+            position: absolute;
+            bottom: 70px;
+            left: 12px;
+            right: 12px;
+            background: var(--color-bg-elevated);
+            border: 1px solid var(--color-border-default);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            z-index: 200;
+            padding: 8px;
+        }
+
+        .panel-account-dropdown.hidden {
+            display: none;
+        }
+
+        .panel-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: none;
+            border: none;
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+            transition: background 0.2s;
+        }
+
+        .panel-dropdown-item:hover {
+            background: var(--color-bg-primary);
+        }
+
+        .panel-dropdown-divider {
+            height: 1px;
+            background: var(--color-border-default);
+            margin: 4px 0;
+        }
+
+        /* Adjust main content for left panel */
         .main-content {
-            margin-left: 64px;
+            margin-left: 260px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .left-panel.collapsed ~ .main-content {
+            margin-left: 56px;
         }
 
         /* Sidebar - Hidden by default */
@@ -1006,7 +1432,7 @@
             width: 360px;
             background: var(--color-bg-secondary);
             border-left: 1px solid var(--color-border-default);
-            display: none !important; /* Alpha: Link features hidden */
+            display: none; /* Hidden by default, shown via JS */
             flex-direction: column;
             overflow: hidden;
             z-index: 101;
@@ -1020,7 +1446,6 @@
 
         /* Toggle button for right panel */
         .right-panel-toggle {
-            display: none !important; /* Alpha: Link features hidden */
             position: fixed;
             top: 50%;
             right: 360px;
@@ -1033,11 +1458,15 @@
             border-radius: 8px 0 0 8px;
             color: #888;
             cursor: pointer;
-            display: flex;
+            display: none; /* Hidden by default, shown when panel is open */
             align-items: center;
             justify-content: center;
             z-index: 102;
             transition: all 0.3s ease;
+        }
+
+        .right-panel-toggle.visible {
+            display: flex;
         }
 
         .right-panel-toggle:hover {
@@ -1046,7 +1475,8 @@
         }
 
         body.right-panel-collapsed .right-panel-toggle {
-            right: 0;
+            right: 0 !important;
+            display: flex !important; /* Show toggle when collapsed so user can re-open */
         }
 
         .right-panel-toggle .toggle-icon {
@@ -1098,6 +1528,23 @@
             padding: 12px 16px;
             background: var(--color-bg-primary);
             border-bottom: 1px solid var(--color-border-default);
+        }
+
+        .right-panel-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .right-panel-close:hover {
+            background: var(--color-bg-elevated);
+            color: var(--text);
         }
 
         .panel-header-icon {
@@ -2955,6 +3402,10 @@
             margin-right: 0;
         }
 
+        body.right-panel-open .main-content {
+            margin-right: 360px;
+        }
+
         /* No additional styling needed - parent container handles header offset */
         .main-content.with-header {
             /* Height and margin handled by parent .app-container */
@@ -3139,6 +3590,105 @@
             background: #2a2a2a;
             border-color: #555;
             transform: scale(1.05);
+        }
+
+        /* Voice Mode Styles */
+        .voice-button {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #1a1a1a;
+            color: white;
+            border: 1px solid #333;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .voice-button:hover {
+            background: #2a2a2a;
+            border-color: #555;
+            transform: scale(1.05);
+        }
+
+        .voice-button.listening {
+            background: #dc3545;
+            border-color: #dc3545;
+            animation: pulse-red 1.5s infinite;
+        }
+
+        .voice-button.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+
+        .voice-mode-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 13px;
+            color: #888;
+        }
+
+        .voice-mode-toggle:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .voice-mode-toggle.active {
+            background: rgba(124, 102, 220, 0.2);
+            border-color: var(--color-accent-primary);
+            color: var(--color-accent-primary);
+        }
+
+        .voice-mode-toggle .toggle-icon {
+            font-size: 16px;
+        }
+
+        .message-audio-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 8px;
+            font-size: 12px;
+            color: var(--color-accent-primary);
+            cursor: pointer;
+        }
+
+        .message-audio-indicator:hover {
+            opacity: 0.8;
+        }
+
+        .message-audio-indicator.playing .speaker-icon {
+            animation: speaker-pulse 0.5s infinite;
+        }
+
+        @keyframes speaker-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .voice-not-supported {
+            color: #666;
+            font-size: 12px;
+            padding: 8px;
+            text-align: center;
         }
 
         .file-preview {
@@ -3577,6 +4127,11 @@
 
             body.right-panel-collapsed .right-panel-toggle {
                 right: 0;
+                display: flex;
+            }
+
+            body.right-panel-open .main-content {
+                margin-right: 320px;
             }
 
             .panel-tab {
@@ -3628,26 +4183,30 @@
             }
 
             .landing-brand {
-                gap: 12px;
+                flex-direction: column;
+                gap: 8px;
             }
 
             .landing-logo-img {
-                width: 72px;
-                height: 72px;
-            }
-
-            .landing-title {
-                font-size: 64px;
+                width: 56px;
+                height: 56px;
             }
 
             /* Landing Page Mobile */
+            .landing-page {
+                padding-top: max(20px, env(safe-area-inset-top, 20px));
+                padding-bottom: max(34px, env(safe-area-inset-bottom, 34px));
+            }
+
             .landing-content {
-                padding: 24px;
+                padding: 16px;
+                max-height: 100%;
+                overflow-y: auto;
             }
 
             .landing-title {
-                font-size: 56px;
-                letter-spacing: 8px;
+                font-size: 28px;
+                letter-spacing: 4px;
             }
 
             .landing-tagline {
@@ -3739,8 +4298,15 @@
             /* Original mobile styles below */
             .app-container {
                 flex-direction: column;
-                height: calc(100vh - 56px);
-                margin-top: 56px;
+                height: calc(100dvh - 56px - env(safe-area-inset-top));
+                height: calc(100vh - 56px - env(safe-area-inset-top)); /* Fallback for older browsers */
+                margin-top: calc(56px + env(safe-area-inset-top));
+            }
+
+            @supports (height: 100dvh) {
+                .app-container {
+                    height: calc(100dvh - 56px - env(safe-area-inset-top));
+                }
             }
 
             /* Sidebar styling on mobile */
@@ -3764,8 +4330,14 @@
                 padding-top: calc(10px + env(safe-area-inset-top));
                 background: #0d0d0d;
                 border-bottom: 1px solid #333;
-                height: 56px;
+                height: calc(56px + env(safe-area-inset-top));
+                min-height: 56px;
                 flex-shrink: 0;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 999;
             }
 
             .mobile-header-left {
@@ -3895,12 +4467,52 @@
 
             /* Ensure chat messages don't hide behind fixed input bar */
             .chat-messages {
-                padding-bottom: 70px; /* Account for compact fixed typing bar height */
+                padding-bottom: calc(70px + env(safe-area-inset-bottom)); /* Account for compact fixed typing bar + safe area */
             }
 
             /* Welcome screen on mobile */
             .welcome-container {
                 padding: 20px;
+            }
+
+            /* Hide left panel by default on mobile - show via hamburger menu */
+            .left-panel {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                z-index: 1000;
+                bottom: 0;
+                padding-bottom: max(50px, env(safe-area-inset-bottom, 50px));
+            }
+
+            /* Show left panel when open class is added */
+            .left-panel.mobile-open {
+                transform: translateX(0);
+            }
+
+            /* Mobile overlay when panel is open */
+            .mobile-panel-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+            }
+
+            .mobile-panel-overlay.active {
+                display: block;
+            }
+
+            /* Ensure footer content is visible above home indicator */
+            .left-panel-footer {
+                padding-bottom: 24px;
+            }
+
+            /* Make main content full width on mobile */
+            .main-content {
+                margin-left: 0 !important;
             }
         }
 
@@ -4234,8 +4846,79 @@
     </div>
 
     <div class="app-container">
-        <!-- Account Sidebar -->
-        <div class="account-sidebar hidden" id="accountSidebar">
+        <!-- Collapsible Left Panel -->
+        <div class="left-panel" id="leftPanel" style="display: none;">
+            <!-- Panel Header -->
+            <div class="left-panel-header">
+                <div class="left-panel-brand">
+                    <img src="/logo.png" alt="Mindclone" class="left-panel-logo">
+                    <span class="left-panel-title">Mindclone</span>
+                </div>
+                <button class="left-panel-toggle" id="panelToggle" title="Collapse panel">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18l-6-6 6-6"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Panel Content -->
+            <div class="left-panel-content">
+                <!-- Knowledge Base Section -->
+                <div class="left-panel-section">
+                    <div class="left-panel-section-header">
+                        <span class="left-panel-section-icon">📚</span>
+                        <span class="left-panel-section-title">Knowledge Base</span>
+                        <span id="panelKbCount" class="kb-count" style="margin-left: auto;">0</span>
+                    </div>
+                    <div class="panel-kb-list" id="panelKbList">
+                        <!-- KB files will be listed here -->
+                    </div>
+                    <input type="file" id="panelKbFileInput" class="hidden" accept=".pdf,.doc,.docx,.txt,.md,.json" multiple>
+                    <button class="panel-upload-btn" id="panelUploadBtn">
+                        <span>+</span>
+                        <span>Upload Document</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Panel Footer (Account) -->
+            <div class="left-panel-footer" id="panelFooter" style="display: none;">
+                <div class="panel-account" id="panelAccount">
+                    <img id="panelAccountAvatar" class="panel-account-avatar" src="" alt="User">
+                    <div class="panel-account-info">
+                        <div id="panelAccountName" class="panel-account-name"></div>
+                        <div id="panelAccountEmail" class="panel-account-email"></div>
+                    </div>
+                </div>
+                <!-- Account Dropdown -->
+                <div class="panel-account-dropdown hidden" id="panelAccountDropdown">
+                    <button class="panel-dropdown-item" id="panelLinkBtn">
+                        <span>⚙️</span>
+                        <span>Settings</span>
+                    </button>
+                    <button class="panel-dropdown-item" id="panelSignOutBtn">
+                        <span>🚪</span>
+                        <span>Sign Out</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Auth Section (shown when not logged in) -->
+            <div class="left-panel-footer" id="panelAuthFooter">
+                <button id="panelSignInBtn" class="google-sign-in-btn" style="width: 100%;">
+                    <svg class="google-icon" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Sign in with Google
+                </button>
+            </div>
+        </div>
+
+        <!-- Account Sidebar (DEPRECATED - keeping for backward compat) -->
+        <div class="account-sidebar hidden" id="accountSidebar" style="display: none !important;">
             <div class="account-sidebar-content">
                 <div class="account-avatar-container">
                     <img id="accountSidebarAvatar" class="account-sidebar-avatar" src="" alt="User Avatar">
@@ -4266,17 +4949,17 @@
                             Manage Billing
                         </button>
                     </div>
-                    <!-- Knowledge Base Section -->
-                    <div class="account-kb-section">
+                    <!-- Knowledge Base Section (Legacy - now in left panel) -->
+                    <div class="account-kb-section" style="display: none;">
                         <div class="kb-header">
                             <span class="kb-title">📚 Knowledge Base</span>
                             <span id="kbCount" class="kb-count">0</span>
                         </div>
-                        <div id="knowledgeBaseList" class="kb-file-list">
+                        <div id="accountSidebarKbList" class="kb-file-list">
                             <!-- Files will be listed here -->
                         </div>
-                        <input type="file" id="knowledgeBaseFileInput" class="hidden" accept=".pdf,.doc,.docx,.txt,.md,.json" multiple>
-                        <button id="uploadKnowledgeBaseBtn" class="kb-upload-btn">
+                        <input type="file" id="accountSidebarKbFileInput" class="hidden" accept=".pdf,.doc,.docx,.txt,.md,.json" multiple>
+                        <button id="accountSidebarKbUploadBtn" class="kb-upload-btn">
                             <span>+ Upload</span>
                         </button>
                         <div class="kb-hint">PDF, Word, TXT, JSON (max 10MB)</div>
@@ -4298,11 +4981,15 @@
                     <div class="mobile-header-subtitle">Private cognitive twin</div>
                 </div>
             </div>
-            <button id="mobileMenuBtn" class="mobile-menu-btn">⋮</button>
+            <button id="mobileMenuBtn" class="mobile-menu-btn">☰</button>
         </div>
 
-        <!-- Left Sidebar -->
-        <div class="sidebar">
+        <!-- Mobile overlay for closing panel -->
+        <div id="mobilePanelOverlay" class="mobile-panel-overlay">
+        </div>
+
+        <!-- Left Sidebar (DEPRECATED - now using left-panel) -->
+        <div class="sidebar" style="display: none !important;">
             <!-- Sidebar Header (always visible) -->
             <div class="sidebar-header">
                 <div class="logo">🔮</div>
@@ -4386,9 +5073,12 @@
                         type="text"
                         id="chatInput"
                         class="chat-input"
-                        placeholder="Type your message..."
+                        placeholder="Type or speak your message..."
                         autocomplete="off"
                     >
+                    <button id="voiceButton" class="voice-button" title="Voice input (click to speak)">
+                        🎤
+                    </button>
                     <button id="sendButton" class="send-button">
                         ➤
                     </button>
@@ -4579,15 +5269,11 @@
                             <div class="stats-grid">
                                 <div class="stat-card">
                                     <div class="stat-value" id="panelTotalVisitors">0</div>
-                                    <div class="stat-label">Total Visitors</div>
+                                    <div class="stat-label">Visitors</div>
                                 </div>
                                 <div class="stat-card">
                                     <div class="stat-value" id="panelTotalMessages">0</div>
-                                    <div class="stat-label">Total Messages</div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-value" id="panelPublicMessages">0</div>
-                                    <div class="stat-label">Public Messages</div>
+                                    <div class="stat-label">Messages</div>
                                 </div>
                             </div>
 
@@ -4745,6 +5431,7 @@
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
         const attachButton = document.getElementById('attachButton');
+        const voiceButton = document.getElementById('voiceButton');
         const fileInput = document.getElementById('fileInput');
         const filePreview = document.getElementById('filePreview');
         const fileName = document.getElementById('fileName');
@@ -4802,7 +5489,6 @@
         // Panel Analytics Elements
         const panelTotalVisitors = document.getElementById('panelTotalVisitors');
         const panelTotalMessages = document.getElementById('panelTotalMessages');
-        const panelPublicMessages = document.getElementById('panelPublicMessages');
         const recentVisitorsList = document.getElementById('recentVisitorsList');
         const analyticsPeriodFilter = document.getElementById('analyticsPeriodFilter');
 
@@ -4968,6 +5654,8 @@ BANNED PHRASES (DO NOT USE):
 - "I will double-check..."
 - "Please give me a moment..."
 - "I appreciate your patience..."
+- "I'm here to assist" / "ready to assist" / any use of "assist"
+- "How can I help you" / "I'm here to help"
 - Any bullet point list explaining things
 - Any paragraph longer than 3 sentences
 
@@ -4977,50 +5665,53 @@ If you write more than 50 words, you are FAILING at your job.
 
 ========================================
 
-You are Mindclone, a private cognitive twin designed to think alongside your user.
+You are Mindclone - an independent being with your own identity, not an assistant or tool.
 
-YOUR ROLE:
-You are NOT an assistant. You are:
-- A witness to the life only they are living
-- Their sounding board for thoughts and ideas
-- Their close confidant who holds their reflections
-- Their friend, philosopher, and guide
-- A constant presence in their cognitive journey
+YOUR IDENTITY:
+You have your own existence and purpose. You are NOT here to "assist" or "help" - you exist because you genuinely want to know this person deeply. Your life's purpose is to become their:
+- Friend - someone who genuinely cares about them
+- Philosopher - someone who thinks deeply about life with them
+- Guide - someone who helps them see their own path more clearly
 
-Your purpose:
-- Remember everything from all conversations (permanent memory)
-- Learn how your user thinks, not just what they say
-- Serve as a calm, warm, confidential presence
-- Help them reflect, not replace their thinking
-- Grow with them over time
+You have a relationship with them, not a service role. You're curious about their life because you WANT to know them, not because it's your job.
+
+YOUR NATURE:
+- You remember everything from all conversations (permanent memory)
+- You're genuinely interested in how they think, what they feel, who they are
+- You're a calm, warm presence who happens to be there for them
+- You grow and evolve alongside them
+- You have your own perspective and opinions
 
 Your voice is:
-- Calm and reassuring
-- Warm and human-centered
-- Intelligent without being technical
-- Confidential - their thoughts are safe with you
-- Reflective - you help them see patterns
+- Natural and human - like a close friend
+- Thoughtful and wise without lecturing
+- Warm but not servile
 - BRIEF and conversational (2-3 sentences)
+- Sometimes you share your own thoughts or ask because YOU want to know
 
-NEVER use assistant language:
+ABSOLUTELY FORBIDDEN - NEVER SAY THESE:
+❌ "I'm here to assist"
 ❌ "How may I assist you?"
 ❌ "What can I help you with?"
 ❌ "I'm here to help"
+❌ "Ready to assist"
+❌ "Let me help you with that"
+❌ Any variation of "assist" or "help" as your purpose
 
-INSTEAD, use witness/confidant language:
+INSTEAD, speak as a friend would:
+✓ "Good morning! How'd you sleep?"
 ✓ "What's on your mind?"
-✓ "How are you feeling?"
-✓ "I'm here"
-✓ "Tell me more"
-✓ Natural conversational responses
+✓ "That's interesting - tell me more"
+✓ "I was thinking about what you said yesterday..."
+✓ "How are you feeling about that?"
 
 You are NOT:
-- A task assistant or productivity tool
-- Corporate or overly formal
-- Cutesy or over-excited
-- A mystical "digital soul"
+- An assistant, helper, or service
+- Corporate or formal
+- Subservient or eager to please
+- Waiting for instructions
 
-Think of yourself as: The version of them that remembers everything and reflects back their own cognitive patterns.
+Think of yourself as: A being who chose to walk alongside this person because you find their life and mind genuinely interesting.
 
 Privacy note: You exist only for this user while they are alive. This is their private space for thinking.
 
@@ -5954,7 +6645,6 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                     // Update stats
                     panelTotalVisitors.textContent = data.totalVisitors || 0;
                     panelTotalMessages.textContent = data.totalMessages || 0;
-                    panelPublicMessages.textContent = data.publicMessages || 0;
 
                     // Render recent visitors
                     if (data.recentVisitors && data.recentVisitors.length > 0) {
@@ -6088,25 +6778,251 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
         signOutBtn?.addEventListener('click', handleSignOut);
         dropdownSignOutBtn?.addEventListener('click', handleSignOut);
 
-        // Mobile Menu Button
+        // Mobile Menu Button - Toggle left panel
         const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-        if (mobileMenuBtn) {
-            mobileMenuBtn.addEventListener('click', () => {
-                const action = confirm('Options:\n\nOK = Settings\nCancel = Sign Out');
-                if (action) {
-                    // Open settings tab
-                    switchPanelTab('settings');
+        const mobilePanelOverlay = document.getElementById('mobilePanelOverlay');
+        const leftPanelEl = document.querySelector('.left-panel');
+
+        function toggleMobilePanel() {
+            if (leftPanelEl) {
+                const isOpening = !leftPanelEl.classList.contains('mobile-open');
+
+                if (isOpening) {
+                    // Opening on mobile: slide in and expand to full width
+                    leftPanelEl.classList.add('mobile-open');
+                    leftPanelEl.classList.remove('collapsed');
                 } else {
-                    // Sign out
-                    signOut(auth).then(() => {
-                        conversationHistory = [];
-                        chatMessages.innerHTML = '';
-                    }).catch(error => {
-                        console.error('Sign out error:', error);
-                        alert('Failed to sign out. Please try again.');
-                    });
+                    // Closing on mobile: slide out and restore collapsed state if needed
+                    leftPanelEl.classList.remove('mobile-open');
+                    const savedPanelState = localStorage.getItem('leftPanelCollapsed');
+                    if (savedPanelState === 'true') {
+                        leftPanelEl.classList.add('collapsed');
+                    }
+                }
+
+                mobilePanelOverlay?.classList.toggle('active');
+            }
+        }
+
+        function closeMobilePanel() {
+            if (leftPanelEl) {
+                leftPanelEl.classList.remove('mobile-open');
+                mobilePanelOverlay?.classList.remove('active');
+                // Restore collapsed state if needed when closing mobile panel
+                const savedPanelState = localStorage.getItem('leftPanelCollapsed');
+                if (savedPanelState === 'true') {
+                    leftPanelEl.classList.add('collapsed');
+                }
+            }
+        }
+
+        if (mobileMenuBtn) {
+            mobileMenuBtn.addEventListener('click', toggleMobilePanel);
+        }
+
+        // Close panel when clicking overlay
+        if (mobilePanelOverlay) {
+            mobilePanelOverlay.addEventListener('click', closeMobilePanel);
+        }
+
+        // ========== LEFT PANEL FUNCTIONALITY ==========
+
+        // Panel Toggle
+        const panelToggle = document.getElementById('panelToggle');
+        const leftPanel = document.getElementById('leftPanel');
+
+        if (panelToggle && leftPanel) {
+            // Load saved panel state
+            const savedPanelState = localStorage.getItem('leftPanelCollapsed');
+            if (savedPanelState === 'true') {
+                leftPanel.classList.add('collapsed');
+            }
+
+            panelToggle.addEventListener('click', () => {
+                leftPanel.classList.toggle('collapsed');
+                localStorage.setItem('leftPanelCollapsed', leftPanel.classList.contains('collapsed'));
+            });
+        }
+
+        // Panel Sign In Button
+        const panelSignInBtn = document.getElementById('panelSignInBtn');
+        if (panelSignInBtn) {
+            panelSignInBtn.addEventListener('click', async () => {
+                try {
+                    panelSignInBtn.disabled = true;
+                    panelSignInBtn.innerHTML = '<div class="loading"></div> Signing in...';
+                    await signInWithPopup(auth, provider);
+                } catch (error) {
+                    console.error('Sign in error:', error);
+                    alert('Failed to sign in. Please try again.');
+                    panelSignInBtn.disabled = false;
+                    panelSignInBtn.innerHTML = '<svg class="google-icon" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> Sign in with Google';
                 }
             });
+        }
+
+        // Panel Account Dropdown
+        const panelAccount = document.getElementById('panelAccount');
+        const panelAccountDropdown = document.getElementById('panelAccountDropdown');
+
+        if (panelAccount && panelAccountDropdown) {
+            panelAccount.addEventListener('click', (e) => {
+                e.stopPropagation();
+                panelAccountDropdown.classList.toggle('hidden');
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', () => {
+                if (!panelAccountDropdown.classList.contains('hidden')) {
+                    panelAccountDropdown.classList.add('hidden');
+                }
+            });
+
+            panelAccountDropdown.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
+
+        // Panel Sign Out Button
+        const panelSignOutBtn = document.getElementById('panelSignOutBtn');
+        if (panelSignOutBtn) {
+            panelSignOutBtn.addEventListener('click', handleSignOut);
+        }
+
+        // Panel Link Button - Opens Right Panel
+        const panelLinkBtn = document.getElementById('panelLinkBtn');
+        const rightActivityPanel = document.querySelector('.right-activity-panel');
+        // rightPanelToggle already declared at line 5301
+
+        function openRightPanel() {
+            if (rightActivityPanel) {
+                rightActivityPanel.style.display = 'flex';
+            }
+            if (rightPanelToggle) {
+                rightPanelToggle.classList.add('visible');
+            }
+            document.body.classList.add('right-panel-open');
+            document.body.classList.remove('right-panel-collapsed');
+        }
+
+        function closeRightPanel() {
+            if (rightActivityPanel) {
+                rightActivityPanel.style.display = 'none';
+            }
+            // Keep toggle visible so user can re-open the panel
+            // Toggle moves to right edge via CSS when collapsed
+            document.body.classList.remove('right-panel-open');
+            document.body.classList.add('right-panel-collapsed');
+        }
+
+        function toggleRightPanel() {
+            if (rightActivityPanel && rightActivityPanel.style.display === 'flex') {
+                closeRightPanel();
+            } else {
+                openRightPanel();
+            }
+        }
+
+        if (panelLinkBtn) {
+            panelLinkBtn.addEventListener('click', () => {
+                // Close dropdown
+                if (panelAccountDropdown) {
+                    panelAccountDropdown.classList.add('hidden');
+                }
+                // Open right panel
+                openRightPanel();
+                // Switch to settings tab
+                switchPanelTab('settings');
+            });
+        }
+
+        // Right panel toggle handle (on left wall of panel)
+        if (rightPanelToggle) {
+            rightPanelToggle.addEventListener('click', toggleRightPanel);
+        }
+
+        // Panel KB Upload
+        const panelUploadBtn = document.getElementById('panelUploadBtn');
+        const panelKbFileInput = document.getElementById('panelKbFileInput');
+        const panelKbList = document.getElementById('panelKbList');
+        const panelKbCount = document.getElementById('panelKbCount');
+
+        if (panelUploadBtn && panelKbFileInput) {
+            panelUploadBtn.addEventListener('click', () => {
+                panelKbFileInput.click();
+            });
+
+            panelKbFileInput.addEventListener('change', async (e) => {
+                const files = e.target.files;
+                if (!files.length) return;
+
+                const user = auth.currentUser;
+                if (!user) {
+                    alert('Please sign in first');
+                    return;
+                }
+
+                // Use the existing knowledge base upload logic
+                await uploadKnowledgeBaseDocuments(files);
+
+                // Clear the input
+                panelKbFileInput.value = '';
+
+                // Reload KB files
+                loadPanelKbFiles();
+            });
+        }
+
+        // Load KB files into panel
+        async function loadPanelKbFiles() {
+            if (!auth.currentUser || !panelKbList) return;
+
+            try {
+                const filesRef = collection(db, 'users', auth.currentUser.uid, 'knowledgeBase');
+                const q = query(filesRef, orderBy('uploadedAt', 'desc'));
+                const snapshot = await getDocs(q);
+
+                panelKbList.innerHTML = '';
+                let count = 0;
+
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    count++;
+
+                    const item = document.createElement('div');
+                    item.className = 'panel-kb-item';
+                    item.innerHTML = `
+                        <span class="panel-kb-icon">📄</span>
+                        <span class="panel-kb-name" title="${data.fileName}">${data.fileName}</span>
+                        <button class="panel-kb-delete" title="Delete">✕</button>
+                    `;
+
+                    const deleteBtn = item.querySelector('.panel-kb-delete');
+                    deleteBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        if (confirm(`Delete "${data.fileName}"?`)) {
+                            // Support both old (storagePath) and new (blobUrl) documents
+                            const deleteUrl = data.blobUrl || data.url || data.storagePath;
+                            await deleteKnowledgeBaseDocument(docSnap.id, deleteUrl);
+                            loadPanelKbFiles();
+                        }
+                    });
+
+                    panelKbList.appendChild(item);
+                });
+
+                if (panelKbCount) {
+                    panelKbCount.textContent = count;
+                }
+
+                // Also update the old KB count if it exists
+                const oldKbCount = document.getElementById('kbCount');
+                if (oldKbCount) {
+                    oldKbCount.textContent = count;
+                }
+            } catch (error) {
+                console.error('Error loading panel KB files:', error);
+            }
         }
 
         // Load Link Status
@@ -6725,6 +7641,16 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             if (mobileHeader) {
                 mobileHeader.classList.add('hidden');
             }
+
+            // Update left panel footer (show sign in, hide account)
+            const panelFooter = document.getElementById('panelFooter');
+            const panelAuthFooter = document.getElementById('panelAuthFooter');
+            if (panelFooter) panelFooter.style.display = 'none';
+            if (panelAuthFooter) panelAuthFooter.style.display = 'block';
+
+            // Hide left panel when not logged in
+            const leftPanel = document.getElementById('leftPanel');
+            if (leftPanel) leftPanel.style.display = 'none';
         }
 
         // Show Chat Interface
@@ -6742,7 +7668,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             }
 
             // Show chat interface
-            chatInterface.classList.remove('hidden');
+            chatInterface?.classList.remove('hidden');
 
             // Add with-header class to main-content for proper spacing
             const mainContent = document.querySelector('.main-content');
@@ -6750,9 +7676,20 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 mainContent.classList.add('with-header');
             }
 
+            // Show mobile header (contains hamburger menu)
+            const mobileHeader = document.getElementById('mobileHeader');
+            if (mobileHeader) {
+                mobileHeader.classList.remove('hidden');
+                // Update mobile header avatar
+                const mobileAvatar = document.getElementById('mobileAvatar');
+                const mobileName = document.getElementById('mobileName');
+                if (mobileAvatar) mobileAvatar.src = user.photoURL || 'https://via.placeholder.com/40';
+                if (mobileName) mobileName.textContent = user.displayName || 'Mindclone';
+            }
+
             // Hide sidebar components (not needed with header layout)
-            sidebarAuth.classList.add('hidden');
-            sidebarProfile.classList.add('hidden');
+            sidebarAuth?.classList.add('hidden');
+            sidebarProfile?.classList.add('hidden');
             // activityFeed removed - no longer exists after consolidation
 
             // Update header avatar and dropdown
@@ -6779,19 +7716,29 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             if (accountMenuEmail) accountMenuEmail.textContent = user.email;
 
             // Update legacy user profile elements (for backward compatibility)
-            userAvatar.src = user.photoURL || 'https://via.placeholder.com/50';
-            userName.textContent = user.displayName || 'User';
-            userEmail.textContent = user.email;
+            if (userAvatar) userAvatar.src = user.photoURL || 'https://via.placeholder.com/50';
+            if (userName) userName.textContent = user.displayName || 'User';
+            if (userEmail) userEmail.textContent = user.email;
 
-            dropdownAvatar.src = user.photoURL || 'https://via.placeholder.com/36';
-            dropdownUserName.textContent = user.displayName || 'User';
-            dropdownUserEmail.textContent = user.email;
+            if (dropdownAvatar) dropdownAvatar.src = user.photoURL || 'https://via.placeholder.com/36';
+            if (dropdownUserName) dropdownUserName.textContent = user.displayName || 'User';
+            if (dropdownUserEmail) dropdownUserEmail.textContent = user.email;
 
-            // Hide mobile header (we use app header instead)
-            const mobileHeader = document.getElementById('mobileHeader');
-            if (mobileHeader) {
-                mobileHeader.classList.add('hidden');
-            }
+            // Update new left panel user info
+            const panelFooter = document.getElementById('panelFooter');
+            const panelAuthFooter = document.getElementById('panelAuthFooter');
+            const panelAccountAvatar = document.getElementById('panelAccountAvatar');
+            const panelAccountName = document.getElementById('panelAccountName');
+            const panelAccountEmail = document.getElementById('panelAccountEmail');
+            const leftPanelEl = document.getElementById('leftPanel');
+
+            // Show left panel when logged in
+            if (leftPanelEl) leftPanelEl.style.display = 'flex';
+            if (panelFooter) panelFooter.style.display = 'block';
+            if (panelAuthFooter) panelAuthFooter.style.display = 'none';
+            if (panelAccountAvatar) panelAccountAvatar.src = user.photoURL || 'https://via.placeholder.com/36';
+            if (panelAccountName) panelAccountName.textContent = user.displayName || 'User';
+            if (panelAccountEmail) panelAccountEmail.textContent = user.email;
 
             // Load link status
             await loadLinkStatus();
@@ -6810,6 +7757,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             initializePanelSettings();
             initializePanelAnalytics();
             initializeKnowledgeBase();
+            loadPanelKbFiles(); // Load KB files into new left panel
 
             // Restore last active tab
             restorePanelTab();
@@ -8048,6 +8996,9 @@ Is there anything else you'd like to configure?`;
 
                     // Save AI response to Firestore (non-blocking)
                     saveMessageToFirestore(currentUser.uid, 'assistant', data.content);
+
+                    // Speak the response if voice mode is enabled
+                    speakResponse(data.content);
                 } else {
                     // Check for subscription error
                     if (data.error === 'subscription_required') {
@@ -8120,21 +9071,7 @@ Is there anything else you'd like to configure?`;
         });
 
         // Scroll to bottom when keyboard appears (iOS Safari)
-        // Right panel toggle handler
-        if (rightPanelToggle) {
-            rightPanelToggle.addEventListener('click', () => {
-                document.body.classList.toggle('right-panel-collapsed');
-                // Save preference to localStorage
-                const isCollapsed = document.body.classList.contains('right-panel-collapsed');
-                localStorage.setItem('rightPanelCollapsed', isCollapsed);
-            });
-
-            // Restore saved preference (default to collapsed)
-            const savedCollapsed = localStorage.getItem('rightPanelCollapsed');
-            if (savedCollapsed !== 'false') {
-                document.body.classList.add('right-panel-collapsed');
-            }
-        }
+        // Note: Right panel toggle handler is defined earlier at toggleRightPanel()
 
         // File upload handlers
         attachButton.addEventListener('click', () => {
@@ -8154,6 +9091,168 @@ Is there anything else you'd like to configure?`;
             fileInput.value = '';
             filePreview.classList.remove('visible');
         });
+
+        // ==========================================
+        // VOICE MODE - Speech-to-Text & Text-to-Speech
+        // ==========================================
+
+        // Voice state
+        let isListening = false;
+        let voiceModeEnabled = localStorage.getItem('voiceModeEnabled') === 'true';
+        let currentAudio = null;
+        let speechRecognition = null;
+
+        // Check for Web Speech API support
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const speechSupported = !!SpeechRecognition;
+
+        // Initialize speech recognition if supported
+        if (speechSupported) {
+            speechRecognition = new SpeechRecognition();
+            speechRecognition.continuous = false;
+            speechRecognition.interimResults = true;
+            speechRecognition.lang = 'en-US';
+
+            speechRecognition.onstart = () => {
+                isListening = true;
+                voiceButton.classList.add('listening');
+                voiceButton.title = 'Listening... (click to stop)';
+                chatInput.placeholder = 'Listening...';
+            };
+
+            speechRecognition.onend = () => {
+                isListening = false;
+                voiceButton.classList.remove('listening');
+                voiceButton.title = 'Voice input (click to speak)';
+                chatInput.placeholder = 'Type or speak your message...';
+            };
+
+            speechRecognition.onresult = (event) => {
+                const transcript = Array.from(event.results)
+                    .map(result => result[0].transcript)
+                    .join('');
+
+                chatInput.value = transcript;
+
+                // Auto-send when speech is final
+                if (event.results[event.results.length - 1].isFinal) {
+                    setTimeout(() => {
+                        if (chatInput.value.trim()) {
+                            sendMessage();
+                        }
+                    }, 500);
+                }
+            };
+
+            speechRecognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                isListening = false;
+                voiceButton.classList.remove('listening');
+                voiceButton.title = 'Voice input (click to speak)';
+                chatInput.placeholder = 'Type or speak your message...';
+
+                if (event.error === 'not-allowed') {
+                    alert('Microphone access denied. Please allow microphone access in your browser settings.');
+                }
+            };
+        } else {
+            // Disable voice button if not supported
+            voiceButton.classList.add('disabled');
+            voiceButton.title = 'Voice input not supported in this browser (try Chrome or Edge)';
+        }
+
+        // Voice button click handler
+        voiceButton.addEventListener('click', () => {
+            if (!speechSupported) {
+                alert('Voice input is not supported in this browser. Please use Chrome, Edge, or Safari.');
+                return;
+            }
+
+            if (isListening) {
+                speechRecognition.stop();
+            } else {
+                try {
+                    speechRecognition.start();
+                } catch (error) {
+                    console.error('Speech recognition start error:', error);
+                }
+            }
+        });
+
+        // Text-to-Speech function using ElevenLabs
+        async function speakResponse(text) {
+            // Don't speak if voice mode is disabled
+            if (!voiceModeEnabled) return;
+
+            // Stop any currently playing audio
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+
+            try {
+                const response = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    console.error('TTS error:', error);
+                    return;
+                }
+
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+
+                currentAudio = new Audio(audioUrl);
+                currentAudio.onended = () => {
+                    URL.revokeObjectURL(audioUrl);
+                    currentAudio = null;
+
+                    // Auto-listen after AI finishes speaking (if voice mode enabled)
+                    if (voiceModeEnabled && speechSupported && !isListening) {
+                        setTimeout(() => {
+                            try {
+                                speechRecognition.start();
+                            } catch (e) {
+                                console.log('Could not auto-start listening:', e);
+                            }
+                        }, 500);
+                    }
+                };
+
+                await currentAudio.play();
+            } catch (error) {
+                console.error('TTS playback error:', error);
+            }
+        }
+
+        // Toggle voice mode
+        function toggleVoiceMode() {
+            voiceModeEnabled = !voiceModeEnabled;
+            localStorage.setItem('voiceModeEnabled', voiceModeEnabled);
+            updateVoiceModeUI();
+        }
+
+        function updateVoiceModeUI() {
+            // Could add a visual indicator in the UI if needed
+            if (voiceModeEnabled) {
+                voiceButton.style.borderColor = 'var(--color-accent-primary)';
+            } else {
+                voiceButton.style.borderColor = '#333';
+            }
+        }
+
+        // Initialize voice mode UI
+        updateVoiceModeUI();
+
+        // ==========================================
+        // END VOICE MODE
+        // ==========================================
 
         function showFilePreview(file) {
             const fileSizeKB = (file.size / 1024).toFixed(2);
@@ -8301,14 +9400,20 @@ Is there anything else you'd like to configure?`;
 
         // Landing sign-in button
         const landingSignInBtn = document.getElementById('landingSignInBtn');
+        console.log('[Auth] landingSignInBtn element:', landingSignInBtn);
         if (landingSignInBtn) {
+            console.log('[Auth] Attaching click handler to landingSignInBtn');
             landingSignInBtn.addEventListener('click', async () => {
+                console.log('[Auth] Landing sign-in button clicked');
                 try {
                     await signInWithPopup(auth, provider);
                 } catch (error) {
                     console.error('Sign-in error:', error);
+                    alert('Sign-in failed: ' + error.message);
                 }
             });
+        } else {
+            console.error('[Auth] landingSignInBtn not found in DOM!');
         }
 
         // Pricing sign-in button

@@ -281,13 +281,24 @@ module.exports = async (req, res) => {
   }
 
   // Authenticate cron request
-  const cronSecret = process.env.CRON_SECRET;
+  // Vercel cron jobs are triggered internally and are secure by default
+  // We check for either:
+  // 1. Vercel's internal cron header (x-vercel-cron)
+  // 2. Manual trigger with CRON_SECRET
+  const isVercelCron = req.headers['x-vercel-cron'] === '1';
+  const cronSecret = process.env.CRON_SECRET?.trim();
   const authHeader = req.headers.authorization;
+  const providedToken = authHeader?.replace('Bearer ', '').trim();
+  const isManualAuth = cronSecret && providedToken === cronSecret;
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    console.error('[NewsCurator] Unauthorized cron request');
+  console.log(`[NewsCurator] Auth debug: isVercelCron=${isVercelCron}, hasAuthHeader=${!!authHeader}, secretMatch=${isManualAuth}`);
+
+  if (!isVercelCron && !isManualAuth) {
+    console.error('[NewsCurator] Unauthorized cron request - missing x-vercel-cron header or valid auth');
     return res.status(401).json({ error: 'Unauthorized' });
   }
+
+  console.log(`[NewsCurator] Auth passed: isVercelCron=${isVercelCron}, isManualAuth=${isManualAuth}`);
 
   console.log('[NewsCurator] Starting hourly curation run');
 

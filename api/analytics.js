@@ -18,12 +18,24 @@ async function verifyToken(idToken) {
 // Get visitor statistics
 async function getVisitorStats(userId) {
   try {
-    // Get all visitors
-    const visitorsSnapshot = await db.collection('users').doc(userId)
-      .collection('visitors')
-      .orderBy('lastVisit', 'desc')
-      .get();
+    console.log('[Analytics] Getting stats for userId:', userId);
 
+    // Get all visitors - try with orderBy first, fall back to simple get if index missing
+    let visitorsSnapshot;
+    try {
+      visitorsSnapshot = await db.collection('users').doc(userId)
+        .collection('visitors')
+        .orderBy('lastVisit', 'desc')
+        .get();
+    } catch (orderError) {
+      console.log('[Analytics] OrderBy failed, trying simple get:', orderError.message);
+      // Fall back to getting all without order
+      visitorsSnapshot = await db.collection('users').doc(userId)
+        .collection('visitors')
+        .get();
+    }
+
+    console.log('[Analytics] Visitors found:', visitorsSnapshot.size);
     const totalVisitors = visitorsSnapshot.size;
     let totalMessages = 0;
     const recentVisitors = [];
@@ -128,34 +140,87 @@ async function getVisitorDetails(userId, visitorId) {
 // Get time-based statistics
 async function getTimeBasedStats(userId, days = 30) {
   try {
+    console.log('[Analytics] Getting time-based stats for userId:', userId, 'days:', days);
     const now = Date.now();
     const startTime = now - (days * 24 * 60 * 60 * 1000);
     const startDate = admin.firestore.Timestamp.fromMillis(startTime);
 
-    // Get recent visitors
-    const visitorsSnapshot = await db.collection('users').doc(userId)
-      .collection('visitors')
-      .where('lastVisit', '>=', startDate)
-      .get();
-
-    const recentVisitors = visitorsSnapshot.size;
-
-    // Count recent messages
-    let recentMessages = 0;
-    for (const visitorDoc of visitorsSnapshot.docs) {
-      const messagesSnapshot = await db.collection('users').doc(userId)
-        .collection('visitors').doc(visitorDoc.id)
-        .collection('messages')
-        .where('timestamp', '>=', startDate)
+    // Get visitors - try with where filter, fall back to getting all and filtering
+    let visitorsSnapshot;
+    try {
+      visitorsSnapshot = await db.collection('users').doc(userId)
+        .collection('visitors')
+        .where('lastVisit', '>=', startDate)
         .get();
-
-      recentMessages += messagesSnapshot.size;
+    } catch (whereError) {
+      console.log('[Analytics] Where query failed, getting all visitors:', whereError.message);
+      // Fall back to getting all visitors
+      const allVisitors = await db.collection('users').doc(userId)
+        .collection('visitors')
+        .get();
+      // Filter manually
+      visitorsSnapshot = {
+        docs: allVisitors.docs.filter(doc => {
+          const lastVisit = doc.data().lastVisit;
+          return lastVisit && lastVisit.toMillis() >= startTime;
+        }),
+        size: 0
+      };
+      visitorsSnapshot.size = visitorsSnapshot.docs.length;
     }
 
+    console.log('[Analytics] Time-based visitors found:', visitorsSnapshot.size);
+    const totalVisitors = visitorsSnapshot.size;
+
+    // Count recent messages
+    let totalMessages = 0;
+    const recentVisitors = [];
+
+    for (const visitorDoc of visitorsSnapshot.docs) {
+      const visitorData = visitorDoc.data();
+      let messageCount = 0;
+
+      try {
+        const messagesSnapshot = await db.collection('users').doc(userId)
+          .collection('visitors').doc(visitorDoc.id)
+          .collection('messages')
+          .where('timestamp', '>=', startDate)
+          .get();
+        messageCount = messagesSnapshot.size;
+      } catch (msgError) {
+        // Fall back to counting all messages
+        const allMessages = await db.collection('users').doc(userId)
+          .collection('visitors').doc(visitorDoc.id)
+          .collection('messages')
+          .get();
+        // Filter manually
+        messageCount = allMessages.docs.filter(doc => {
+          const timestamp = doc.data().timestamp;
+          return timestamp && timestamp.toMillis() >= startTime;
+        }).length;
+      }
+
+      totalMessages += messageCount;
+
+      // Add to recent visitors list (limit to 10)
+      if (recentVisitors.length < 10) {
+        recentVisitors.push({
+          visitorId: visitorDoc.id,
+          firstVisit: visitorData.firstVisit || visitorData.lastVisit,
+          lastVisit: visitorData.lastVisit,
+          messageCount: messageCount,
+          lastMessage: visitorData.lastMessage || 'No messages yet'
+        });
+      }
+    }
+
+    // Return data with field names matching what frontend expects
     return {
       period: `${days} days`,
-      visitors: recentVisitors,
-      messages: recentMessages,
+      totalVisitors: totalVisitors,
+      totalMessages: totalMessages,
+      publicMessages: 0, // Not tracked for time-based
+      recentVisitors: recentVisitors,
       startDate: startDate.toDate()
     };
   } catch (error) {

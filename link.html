@@ -675,6 +675,45 @@
             cursor: not-allowed;
         }
 
+        /* Voice Button Styles */
+        .voice-button {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--border);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .voice-button:hover {
+            background: var(--border);
+            transform: scale(1.05);
+        }
+
+        .voice-button.listening {
+            background: #dc3545;
+            border-color: #dc3545;
+            animation: pulse-red 1.5s infinite;
+        }
+
+        .voice-button.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+
         /* Footer - Minimal watermark */
         .footer-cta {
             padding: 8px;
@@ -868,9 +907,10 @@
                 <textarea
                     id="messageInput"
                     class="message-input"
-                    placeholder="Type your message..."
+                    placeholder="Type or speak..."
                     rows="1"
                 ></textarea>
+                <button id="voiceButton" class="voice-button" title="Voice input">🎤</button>
                 <button id="sendButton" class="send-button">↑</button>
             </div>
         </div>
@@ -975,6 +1015,7 @@
         const chatContainer = document.getElementById('chatContainer');
         const inputContainer = document.getElementById('inputContainer');
         const messageInput = document.getElementById('messageInput');
+        const voiceButton = document.getElementById('voiceButton');
         const sendButton = document.getElementById('sendButton');
         const typingIndicator = document.getElementById('typingIndicator');
         const rateLimitWarning = document.getElementById('rateLimitWarning');
@@ -1201,6 +1242,118 @@
             messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
         }
 
+        // ==========================================
+        // VOICE MODE - Speech-to-Text & Text-to-Speech
+        // ==========================================
+
+        let isListening = false;
+        let voiceModeEnabled = true; // Always enabled for public link
+        let currentAudio = null;
+        let speechRecognition = null;
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const speechSupported = !!SpeechRecognition;
+
+        if (speechSupported) {
+            speechRecognition = new SpeechRecognition();
+            speechRecognition.continuous = false;
+            speechRecognition.interimResults = true;
+            speechRecognition.lang = 'en-US';
+
+            speechRecognition.onstart = () => {
+                isListening = true;
+                voiceButton.classList.add('listening');
+                voiceButton.title = 'Listening...';
+                messageInput.placeholder = 'Listening...';
+            };
+
+            speechRecognition.onend = () => {
+                isListening = false;
+                voiceButton.classList.remove('listening');
+                voiceButton.title = 'Voice input';
+                messageInput.placeholder = 'Type or speak...';
+            };
+
+            speechRecognition.onresult = (event) => {
+                const transcript = Array.from(event.results)
+                    .map(result => result[0].transcript)
+                    .join('');
+                messageInput.value = transcript;
+                autoResizeTextarea();
+
+                if (event.results[event.results.length - 1].isFinal) {
+                    setTimeout(() => {
+                        if (messageInput.value.trim()) {
+                            sendMessage();
+                        }
+                    }, 500);
+                }
+            };
+
+            speechRecognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                isListening = false;
+                voiceButton.classList.remove('listening');
+                voiceButton.title = 'Voice input';
+                messageInput.placeholder = 'Type or speak...';
+            };
+        } else {
+            voiceButton.classList.add('disabled');
+            voiceButton.title = 'Voice not supported (use Chrome/Edge)';
+        }
+
+        voiceButton.addEventListener('click', () => {
+            if (!speechSupported) {
+                alert('Voice input is not supported in this browser. Please use Chrome, Edge, or Safari.');
+                return;
+            }
+            if (isListening) {
+                speechRecognition.stop();
+            } else {
+                try {
+                    speechRecognition.start();
+                } catch (error) {
+                    console.error('Speech recognition start error:', error);
+                }
+            }
+        });
+
+        async function speakResponse(text) {
+            if (!voiceModeEnabled) return;
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            try {
+                const response = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                if (!response.ok) return;
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                currentAudio = new Audio(audioUrl);
+                currentAudio.onended = () => {
+                    URL.revokeObjectURL(audioUrl);
+                    currentAudio = null;
+                    // Auto-listen after AI finishes speaking
+                    if (voiceModeEnabled && speechSupported && !isListening) {
+                        setTimeout(() => {
+                            try { speechRecognition.start(); } catch (e) {}
+                        }, 500);
+                    }
+                };
+                await currentAudio.play();
+            } catch (error) {
+                console.error('TTS error:', error);
+            }
+        }
+
+        // ==========================================
+        // END VOICE MODE
+        // ==========================================
+
         // Send message
         async function sendMessage() {
             const content = messageInput.value.trim();
@@ -1284,6 +1437,9 @@
                 // Add AI response with media if available
                 addMessage('ai', data.content, new Date(), data.media);
                 conversationHistory.push({ role: 'assistant', content: data.content });
+
+                // Speak the response if voice mode is enabled
+                speakResponse(data.content);
 
                 // Handle display panel actions (show slides, images, etc.)
                 if (data.display) {
