@@ -569,30 +569,24 @@ When you get conversation data, analyze the 'allUserQuestions' array to identify
     // Extract final text response
     const text = candidate?.content?.parts?.[0]?.text || 'I apologize, I was unable to generate a response.';
 
-    // === STORE NEW MEMORIES ===
+    // === STORE NEW MEMORIES (non-blocking) ===
+    // Fire-and-forget to avoid delaying the response
     if (mem0) {
-      try {
-        // Add the conversation to memory (Mem0 will extract important facts)
-        const conversationToStore = [
-          {
-            role: 'user',
-            content: messages[messages.length - 1].content
-          },
-          {
-            role: 'assistant',
-            content: text
-          }
-        ];
+      const conversationToStore = [
+        {
+          role: 'user',
+          content: messages[messages.length - 1].content
+        },
+        {
+          role: 'assistant',
+          content: text
+        }
+      ];
 
-        await mem0.add(conversationToStore, {
-          user_id: userId
-        });
-
-        console.log(`[Mem0] Stored new memories for user ${userId}`);
-      } catch (memError) {
-        console.error('[Mem0] Memory storage error:', memError);
-        // Continue even if memory storage fails
-      }
+      // Don't await - let it complete in background
+      mem0.add(conversationToStore, { user_id: userId })
+        .then(() => console.log(`[Mem0] Stored new memories for user ${userId}`))
+        .catch(memError => console.error('[Mem0] Memory storage error:', memError));
     }
 
     return res.status(200).json({

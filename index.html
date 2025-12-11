@@ -3923,6 +3923,34 @@
             margin-top: 5px;
         }
 
+        /* Load More Button */
+        .load-more-container {
+            text-align: center;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .load-more-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+
+        .load-more-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .load-more-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* Markdown Styling */
         .message-content p {
             margin: 0.5em 0;
@@ -5381,7 +5409,7 @@
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, deleteField, query, orderBy, getDocs, onSnapshot, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, deleteField, query, orderBy, getDocs, onSnapshot, limit, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, listAll } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         // Your Firebase configuration
@@ -5762,10 +5790,32 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             }
         }
 
-        async function loadConversationHistory(userId) {
+        // Track pagination state for chat history
+        let oldestLoadedTimestamp = null;
+        let hasMoreMessages = false;
+        const MESSAGES_PER_PAGE = 50;
+
+        async function loadConversationHistory(userId, loadOlder = false) {
             try {
                 const messagesRef = collection(db, 'users', userId, 'messages');
-                const q = query(messagesRef, orderBy('timestamp', 'asc'));
+                let q;
+
+                if (loadOlder && oldestLoadedTimestamp) {
+                    // Load older messages (before the oldest we have)
+                    q = query(
+                        messagesRef,
+                        orderBy('timestamp', 'desc'),
+                        where('timestamp', '<', oldestLoadedTimestamp),
+                        limit(MESSAGES_PER_PAGE)
+                    );
+                } else {
+                    // Load most recent messages (descending, then reverse for display)
+                    q = query(
+                        messagesRef,
+                        orderBy('timestamp', 'desc'),
+                        limit(MESSAGES_PER_PAGE)
+                    );
+                }
 
                 const querySnapshot = await getDocs(q);
                 const messages = [];
@@ -5779,12 +5829,121 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                     });
                 });
 
-                console.log(`Loaded ${messages.length} messages from Firestore`);
+                // Check if there are more messages to load
+                hasMoreMessages = messages.length === MESSAGES_PER_PAGE;
+
+                // Reverse to get chronological order (oldest first)
+                messages.reverse();
+
+                // Track oldest timestamp for pagination
+                if (messages.length > 0) {
+                    const oldestMsg = messages[0];
+                    if (!oldestLoadedTimestamp || (oldestMsg.timestamp && oldestMsg.timestamp < oldestLoadedTimestamp)) {
+                        oldestLoadedTimestamp = oldestMsg.timestamp;
+                    }
+                }
+
+                console.log(`Loaded ${messages.length} messages from Firestore (hasMore: ${hasMoreMessages})`);
                 return messages;
             } catch (error) {
                 console.error('Error loading messages:', error);
                 return [];
             }
+        }
+
+        async function loadOlderMessages() {
+            const user = auth.currentUser;
+            if (!user || !hasMoreMessages) return;
+
+            const loadMoreBtn = document.getElementById('loadMoreMessages');
+            if (loadMoreBtn) {
+                loadMoreBtn.textContent = 'Loading...';
+                loadMoreBtn.disabled = true;
+            }
+
+            try {
+                const olderMessages = await loadConversationHistory(user.uid, true);
+
+                if (olderMessages.length > 0) {
+                    // Prepend older messages to conversationHistory
+                    const olderHistoryItems = olderMessages.map(msg => ({
+                        role: msg.role,
+                        content: msg.content
+                    }));
+                    conversationHistory = [...olderHistoryItems, ...conversationHistory];
+
+                    // Prepend to UI (insert at top)
+                    const chatContainer = document.getElementById('chatMessages');
+                    const firstMessage = chatContainer.firstChild;
+
+                    // Remove old "Load More" button if present
+                    const oldBtn = document.getElementById('loadMoreMessages');
+                    if (oldBtn) oldBtn.remove();
+
+                    // Add messages at the top
+                    olderMessages.forEach(msg => {
+                        const messageDiv = createMessageElement(msg.role === 'assistant' ? 'ai' : msg.role, msg.content, msg.timestamp);
+                        if (firstMessage) {
+                            chatContainer.insertBefore(messageDiv, firstMessage);
+                        } else {
+                            chatContainer.appendChild(messageDiv);
+                        }
+                    });
+
+                    // Add new "Load More" button if there are more messages
+                    if (hasMoreMessages) {
+                        addLoadMoreButton();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading older messages:', error);
+            } finally {
+                if (loadMoreBtn) {
+                    loadMoreBtn.textContent = 'Load older messages';
+                    loadMoreBtn.disabled = false;
+                }
+            }
+        }
+
+        function addLoadMoreButton() {
+            const chatContainer = document.getElementById('chatMessages');
+            const existingBtn = document.getElementById('loadMoreMessages');
+            if (existingBtn) return; // Already exists
+
+            const loadMoreDiv = document.createElement('div');
+            loadMoreDiv.className = 'load-more-container';
+            loadMoreDiv.innerHTML = `
+                <button id="loadMoreMessages" class="load-more-btn" onclick="loadOlderMessages()">
+                    Load older messages
+                </button>
+            `;
+            chatContainer.insertBefore(loadMoreDiv, chatContainer.firstChild);
+        }
+
+        function createMessageElement(type, content, timestamp) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            if (type === 'ai') {
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                avatar.textContent = '🔮';
+                messageDiv.appendChild(avatar);
+            }
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = type === 'ai' ? marked.parse(content || '') : (content || '');
+            messageDiv.appendChild(contentDiv);
+
+            if (timestamp) {
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'message-timestamp';
+                timeDiv.textContent = formatTimestamp(timestamp);
+                messageDiv.appendChild(timeDiv);
+            }
+
+            return messageDiv;
         }
 
         function showLoadingIndicator() {
@@ -7745,24 +7904,17 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             if (panelAccountName) panelAccountName.textContent = user.displayName || 'User';
             if (panelAccountEmail) panelAccountEmail.textContent = user.email;
 
-            // Load link status
-            await loadLinkStatus();
-
-            // Load activity feed data (for modal)
-            await loadActivityFeed();
+            // Initialize synchronous panel setup immediately
+            initializePanelTabs();
+            initializePanelSettings();
+            initializePanelAnalytics();
+            initializeKnowledgeBase();
 
             // Set up real-time listener for activity feed
             setupActivityListener();
 
             // Update activity badge
             updateActivityBadge();
-
-            // Initialize panel tabs
-            initializePanelTabs();
-            initializePanelSettings();
-            initializePanelAnalytics();
-            initializeKnowledgeBase();
-            loadPanelKbFiles(); // Load KB files into new left panel
 
             // Restore last active tab
             restorePanelTab();
@@ -7774,18 +7926,32 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             // Show loading indicator
             showLoadingIndicator();
 
-            try {
-                // Load conversation history from Firestore
-                console.log('[Chat] Loading conversation history for user:', user.uid);
-                const messages = await loadConversationHistory(user.uid);
-                console.log('[Chat] Loaded', messages.length, 'messages');
+            // Load data in parallel for faster startup
+            console.log('[Chat] Starting parallel data loading...');
+            const [messages] = await Promise.all([
+                loadConversationHistory(user.uid),
+                loadLinkStatus().catch(e => console.warn('[Parallel] loadLinkStatus error:', e)),
+                loadActivityFeed().catch(e => console.warn('[Parallel] loadActivityFeed error:', e)),
+                loadPanelKbFiles().catch(e => console.warn('[Parallel] loadPanelKbFiles error:', e))
+            ]);
 
-                if (messages.length > 0) {
+            console.log('[Chat] Parallel loading complete');
+
+            try {
+                // Process conversation history
+                console.log('[Chat] Loaded', messages?.length || 0, 'messages');
+
+                if (messages && messages.length > 0) {
                     // Populate conversationHistory array
                     conversationHistory = messages.map(msg => ({
                         role: msg.role,
                         content: msg.content
                     }));
+
+                    // Add "Load More" button at top if there are more messages
+                    if (hasMoreMessages) {
+                        addLoadMoreButton();
+                    }
 
                     // Display all messages in UI with timestamps
                     messages.forEach(msg => {
