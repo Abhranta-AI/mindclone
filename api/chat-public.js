@@ -2,6 +2,7 @@
 const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
 const { CONNOISSEUR_STYLE_GUIDE } = require('./_style-guide');
 const { computeAccessLevel } = require('./_billing-helpers');
+const { chat: llmChat, MODELS } = require('./_llm');
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
@@ -428,13 +429,11 @@ async function saveVisitorMessage(userId, visitorId, role, content, displayActio
   }
 }
 
-// Call Gemini API with tool calling support
+// Call LLM API with tool calling support via OpenRouter
 async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowledgeBaseDocuments = null) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY not configured');
+    if (!process.env.OPENROUTER_API_KEY) {
+      throw new Error('OPENROUTER_API_KEY not configured');
     }
 
     // Convert conversation to Gemini format
@@ -442,16 +441,6 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
     }));
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-    // Build request body
-    const requestBody = {
-      contents: contents,
-      systemInstruction: {
-        parts: [{ text: systemPrompt }]
-      }
-    };
 
     // Enable tools - draw_canvas is always available, plus document tools if available
     let hasDocuments = false;
@@ -476,35 +465,9 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
       console.log('[ChatPublic] Document tool enabled for pitch deck');
     }
 
-    // Always add tools (draw_canvas is always available)
-    console.log('[ChatPublic] Adding tools to API request (documents:', hasDocuments, ')');
-    requestBody.tools = tools;
-    // Configure tool usage to encourage function calling
-    requestBody.tool_config = {
-      function_calling_config: {
-        mode: "AUTO" // AUTO mode allows model to decide, but we've made the prompts very explicit
-      }
-    };
-
-    let response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    let data = await response.json();
-
-    if (!response.ok) {
-      console.error('[ChatPublic] Gemini API error:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: data.error,
-        fullResponse: data
-      });
-      throw new Error(data.error?.message || `Gemini API request failed: ${response.status}`);
-    }
+    // Call OpenRouter with LLM abstraction
+    console.log('[ChatPublic] Calling OpenRouter with tools (documents:', hasDocuments, ')');
+    let data = await llmChat(contents, tools, systemPrompt, { model: MODELS.default });
 
     // Check if model wants to call a tool
     let candidate = data.candidates?.[0];
