@@ -10470,7 +10470,7 @@ Is there anything else you'd like to configure?`;
                 if (isImage) {
                     // For images, create HTML to display the image inline
                     messageHTML = `${message ? `<p>${message}</p>` : ''}<img src="${fileUrl}" alt="${fileMetadata.name}" class="message-image">`;
-                    finalMessage = `${message}\n\n[Image: ${fileMetadata.name}]`;
+                    finalMessage = `${message}\n\n[Image: ${fileMetadata.name}]\nImage URL: ${fileUrl}`;
                 } else {
                     finalMessage = `${message}\n\n[Attached file: ${fileMetadata.name}]\nFile URL: ${fileUrl}`;
                 }
