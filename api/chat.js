@@ -100,7 +100,7 @@ const tools = [
       },
       {
         name: "browse_url",
-        description: "Fetch and read the content of a web page. Use this when the user asks you to look at a website, check a URL, read an article, or view content from the internet. Returns the text content of the page.",
+        description: "Fetch and read the content of a web page. Use this when the user shares a URL and wants you to look at, read, check, visit, learn from, explore, or understand content from the internet. CRITICAL: If the user shares ANY URL (blog, website, article, link) and asks you to do ANYTHING with it (learn, read, check, see, understand), you MUST use this tool. Returns the text content of the page.",
         parameters: {
           type: "object",
           properties: {
