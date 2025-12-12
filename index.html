@@ -5817,6 +5817,63 @@
                         <span>Upload Document</span>
                     </button>
                 </div>
+
+                <!-- Feedback Section (admin only) -->
+                <div class="left-panel-section" id="feedbackSection" style="display: none;">
+                    <div class="left-panel-section-header" id="feedbackSectionHeader" style="cursor: pointer;">
+                        <span class="left-panel-section-icon">💬</span>
+                        <span class="left-panel-section-title">Feedback</span>
+                        <span class="left-panel-expand-icon" id="feedbackExpandIcon">▼</span>
+                    </div>
+                    <div class="left-panel-section-content" id="feedbackSectionContent" style="display: none;">
+                        <!-- Screenshot Section -->
+                        <div class="feedback-form-group">
+                            <label class="feedback-label">Screenshot (Optional)</label>
+                            <div class="screenshot-container">
+                                <div id="screenshotPreview" class="screenshot-preview hidden">
+                                    <img id="screenshotImage" src="" alt="Screenshot preview">
+                                    <button id="removeScreenshotBtn" class="remove-screenshot-btn" title="Remove screenshot">x</button>
+                                </div>
+                                <button id="captureScreenshotBtn" class="panel-button panel-button-secondary" style="width: 100%;">
+                                    <span class="button-icon">📷</span>
+                                    <span>Capture Screenshot</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Feedback Type -->
+                        <div class="feedback-form-group">
+                            <label class="feedback-label">Type</label>
+                            <select id="feedbackType" class="panel-select" style="width: 100%;">
+                                <option value="bug">Bug Report</option>
+                                <option value="feature">Feature Request</option>
+                                <option value="improvement">Improvement Suggestion</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <!-- Feedback Message -->
+                        <div class="feedback-form-group">
+                            <label class="feedback-label">Your Feedback</label>
+                            <textarea id="feedbackMessage" class="panel-textarea" placeholder="Describe the issue or suggestion..." rows="4" style="width: 100%; resize: vertical;"></textarea>
+                            <div class="char-count" style="text-align: right; font-size: 11px; color: var(--text-muted);">
+                                <span id="feedbackCharCount">0</span>/2000
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button id="submitFeedbackBtn" class="panel-button panel-button-primary" style="width: 100%;" disabled>
+                            <span class="button-icon">📤</span>
+                            <span>Submit Feedback</span>
+                        </button>
+
+                        <!-- Success Message -->
+                        <div id="feedbackSuccess" class="feedback-success hidden">
+                            <span class="success-icon">✓</span>
+                            <span>Thanks! We'll review it soon.</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Panel Footer (Account) -->
@@ -6101,10 +6158,6 @@
                     <span class="tab-icon">📈</span>
                     <span class="tab-label">Analytics</span>
                 </button>
-                <button class="panel-tab" data-tab="feedback" id="feedbackTabBtn" style="display: none;">
-                    <span class="tab-icon">💬</span>
-                    <span class="tab-label">Feedback</span>
-                </button>
             </div>
 
             <!-- Tab Content Container -->
@@ -6285,65 +6338,6 @@
                                     <option value="90">Last 90 Days</option>
                                     <option value="all">All Time</option>
                                 </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Feedback Tab -->
-                <div class="panel-tab-content" id="feedbackTab">
-                    <div class="feedback-scroll-container">
-                        <div class="panel-section">
-                            <h3 class="panel-section-title">Send Feedback</h3>
-                            <p class="panel-section-subtitle">Help us improve Mindclone by sharing your thoughts or reporting issues</p>
-
-                            <!-- Screenshot Section -->
-                            <div class="panel-form-group">
-                                <label class="panel-label">Screenshot (Optional)</label>
-                                <span class="panel-hint">Capture the current screen to show us what you're seeing</span>
-                                <div class="screenshot-container">
-                                    <div id="screenshotPreview" class="screenshot-preview hidden">
-                                        <img id="screenshotImage" src="" alt="Screenshot preview">
-                                        <button id="removeScreenshotBtn" class="remove-screenshot-btn" title="Remove screenshot">x</button>
-                                    </div>
-                                    <button id="captureScreenshotBtn" class="panel-button panel-button-secondary">
-                                        <span class="button-icon">📷</span>
-                                        <span>Capture Screenshot</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Feedback Type -->
-                            <div class="panel-form-group">
-                                <label class="panel-label">Type</label>
-                                <select id="feedbackType" class="panel-select">
-                                    <option value="bug">Bug Report</option>
-                                    <option value="feature">Feature Request</option>
-                                    <option value="improvement">Improvement Suggestion</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-
-                            <!-- Feedback Message -->
-                            <div class="panel-form-group">
-                                <label class="panel-label">Your Feedback</label>
-                                <span class="panel-hint">Describe the issue or suggestion in detail</span>
-                                <textarea id="feedbackMessage" class="panel-textarea feedback-textarea" placeholder="What's on your mind? Describe what happened, what you expected, or what you'd like to see..." rows="6"></textarea>
-                                <div class="char-count">
-                                    <span id="feedbackCharCount">0</span>/2000
-                                </div>
-                            </div>
-
-                            <!-- Submit Button -->
-                            <button id="submitFeedbackBtn" class="panel-button panel-button-primary" disabled>
-                                <span class="button-icon">📤</span>
-                                <span>Submit Feedback</span>
-                            </button>
-
-                            <!-- Success Message -->
-                            <div id="feedbackSuccess" class="feedback-success hidden">
-                                <span class="success-icon">✓</span>
-                                <span>Thanks for your feedback! We'll review it soon.</span>
                             </div>
                         </div>
                     </div>
@@ -7282,23 +7276,35 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
         // Handle URL hash for deep linking
         function handlePanelDeepLink() {
             const hash = window.location.hash.substring(1);
-            if (['activity', 'settings', 'analytics', 'feedback'].includes(hash)) {
+            if (['activity', 'settings', 'analytics'].includes(hash)) {
                 switchPanelTab(hash);
                 history.replaceState(null, null, window.location.pathname);
             }
         }
 
-        // ==================== FEEDBACK TAB ====================
+        // ==================== FEEDBACK SECTION ====================
 
         let feedbackScreenshotData = null;
 
-        // Initialize feedback tab event listeners
+        // Initialize feedback section event listeners
         function initFeedbackTab() {
             const captureBtn = document.getElementById('captureScreenshotBtn');
             const removeBtn = document.getElementById('removeScreenshotBtn');
             const feedbackMessage = document.getElementById('feedbackMessage');
             const submitBtn = document.getElementById('submitFeedbackBtn');
             const charCount = document.getElementById('feedbackCharCount');
+            const sectionHeader = document.getElementById('feedbackSectionHeader');
+            const sectionContent = document.getElementById('feedbackSectionContent');
+            const expandIcon = document.getElementById('feedbackExpandIcon');
+
+            // Setup expand/collapse toggle for feedback section
+            if (sectionHeader && sectionContent && expandIcon) {
+                sectionHeader.addEventListener('click', function() {
+                    const isExpanded = sectionContent.style.display !== 'none';
+                    sectionContent.style.display = isExpanded ? 'none' : 'block';
+                    expandIcon.textContent = isExpanded ? '▶' : '▼';
+                });
+            }
 
             if (captureBtn) {
                 captureBtn.addEventListener('click', captureScreenshot);
@@ -7776,10 +7782,10 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                     if (userData.username) {
                         panelCurrentUsername = userData.username;
                         updatePanelUIForClaimedUsername(userData.username);
-                        // Show feedback tab only for admin user
+                        // Show feedback section in left panel only for admin user
                         if (userData.username === 'alok') {
-                            const feedbackTabBtn = document.getElementById('feedbackTabBtn');
-                            if (feedbackTabBtn) feedbackTabBtn.style.display = '';
+                            const feedbackSection = document.getElementById('feedbackSection');
+                            if (feedbackSection) feedbackSection.style.display = '';
                         }
                     } else {
                         updatePanelUIForNoUsername();
