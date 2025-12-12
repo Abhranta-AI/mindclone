@@ -1773,6 +1773,93 @@
             background: #444;
         }
 
+        /* Feedback Tab Styles */
+        .feedback-scroll-container {
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .feedback-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .screenshot-container {
+            margin-top: 8px;
+        }
+
+        .screenshot-preview {
+            position: relative;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #444;
+        }
+
+        .screenshot-preview img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .remove-screenshot-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .remove-screenshot-btn:hover {
+            background: rgba(255, 0, 0, 1);
+        }
+
+        .panel-button-secondary {
+            background: transparent;
+            border: 1px solid #555;
+            color: #ccc;
+        }
+
+        .panel-button-secondary:hover {
+            background: #444;
+            border-color: #666;
+        }
+
+        .feedback-success {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 8px;
+            color: #22c55e;
+            font-size: 14px;
+        }
+
+        .feedback-success .success-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #22c55e;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
         /* Panel Sections */
         .panel-section {
             background: #39383e;
@@ -6014,6 +6101,10 @@
                     <span class="tab-icon">📈</span>
                     <span class="tab-label">Analytics</span>
                 </button>
+                <button class="panel-tab" data-tab="feedback">
+                    <span class="tab-icon">💬</span>
+                    <span class="tab-label">Feedback</span>
+                </button>
             </div>
 
             <!-- Tab Content Container -->
@@ -6194,6 +6285,65 @@
                                     <option value="90">Last 90 Days</option>
                                     <option value="all">All Time</option>
                                 </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feedback Tab -->
+                <div class="panel-tab-content" id="feedbackTab">
+                    <div class="feedback-scroll-container">
+                        <div class="panel-section">
+                            <h3 class="panel-section-title">Send Feedback</h3>
+                            <p class="panel-section-subtitle">Help us improve Mindclone by sharing your thoughts or reporting issues</p>
+
+                            <!-- Screenshot Section -->
+                            <div class="panel-form-group">
+                                <label class="panel-label">Screenshot (Optional)</label>
+                                <span class="panel-hint">Capture the current screen to show us what you're seeing</span>
+                                <div class="screenshot-container">
+                                    <div id="screenshotPreview" class="screenshot-preview hidden">
+                                        <img id="screenshotImage" src="" alt="Screenshot preview">
+                                        <button id="removeScreenshotBtn" class="remove-screenshot-btn" title="Remove screenshot">x</button>
+                                    </div>
+                                    <button id="captureScreenshotBtn" class="panel-button panel-button-secondary">
+                                        <span class="button-icon">📷</span>
+                                        <span>Capture Screenshot</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Feedback Type -->
+                            <div class="panel-form-group">
+                                <label class="panel-label">Type</label>
+                                <select id="feedbackType" class="panel-select">
+                                    <option value="bug">Bug Report</option>
+                                    <option value="feature">Feature Request</option>
+                                    <option value="improvement">Improvement Suggestion</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+
+                            <!-- Feedback Message -->
+                            <div class="panel-form-group">
+                                <label class="panel-label">Your Feedback</label>
+                                <span class="panel-hint">Describe the issue or suggestion in detail</span>
+                                <textarea id="feedbackMessage" class="panel-textarea feedback-textarea" placeholder="What's on your mind? Describe what happened, what you expected, or what you'd like to see..." rows="6"></textarea>
+                                <div class="char-count">
+                                    <span id="feedbackCharCount">0</span>/2000
+                                </div>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button id="submitFeedbackBtn" class="panel-button panel-button-primary" disabled>
+                                <span class="button-icon">📤</span>
+                                <span>Submit Feedback</span>
+                            </button>
+
+                            <!-- Success Message -->
+                            <div id="feedbackSuccess" class="feedback-success hidden">
+                                <span class="success-icon">✓</span>
+                                <span>Thanks for your feedback! We'll review it soon.</span>
                             </div>
                         </div>
                     </div>
@@ -7124,7 +7274,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
         // Restore last active tab on page load
         function restorePanelTab() {
             const savedTab = localStorage.getItem('panelActiveTab');
-            if (savedTab && ['activity', 'settings', 'analytics'].includes(savedTab)) {
+            if (savedTab && ['activity', 'settings', 'analytics', 'feedback'].includes(savedTab)) {
                 switchPanelTab(savedTab);
             }
         }
@@ -7132,11 +7282,171 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
         // Handle URL hash for deep linking
         function handlePanelDeepLink() {
             const hash = window.location.hash.substring(1);
-            if (['activity', 'settings', 'analytics'].includes(hash)) {
+            if (['activity', 'settings', 'analytics', 'feedback'].includes(hash)) {
                 switchPanelTab(hash);
                 history.replaceState(null, null, window.location.pathname);
             }
         }
+
+        // ==================== FEEDBACK TAB ====================
+
+        let feedbackScreenshotData = null;
+
+        // Initialize feedback tab event listeners
+        function initFeedbackTab() {
+            const captureBtn = document.getElementById('captureScreenshotBtn');
+            const removeBtn = document.getElementById('removeScreenshotBtn');
+            const feedbackMessage = document.getElementById('feedbackMessage');
+            const submitBtn = document.getElementById('submitFeedbackBtn');
+            const charCount = document.getElementById('feedbackCharCount');
+
+            if (captureBtn) {
+                captureBtn.addEventListener('click', captureScreenshot);
+            }
+
+            if (removeBtn) {
+                removeBtn.addEventListener('click', removeScreenshot);
+            }
+
+            if (feedbackMessage) {
+                feedbackMessage.addEventListener('input', function() {
+                    if (charCount) {
+                        charCount.textContent = this.value.length;
+                    }
+                    updateFeedbackSubmitButton();
+                });
+            }
+
+            if (submitBtn) {
+                submitBtn.addEventListener('click', submitFeedback);
+            }
+        }
+
+        // Capture screenshot using html2canvas
+        async function captureScreenshot() {
+            const captureBtn = document.getElementById('captureScreenshotBtn');
+            const preview = document.getElementById('screenshotPreview');
+            const screenshotImg = document.getElementById('screenshotImage');
+
+            try {
+                captureBtn.disabled = true;
+                captureBtn.innerHTML = '<span class="button-icon">...</span><span>Capturing...</span>';
+
+                // Dynamically load html2canvas if not already loaded
+                if (typeof html2canvas === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+
+                // Capture the main content area (excluding the right panel where feedback is)
+                const mainContent = document.querySelector('.main-content') || document.body;
+                const canvas = await html2canvas(mainContent, {
+                    scale: 0.5, // Reduce size for upload
+                    useCORS: true,
+                    allowTaint: true,
+                    logging: false
+                });
+
+                feedbackScreenshotData = canvas.toDataURL('image/jpeg', 0.7);
+                screenshotImg.src = feedbackScreenshotData;
+                preview.classList.remove('hidden');
+                captureBtn.classList.add('hidden');
+                updateFeedbackSubmitButton();
+
+            } catch (error) {
+                console.error('[Feedback] Screenshot capture failed:', error);
+                showPanelAlert('Failed to capture screenshot', 'error');
+            } finally {
+                captureBtn.disabled = false;
+                captureBtn.innerHTML = '<span class="button-icon">📷</span><span>Capture Screenshot</span>';
+            }
+        }
+
+        // Remove captured screenshot
+        function removeScreenshot() {
+            feedbackScreenshotData = null;
+            const preview = document.getElementById('screenshotPreview');
+            const captureBtn = document.getElementById('captureScreenshotBtn');
+            preview.classList.add('hidden');
+            captureBtn.classList.remove('hidden');
+            updateFeedbackSubmitButton();
+        }
+
+        // Update submit button state
+        function updateFeedbackSubmitButton() {
+            const feedbackMessage = document.getElementById('feedbackMessage');
+            const submitBtn = document.getElementById('submitFeedbackBtn');
+            if (feedbackMessage && submitBtn) {
+                submitBtn.disabled = feedbackMessage.value.trim().length < 10;
+            }
+        }
+
+        // Submit feedback to API
+        async function submitFeedback() {
+            const feedbackMessage = document.getElementById('feedbackMessage');
+            const feedbackType = document.getElementById('feedbackType');
+            const submitBtn = document.getElementById('submitFeedbackBtn');
+            const successMsg = document.getElementById('feedbackSuccess');
+
+            if (!feedbackMessage || feedbackMessage.value.trim().length < 10) {
+                showPanelAlert('Please enter at least 10 characters of feedback', 'error');
+                return;
+            }
+
+            try {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="button-icon">...</span><span>Submitting...</span>';
+
+                const payload = {
+                    userId: currentUser?.uid || 'anonymous',
+                    userEmail: currentUser?.email || 'anonymous',
+                    type: feedbackType?.value || 'other',
+                    message: feedbackMessage.value.trim(),
+                    screenshot: feedbackScreenshotData,
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                    url: window.location.href
+                };
+
+                const response = await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to submit feedback');
+                }
+
+                // Show success message
+                successMsg.classList.remove('hidden');
+                feedbackMessage.value = '';
+                removeScreenshot();
+                document.getElementById('feedbackCharCount').textContent = '0';
+
+                setTimeout(() => {
+                    successMsg.classList.add('hidden');
+                }, 5000);
+
+            } catch (error) {
+                console.error('[Feedback] Submission failed:', error);
+                showPanelAlert('Failed to submit feedback. Please try again.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span class="button-icon">📤</span><span>Submit Feedback</span>';
+                updateFeedbackSubmitButton();
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initFeedbackTab();
+        });
 
         // ==================== PANEL ALERTS ====================
 
