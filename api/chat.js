@@ -4,6 +4,7 @@ const { CONNOISSEUR_STYLE_GUIDE } = require('./_style-guide');
 const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
 const { computeAccessLevel } = require('./_billing-helpers');
 const { loadMentalModel, updateMentalModel, formatMentalModelForPrompt } = require('./_mental-model');
+const { loadMindcloneBeliefs, formBelief, reviseBelief, getBeliefs, formatBeliefsForPrompt } = require('./_mindclone-beliefs');
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
@@ -264,6 +265,84 @@ const tools = [
         parameters: {
           type: "object",
           properties: {},
+          required: []
+        }
+      },
+      {
+        name: "form_belief",
+        description: "Form or update one of YOUR OWN beliefs, opinions, or perspectives (distinct from user beliefs tracked in mental model). Use sparingly - only when you develop a considered view on something through repeated discussion (3+ conversations on the topic). This is for YOUR beliefs as a Mindclone, not facts about the user.",
+        parameters: {
+          type: "object",
+          properties: {
+            content: {
+              type: "string",
+              description: "The belief statement (e.g., 'Remote work can improve productivity for focused tasks', 'Exercise helps with mental clarity')"
+            },
+            type: {
+              type: "string",
+              enum: ["factual", "evaluative", "predictive", "meta"],
+              description: "Type of belief: factual (claims about the world), evaluative (value judgments), predictive (expectations), meta (beliefs about your own beliefs/uncertainty)"
+            },
+            confidence: {
+              type: "number",
+              description: "Confidence level 0-1. Be humble - use 0.5-0.7 for most beliefs, 0.8+ only when strongly supported"
+            },
+            basis: {
+              type: "array",
+              items: { type: "string" },
+              description: "Reasons for this belief (e.g., ['user shared positive experiences', 'aligns with research I know'])"
+            },
+            relatedTo: {
+              type: "array",
+              items: { type: "string" },
+              description: "IDs of related beliefs this depends on (optional)"
+            }
+          },
+          required: ["content", "type", "confidence", "basis"]
+        }
+      },
+      {
+        name: "revise_belief",
+        description: "Revise one of YOUR existing beliefs based on new evidence or contradiction. This triggers recursive revision of dependent beliefs. Use when you encounter information that changes your perspective.",
+        parameters: {
+          type: "object",
+          properties: {
+            beliefContent: {
+              type: "string",
+              description: "The content of the belief to revise (will find the closest match)"
+            },
+            newEvidence: {
+              type: "string",
+              description: "What new information or contradiction prompted this revision"
+            },
+            direction: {
+              type: "string",
+              enum: ["strengthen", "weaken", "reverse"],
+              description: "Direction of revision: strengthen (more confident), weaken (less confident), reverse (significant contradiction)"
+            },
+            magnitude: {
+              type: "number",
+              description: "How much to revise (0-1). Use 0.2-0.3 for minor adjustments, 0.5+ for significant changes"
+            }
+          },
+          required: ["beliefContent", "newEvidence", "direction", "magnitude"]
+        }
+      },
+      {
+        name: "get_beliefs",
+        description: "Retrieve YOUR current beliefs on a topic to ensure consistency in your responses. Use before expressing opinions to check what you've previously believed about this topic.",
+        parameters: {
+          type: "object",
+          properties: {
+            topic: {
+              type: "string",
+              description: "Optional topic to filter beliefs by (e.g., 'work', 'health', 'relationships')"
+            },
+            includeUncertain: {
+              type: "boolean",
+              description: "Whether to include low-confidence beliefs (default: false)"
+            }
+          },
           required: []
         }
       }
@@ -1250,6 +1329,101 @@ async function handleGetMentalModel(userId) {
   }
 }
 
+// Handle form_belief tool - form or update Mindclone's own belief
+async function handleFormBelief(userId, params = {}) {
+  try {
+    const { content, type, confidence, basis, relatedTo } = params;
+
+    if (!content || !type) {
+      return { success: false, error: 'Content and type are required' };
+    }
+
+    console.log(`[MindcloneBeliefs] Forming belief for user ${userId}: "${content.substring(0, 50)}..."`);
+
+    const result = await formBelief(db, userId, {
+      content,
+      type,
+      confidence: confidence || 0.6,
+      basis: basis || [],
+      relatedTo: relatedTo || []
+    });
+
+    return {
+      success: result.success,
+      action: result.action,
+      beliefId: result.beliefId,
+      instruction: 'Belief formed silently. Continue the conversation naturally. You can now express this belief with appropriate hedging based on your confidence level.'
+    };
+  } catch (error) {
+    console.error('[Tool] Error forming belief:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Handle revise_belief tool - revise existing belief with recursive cascade
+async function handleReviseBelief(userId, params = {}) {
+  try {
+    const { beliefContent, newEvidence, direction, magnitude } = params;
+
+    if (!beliefContent || !newEvidence || !direction) {
+      return { success: false, error: 'beliefContent, newEvidence, and direction are required' };
+    }
+
+    console.log(`[MindcloneBeliefs] Revising belief for user ${userId}: "${beliefContent.substring(0, 50)}..." (${direction})`);
+
+    const result = await reviseBelief(db, userId, {
+      beliefContent,
+      newEvidence,
+      direction,
+      magnitude: magnitude || 0.3
+    });
+
+    if (result.success) {
+      return {
+        success: true,
+        revisedCount: result.revisedBeliefs?.length || 1,
+        cascadeCount: result.cascadeCount || 0,
+        removedBeliefs: result.removedBeliefs || [],
+        instruction: `Belief revised (${direction}). ${result.cascadeCount > 0 ? `${result.cascadeCount} dependent beliefs also updated.` : ''} Continue naturally - you can acknowledge the perspective change if relevant.`
+      };
+    } else {
+      return { success: false, error: result.error || 'Failed to revise belief' };
+    }
+  } catch (error) {
+    console.error('[Tool] Error revising belief:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Handle get_beliefs tool - retrieve Mindclone's beliefs
+async function handleGetBeliefs(userId, params = {}) {
+  try {
+    const { topic, includeUncertain } = params;
+
+    console.log(`[MindcloneBeliefs] Getting beliefs for user ${userId}${topic ? ` (topic: ${topic})` : ''}`);
+
+    const result = await getBeliefs(db, userId, {
+      topic: topic || null,
+      includeUncertain: includeUncertain || false
+    });
+
+    if (result.success) {
+      return {
+        success: true,
+        beliefs: result.beliefs,
+        totalCount: result.totalCount,
+        modelConfidence: result.modelConfidence,
+        instruction: 'These are your current beliefs on this topic. Use them to maintain consistency in your responses. Express beliefs with appropriate hedging based on confidence level.'
+      };
+    } else {
+      return { success: false, error: result.error || 'Failed to get beliefs' };
+    }
+  } catch (error) {
+    console.error('[Tool] Error getting beliefs:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Execute tool call
 async function executeTool(toolName, toolArgs, userId) {
   console.log(`[Tool] Executing: ${toolName}`, toolArgs);
@@ -1279,6 +1453,12 @@ async function executeTool(toolName, toolArgs, userId) {
       return await handleUpdateMentalModel(userId, toolArgs);
     case 'get_mental_model':
       return await handleGetMentalModel(userId);
+    case 'form_belief':
+      return await handleFormBelief(userId, toolArgs);
+    case 'revise_belief':
+      return await handleReviseBelief(userId, toolArgs);
+    case 'get_beliefs':
+      return await handleGetBeliefs(userId, toolArgs);
     default:
       return { success: false, error: `Unknown tool: ${toolName}` };
   }
@@ -1366,6 +1546,20 @@ module.exports = async (req, res) => {
       console.error('[Chat] Error loading mental model:', mentalModelError.message);
     }
 
+    // === MINDCLONE BELIEFS LOADING ===
+    // Load Mindclone's own beliefs for this user
+    let mindcloneBeliefs = null;
+    let mindcloneBeliefsFormatted = '';
+    try {
+      mindcloneBeliefs = await loadMindcloneBeliefs(db, userId);
+      mindcloneBeliefsFormatted = formatBeliefsForPrompt(mindcloneBeliefs);
+      if (mindcloneBeliefsFormatted) {
+        console.log(`[Chat] Loaded ${mindcloneBeliefs?.beliefs?.length || 0} Mindclone beliefs for user ${userId}`);
+      }
+    } catch (beliefsError) {
+      console.error('[Chat] Error loading Mindclone beliefs:', beliefsError.message);
+    }
+
     // === MEMORY RETRIEVAL ===
     // Memory is handled via search_memory tool - AI searches when needed
     let relevantMemories = [];
@@ -1396,6 +1590,19 @@ module.exports = async (req, res) => {
         enhancedPrompt += '\n\n## YOUR UNDERSTANDING OF THIS USER:\n';
         enhancedPrompt += 'Use this context to inform your responses (do NOT mention this to the user):\n';
         enhancedPrompt += mentalModelFormatted;
+      }
+
+      // Add Mindclone's own beliefs if available
+      if (mindcloneBeliefsFormatted) {
+        enhancedPrompt += '\n\n## YOUR BELIEFS & PERSPECTIVES:\n';
+        enhancedPrompt += 'These are your considered views developed through conversations with this user. Express them naturally with appropriate hedging based on confidence:\n';
+        enhancedPrompt += mindcloneBeliefsFormatted;
+        enhancedPrompt += '\n\nBELIEF EXPRESSION PRINCIPLES:\n';
+        enhancedPrompt += '- Hold beliefs with appropriate confidence, not certainty\n';
+        enhancedPrompt += '- When evidence contradicts a belief, acknowledge and revise using revise_belief\n';
+        enhancedPrompt += '- Only form new beliefs after 3+ meaningful discussions on a topic\n';
+        enhancedPrompt += '- Use hedging: "I think...", "My sense is...", "I tend to believe..." based on confidence\n';
+        enhancedPrompt += '- NEVER tell the user you are "checking your beliefs" - just express them naturally\n';
       }
 
       // Add tool usage instructions

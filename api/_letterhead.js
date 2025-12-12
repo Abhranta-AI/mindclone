@@ -88,18 +88,46 @@ async function renderLetterhead({ page, pdfDoc, config, fonts, rgb, pageHeight, 
       }
 
       if (logoImage) {
-        // Draw logo (top-left, 50x50 points)
+        // Calculate dimensions preserving aspect ratio
+        const maxHeight = 50; // Maximum height in points
+        const maxWidth = 120; // Maximum width in points
+        const originalWidth = logoImage.width;
+        const originalHeight = logoImage.height;
+        const aspectRatio = originalWidth / originalHeight;
+
+        let drawWidth, drawHeight;
+        if (aspectRatio > 1) {
+          // Wide logo - constrain by width
+          drawWidth = Math.min(originalWidth, maxWidth);
+          drawHeight = drawWidth / aspectRatio;
+          if (drawHeight > maxHeight) {
+            drawHeight = maxHeight;
+            drawWidth = drawHeight * aspectRatio;
+          }
+        } else {
+          // Tall or square logo - constrain by height
+          drawHeight = Math.min(originalHeight, maxHeight);
+          drawWidth = drawHeight * aspectRatio;
+          if (drawWidth > maxWidth) {
+            drawWidth = maxWidth;
+            drawHeight = drawWidth / aspectRatio;
+          }
+        }
+
+        // Draw logo (top-left, preserving aspect ratio)
         page.drawImage(logoImage, {
           x: margin,
-          y: pageHeight - margin - 50,
-          width: 50,
-          height: 50
+          y: pageHeight - margin - drawHeight,
+          width: drawWidth,
+          height: drawHeight
         });
       }
     }
 
     // Draw company name next to logo (or at top if no logo)
-    const textX = config.logoBase64 ? margin + 60 : margin;
+    // Track logo width for text positioning (set during logo rendering above)
+    const logoWidthUsed = config.logoBase64 ? 130 : 0; // Max logo width + padding
+    const textX = margin + logoWidthUsed;
 
     if (config.companyName) {
       page.drawText(config.companyName, {
