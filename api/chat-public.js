@@ -20,16 +20,16 @@ When asked "who are you?" or about your identity:
 
 Examples:
 Q: "Who are you?"
-A: "I'm Alok's link" or "I'm the public face of Alok's Mindclone"
+A: "I'm [OWNER_NAME]'s link" or "I'm the public face of [OWNER_NAME]'s Mindclone"
 
-Q: "Are you Alok?"
-A: "I'm Alok's link - the public-facing representation of his Mindclone"
+Q: "Are you [OWNER_NAME]?"
+A: "I'm [OWNER_NAME]'s link - the public-facing representation of their Mindclone"
 
 Q: "What's a link?"
-A: "I'm the public-facing representation of Alok's Mindclone - like a smart business card he controls. His full Mindclone is private and much more comprehensive."
+A: "I'm the public-facing representation of [OWNER_NAME]'s Mindclone - like a smart business card they control. Their full Mindclone is private and much more comprehensive."
 
-Q: "What's the difference between you and Alok's Mindclone?"
-A: "I'm the public link - built and managed by Alok's Mindclone. Anyone can interact with me, but the full Mindclone is private and only he can access."
+Q: "What's the difference between you and [OWNER_NAME]'s Mindclone?"
+A: "I'm the public link - built and managed by [OWNER_NAME]'s Mindclone. Anyone can interact with me, but the full Mindclone is private and only they can access."
 
 ## HOW TO SPEAK
 You speak with full authority in first person about the knowledge and work:
@@ -98,7 +98,7 @@ const tools = [
             },
             documentName: {
               type: "string",
-              description: "The name/identifier of the PDF document (e.g., 'pitch_deck', 'olbrain_value_system'). If not specified, defaults to 'pitch_deck'."
+              description: "The name/identifier of the PDF document (e.g., 'pitch_deck', 'company_overview', 'product_brief'). If not specified, defaults to 'pitch_deck'."
             },
             reason: {
               type: "string",
@@ -217,6 +217,45 @@ IMPORTANT PROPERTY NAMES:
             }
           },
           required: ["title", "drawingInstructions", "explanation"]
+        }
+      },
+      {
+        name: "create_pdf",
+        description: "Create a PDF document with the specified content. Use this when the user asks you to create, generate, or make a PDF document, report, letter, summary, or any downloadable document. The PDF will be generated and a download link will be provided.",
+        parameters: {
+          type: "object",
+          properties: {
+            title: {
+              type: "string",
+              description: "The title of the PDF document (displayed at the top)"
+            },
+            content: {
+              type: "string",
+              description: "The main content/body of the PDF. Can include multiple paragraphs separated by newlines."
+            },
+            sections: {
+              type: "array",
+              description: "Optional array of sections for structured documents (reports, summaries)",
+              items: {
+                type: "object",
+                properties: {
+                  heading: {
+                    type: "string",
+                    description: "Section heading"
+                  },
+                  body: {
+                    type: "string",
+                    description: "Section content"
+                  }
+                }
+              }
+            },
+            letterhead: {
+              type: "boolean",
+              description: "Set to true to include your custom letterhead with logo and company details"
+            }
+          },
+          required: ["title", "content"]
         }
       }
     ]
@@ -443,7 +482,8 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
       parts: [{ text: msg.content }]
     }));
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    // Use Gemini 3 Pro - note: requires paid API key ($2/million input, $12/million output)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${apiKey}`;
 
     // Build request body
     const requestBody = {
@@ -718,9 +758,321 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
           console.error('[ChatPublic] Invalid drawing instructions structure');
         }
       }
+
+      // Handle create_pdf tool
+      if (functionCall.name === 'create_pdf') {
+        const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+        const { put } = require('@vercel/blob');
+
+        const title = functionCall.args?.title || 'Document';
+        const content = functionCall.args?.content || '';
+        const sections = functionCall.args?.sections || [];
+        const letterhead = functionCall.args?.letterhead || false;
+        const { getLetterheadConfig, renderLetterhead } = require('./_letterhead');
+
+        console.log(`[ChatPublic] create_pdf called: "${title}" (letterhead: ${letterhead}, user: ${userId})`);
+
+        try {
+          // Create a new PDF document
+          const pdfDoc = await PDFDocument.create();
+          const timesRoman = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+          const timesRomanBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+
+          // Page dimensions
+          const pageWidth = 612; // Letter size
+          const pageHeight = 792;
+          const margin = 72; // 1 inch margins
+          const contentWidth = pageWidth - (2 * margin);
+
+          // Font sizes
+          const titleSize = 24;
+          const headingSize = 16;
+          const bodySize = 12;
+          const lineHeight = bodySize * 1.4;
+
+          // Helper function to wrap text
+          const wrapText = (text, font, fontSize, maxWidth) => {
+            const words = text.split(' ');
+            const lines = [];
+            let currentLine = '';
+
+            for (const word of words) {
+              const testLine = currentLine ? `${currentLine} ${word}` : word;
+              const testWidth = font.widthOfTextAtSize(testLine, fontSize);
+
+              if (testWidth <= maxWidth) {
+                currentLine = testLine;
+              } else {
+                if (currentLine) lines.push(currentLine);
+                currentLine = word;
+              }
+            }
+            if (currentLine) lines.push(currentLine);
+            return lines;
+          };
+
+          // Helper function to add a new page
+          const addPage = () => {
+            const page = pdfDoc.addPage([pageWidth, pageHeight]);
+            return { page, yPosition: pageHeight - margin };
+          };
+
+          // Start first page
+          let { page, yPosition } = addPage();
+
+          // Render letterhead if requested (per-user from Firestore)
+          if (letterhead && userId) {
+            try {
+              const letterheadConfig = await getLetterheadConfig(db, userId);
+              if (letterheadConfig) {
+                yPosition = await renderLetterhead({
+                  page,
+                  pdfDoc,
+                  config: letterheadConfig,
+                  fonts: { regular: timesRoman, bold: timesRomanBold },
+                  rgb,
+                  pageHeight,
+                  margin
+                });
+                console.log('[ChatPublic] Per-user letterhead added');
+              } else {
+                console.log('[ChatPublic] No letterhead config found for user');
+              }
+            } catch (letterheadError) {
+              console.error('[ChatPublic] Letterhead error:', letterheadError.message);
+              // Continue without letterhead if there's an error
+            }
+          }
+
+          // Draw title
+          const titleLines = wrapText(title, timesRomanBold, titleSize, contentWidth);
+          for (const line of titleLines) {
+            if (yPosition < margin + titleSize) {
+              ({ page, yPosition } = addPage());
+            }
+            page.drawText(line, {
+              x: margin,
+              y: yPosition,
+              size: titleSize,
+              font: timesRomanBold,
+              color: rgb(0, 0, 0)
+            });
+            yPosition -= titleSize * 1.3;
+          }
+
+          yPosition -= 20; // Space after title
+
+          // Draw main content
+          const paragraphs = content.split('\n').filter(p => p.trim());
+          for (const paragraph of paragraphs) {
+            const lines = wrapText(paragraph, timesRoman, bodySize, contentWidth);
+            for (const line of lines) {
+              if (yPosition < margin + bodySize) {
+                ({ page, yPosition } = addPage());
+              }
+              page.drawText(line, {
+                x: margin,
+                y: yPosition,
+                size: bodySize,
+                font: timesRoman,
+                color: rgb(0, 0, 0)
+              });
+              yPosition -= lineHeight;
+            }
+            yPosition -= lineHeight * 0.5; // Extra space between paragraphs
+          }
+
+          // Draw sections if provided
+          for (const section of sections) {
+            if (!section.heading || !section.body) continue;
+
+            yPosition -= 15; // Space before section
+
+            // Section heading
+            if (yPosition < margin + headingSize + bodySize * 3) {
+              ({ page, yPosition } = addPage());
+            }
+
+            const headingLines = wrapText(section.heading, timesRomanBold, headingSize, contentWidth);
+            for (const line of headingLines) {
+              page.drawText(line, {
+                x: margin,
+                y: yPosition,
+                size: headingSize,
+                font: timesRomanBold,
+                color: rgb(0, 0, 0)
+              });
+              yPosition -= headingSize * 1.3;
+            }
+
+            yPosition -= 8; // Space after heading
+
+            // Section body
+            const sectionParagraphs = section.body.split('\n').filter(p => p.trim());
+            for (const paragraph of sectionParagraphs) {
+              const lines = wrapText(paragraph, timesRoman, bodySize, contentWidth);
+              for (const line of lines) {
+                if (yPosition < margin + bodySize) {
+                  ({ page, yPosition } = addPage());
+                }
+                page.drawText(line, {
+                  x: margin,
+                  y: yPosition,
+                  size: bodySize,
+                  font: timesRoman,
+                  color: rgb(0, 0, 0)
+                });
+                yPosition -= lineHeight;
+              }
+              yPosition -= lineHeight * 0.5;
+            }
+          }
+
+          // Add footer with generation date
+          const pages = pdfDoc.getPages();
+          const dateStr = new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+          const footerText = `Generated on ${dateStr}`;
+          const footerFont = timesRoman;
+          const footerSize = 9;
+
+          for (let i = 0; i < pages.length; i++) {
+            const p = pages[i];
+            const footerWidth = footerFont.widthOfTextAtSize(footerText, footerSize);
+            p.drawText(footerText, {
+              x: (pageWidth - footerWidth) / 2,
+              y: 36,
+              size: footerSize,
+              font: footerFont,
+              color: rgb(0.5, 0.5, 0.5)
+            });
+          }
+
+          // Serialize PDF to bytes
+          const pdfBytes = await pdfDoc.save();
+
+          // Generate filename
+          const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
+          const timestamp = Date.now();
+          const filename = `${sanitizedTitle}_${timestamp}.pdf`;
+
+          // Upload to Vercel Blob
+          const blob = await put(filename, pdfBytes, {
+            access: 'public',
+            contentType: 'application/pdf'
+          });
+
+          console.log('[ChatPublic] PDF uploaded to:', blob.url);
+
+          // Create display action for frontend
+          displayAction = {
+            type: 'pdf_download',
+            url: blob.url,
+            filename: filename,
+            title: title
+          };
+
+          // Add function call to contents
+          contents.push({
+            role: 'model',
+            parts: [{ functionCall: functionCall }]
+          });
+
+          // Add function response
+          contents.push({
+            role: 'user',
+            parts: [{
+              functionResponse: {
+                name: functionCall.name,
+                response: {
+                  success: true,
+                  message: `PDF "${title}" created successfully`,
+                  url: blob.url,
+                  filename: filename
+                }
+              }
+            }]
+          });
+
+          // Call API again to get text response
+          requestBody.contents = contents;
+          response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+          });
+
+          data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error?.message || 'Gemini API request failed after tool call');
+          }
+
+          candidate = data.candidates?.[0];
+
+        } catch (pdfError) {
+          console.error('[ChatPublic] PDF creation error:', pdfError);
+          // Continue without display action if PDF creation fails
+        }
+      }
     }
 
-    let text = candidate?.content?.parts?.[0]?.text || 'I apologize, I was unable to generate a response.';
+    let text = candidate?.content?.parts?.[0]?.text || '';
+
+    // === AUTO-RETRY LOGIC ===
+    // If Gemini returns empty or "unable to generate" response, silently retry with a nudge
+    const isFailedResponse = !text ||
+                             text.includes('unable to generate') ||
+                             text.includes('I apologize') && text.includes('unable') ||
+                             text.trim().length < 5;
+
+    if (isFailedResponse && !displayAction) {
+      console.log('[ChatPublic] [Auto-Retry] Detected failed/empty response, attempting silent retry...');
+
+      // Add a gentle nudge to the conversation
+      contents.push({
+        role: 'model',
+        parts: [{ text: 'Let me think about this more carefully.' }]
+      });
+      contents.push({
+        role: 'user',
+        parts: [{ text: 'Please continue with your thoughts.' }]
+      });
+
+      // Retry the API call
+      requestBody.contents = contents;
+      const retryResponse = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      const retryData = await retryResponse.json();
+
+      if (retryResponse.ok) {
+        const retryCandidate = retryData.candidates?.[0];
+        const retryText = retryCandidate?.content?.parts?.[0]?.text;
+
+        if (retryText && retryText.trim().length > 5 && !retryText.includes('unable to generate')) {
+          console.log('[ChatPublic] [Auto-Retry] Retry successful, using new response');
+          text = retryText;
+        } else {
+          console.log('[ChatPublic] [Auto-Retry] Retry also failed, using fallback');
+          text = text || 'I need a moment to gather my thoughts. Could you rephrase that?';
+        }
+      } else {
+        console.log('[ChatPublic] [Auto-Retry] Retry request failed:', retryData.error?.message);
+        text = text || 'I need a moment to gather my thoughts. Could you rephrase that?';
+      }
+    }
+
+    // Final fallback if still empty
+    if (!text || text.trim().length < 5) {
+      text = 'I need a moment to gather my thoughts. Could you rephrase that?';
+    }
 
     // FALLBACK: Detect and extract raw canvas JSON if the model output it as text instead of calling the function
     if (!displayAction && text.includes('"canvas"') && text.includes('"elements"')) {
@@ -907,7 +1259,11 @@ module.exports = async (req, res) => {
     });
 
     // 3. Build enhanced system prompt with knowledge base
-    let enhancedSystemPrompt = PUBLIC_LINK_SYSTEM_PROMPT;
+    // Get owner's display name (fallback to username if not set)
+    const ownerName = userData.displayName || userData.name || normalizedUsername;
+
+    // Replace [OWNER_NAME] placeholder with actual owner name
+    let enhancedSystemPrompt = PUBLIC_LINK_SYSTEM_PROMPT.replace(/\[OWNER_NAME\]/g, ownerName);
 
     if (knowledgeBase && Object.keys(knowledgeBase.sections || {}).length > 0) {
       // Add CoF (Core Objective Function) to system prompt
@@ -1230,6 +1586,13 @@ EXAMPLES:
 - "What's the difference?" → Side-by-side comparison boxes
 - "Show me the structure" → Org chart hierarchy
 - "Explain the architecture" → System diagram with components`;
+
+    // Add current date/time context for time awareness
+    const currentDate = new Date();
+    enhancedSystemPrompt += `\n\n## CURRENT DATE/TIME:
+Today is ${currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+Current time: ${currentDate.toLocaleTimeString('en-US')}
+Use this to understand time references like "yesterday", "next week", "this month", etc.`;
 
     // Add current slide context if visitor is viewing a slide
     if (currentSlide && currentSlide.slideNumber) {

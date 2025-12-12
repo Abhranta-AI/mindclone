@@ -43,7 +43,7 @@ async function getPublicProfile(username) {
     // Return public profile
     return {
       username: normalizedUsername,
-      displayName: settingsData.displayName || userData.displayName || 'Mindclone User',
+      displayName: settingsData.displayName || userData.displayName || 'Anonymous User',
       bio: settingsData.bio || '',
       customGreeting: settingsData.customGreeting || 'Hello! Ask me anything.',
       photoURL: userData.photoURL || null,

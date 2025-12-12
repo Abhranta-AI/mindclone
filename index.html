@@ -1249,6 +1249,8 @@
             display: flex;
             flex-direction: column;
             gap: 2px;
+            max-height: 300px;
+            overflow-y: auto;
         }
 
         .conversation-item {
@@ -1384,6 +1386,13 @@
         }
 
         .left-panel.collapsed .panel-upload-btn span:last-child {
+            display: none;
+        }
+
+        /* Hide KB list and upload button completely when collapsed */
+        .left-panel.collapsed .panel-kb-list,
+        .left-panel.collapsed .panel-upload-btn,
+        .left-panel.collapsed .kb-count {
             display: none;
         }
 
@@ -3738,6 +3747,195 @@
             100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
         }
 
+        /* Reply Feature Styles - WhatsApp Style */
+        .message-content {
+            position: relative;
+        }
+        .message-actions {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: 10;
+        }
+        .message-content:hover .message-actions {
+            opacity: 1;
+        }
+        .message-dropdown-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 300;
+            line-height: 1;
+            transition: color 0.2s ease;
+        }
+        .message-dropdown-btn:hover {
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .message-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: #2d2d3a;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            min-width: 120px;
+            overflow: hidden;
+            display: none;
+            z-index: 100;
+        }
+        .message-dropdown.visible {
+            display: block;
+        }
+        .message-dropdown-item {
+            padding: 10px 14px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.15s;
+        }
+        .message-dropdown-item:hover {
+            background: rgba(139, 92, 246, 0.2);
+        }
+        .message-dropdown-item .icon {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        /* Legacy reply-btn for backward compatibility */
+        .reply-btn {
+            display: none;
+        }
+
+        /* Scroll to bottom button */
+        .scroll-to-bottom {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: #8b5cf6;
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(139, 92, 246, 0.4);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            z-index: 50;
+        }
+        .scroll-to-bottom.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .scroll-to-bottom:hover {
+            background: #7c3aed;
+            transform: scale(1.1);
+        }
+        .chat-container {
+            position: relative;
+        }
+
+        .reply-preview {
+            display: none;
+            background: rgba(139, 92, 246, 0.15);
+            border-left: 4px solid #8b5cf6;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            border-radius: 0 8px 8px 0;
+            max-width: 850px;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .reply-preview.visible {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .reply-preview-content {
+            flex: 1;
+            overflow: hidden;
+        }
+        .reply-preview-label {
+            font-size: 11px;
+            color: #8b5cf6;
+            font-weight: 500;
+            margin-bottom: 3px;
+        }
+        .reply-preview-text {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .reply-cancel {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 6px 8px;
+            border-radius: 50%;
+            transition: all 0.2s;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .reply-cancel:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .reply-quote {
+            background: rgba(139, 92, 246, 0.15);
+            border-left: 3px solid #8b5cf6;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            font-size: 0.85em;
+            border-radius: 0 6px 6px 0;
+            max-height: 65px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .reply-quote:hover {
+            background: rgba(139, 92, 246, 0.25);
+        }
+        .reply-quote-label {
+            font-size: 11px;
+            color: #a78bfa;
+            font-weight: 500;
+            margin-bottom: 3px;
+        }
+        .reply-quote-text {
+            color: rgba(255, 255, 255, 0.75);
+            word-break: break-word;
+            line-height: 1.4;
+        }
+
         .voice-mode-toggle {
             display: flex;
             align-items: center;
@@ -3801,7 +3999,7 @@
             position: absolute;
             bottom: 72px;
             left: 20px;
-            right: 20px;
+            max-width: 320px;
             background: #3a3a3a;
             border: 1px solid #333;
             border-radius: 12px;
@@ -4725,7 +4923,7 @@
                 color: white;
                 border: 1px solid rgba(255, 255, 255, 0.08);
                 border-radius: 22px;
-                padding: 10px 16px;
+                padding: 10px 44px 10px 16px; /* Extra right padding for mic button (28px + 6px + 10px buffer) */
                 min-width: 0;
                 flex: 1;
             }
@@ -5726,6 +5924,7 @@
             <!-- Chat Interface (shown when logged in) -->
             <div id="chatInterface" class="chat-container hidden">
                 <div id="chatMessages" class="chat-messages"></div>
+                <button class="scroll-to-bottom" id="scrollToBottom" title="Scroll to bottom">&#8595;</button>
                 <div class="file-preview" id="filePreview">
                     <div class="file-preview-item">
                         <span class="file-preview-icon" id="fileIcon">📄</span>
@@ -5735,6 +5934,14 @@
                         </div>
                         <button class="file-preview-remove" id="removeFile">✕</button>
                     </div>
+                </div>
+                <!-- Reply Preview Bar -->
+                <div class="reply-preview" id="replyPreview">
+                    <div class="reply-preview-content">
+                        <div class="reply-preview-label">Replying to</div>
+                        <div class="reply-preview-text" id="replyPreviewText"></div>
+                    </div>
+                    <button class="reply-cancel" id="replyCancelBtn">✕</button>
                 </div>
                 <div class="chat-input-container">
                     <input
@@ -5879,7 +6086,7 @@
 
                             <div class="panel-form-group">
                                 <label class="panel-label">Display Name</label>
-                                <span class="panel-hint">The name to be displayed as name of your link, e.g., Alok's Link</span>
+                                <span class="panel-hint">Your name shown to visitors on your public link page</span>
                                 <input type="text" id="panelDisplayNameInput" class="panel-input" placeholder="Your Name">
                             </div>
 
@@ -6368,7 +6575,7 @@ Count your sentences as you write. If you reach 3 sentences, STOP IMMEDIATELY.
 "Thank you for pointing out the discrepancy, Alok. It seems that there may have been an issue with the update process. To ensure that your bio is updated correctly, I will use the update_link_settings tool again..."
 
 ✅ INSTEAD DO THIS (Simple and direct):
-"Here's a bio: 'AI entrepreneur, Olbrain Labs founder.' Want me to update it?"
+"Here's a bio: 'Tech entrepreneur and AI enthusiast.' Want me to update it?"
 
 ✅ OR THIS:
 "Weird, let me try updating it again."
@@ -6703,9 +6910,40 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
         // Initialize scroll listener after DOM is ready
         document.addEventListener('DOMContentLoaded', setupScrollToLoadMore);
 
+        // Scroll to bottom button functionality
+        function setupScrollToBottomButton() {
+            const chatMessages = document.getElementById('chatMessages');
+            const scrollToBottomBtn = document.getElementById('scrollToBottom');
+
+            if (chatMessages && scrollToBottomBtn) {
+                // Show/hide button based on scroll position
+                chatMessages.addEventListener('scroll', () => {
+                    const isNearBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 100;
+                    scrollToBottomBtn.classList.toggle('visible', !isNearBottom);
+                });
+
+                // Scroll to bottom when clicked
+                scrollToBottomBtn.addEventListener('click', () => {
+                    chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
+                });
+            }
+        }
+        document.addEventListener('DOMContentLoaded', setupScrollToBottomButton);
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.message-actions')) {
+                document.querySelectorAll('.message-dropdown.visible').forEach(d => d.classList.remove('visible'));
+            }
+        });
+
         function createMessageElement(type, content, timestamp) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
+
+            // Generate unique message ID
+            const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            messageDiv.setAttribute('data-msg-id', msgId);
 
             if (type === 'ai') {
                 const avatar = document.createElement('div');
@@ -6714,17 +6952,75 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 messageDiv.appendChild(avatar);
             }
 
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.innerHTML = type === 'ai' ? marked.parse(content || '') : (content || '');
-            messageDiv.appendChild(contentDiv);
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.innerHTML = type === 'ai' ? marked.parse(content || '') : (content || '');
 
+            // Add timestamp inside message content
             if (timestamp) {
                 const timeDiv = document.createElement('div');
                 timeDiv.className = 'message-timestamp';
                 timeDiv.textContent = formatTimestamp(timestamp);
-                messageDiv.appendChild(timeDiv);
+                messageContent.appendChild(timeDiv);
             }
+
+            // Add WhatsApp-style dropdown menu
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'message-actions';
+
+            const dropdownBtn = document.createElement('button');
+            dropdownBtn.className = 'message-dropdown-btn';
+            dropdownBtn.innerHTML = '&#x2304;'; // Elegant chevron ⌄
+
+            const dropdown = document.createElement('div');
+            dropdown.className = 'message-dropdown';
+
+            // Reply option
+            const replyItem = document.createElement('div');
+            replyItem.className = 'message-dropdown-item';
+            replyItem.innerHTML = '<span class="icon">↩</span> Reply';
+            dropdown.appendChild(replyItem);
+
+            // Copy option
+            const copyItem = document.createElement('div');
+            copyItem.className = 'message-dropdown-item';
+            copyItem.innerHTML = '<span class="icon">📋</span> Copy';
+            dropdown.appendChild(copyItem);
+
+            // Toggle dropdown
+            dropdownBtn.onclick = (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.message-dropdown.visible').forEach(d => {
+                    if (d !== dropdown) d.classList.remove('visible');
+                });
+                dropdown.classList.toggle('visible');
+            };
+
+            // Handle reply
+            replyItem.onclick = (e) => {
+                e.stopPropagation();
+                dropdown.classList.remove('visible');
+                const msgContent = content || '';
+                setReplyTo(msgId, msgContent.slice(0, 200), type === 'ai' ? 'ai' : 'user');
+            };
+
+            // Handle copy
+            copyItem.onclick = (e) => {
+                e.stopPropagation();
+                dropdown.classList.remove('visible');
+                navigator.clipboard.writeText(content || '').then(() => {
+                    copyItem.innerHTML = '<span class="icon">✓</span> Copied!';
+                    setTimeout(() => {
+                        copyItem.innerHTML = '<span class="icon">📋</span> Copy';
+                    }, 1500);
+                });
+            };
+
+            actionsDiv.appendChild(dropdownBtn);
+            actionsDiv.appendChild(dropdown);
+            messageContent.appendChild(actionsDiv);
+
+            messageDiv.appendChild(messageContent);
 
             return messageDiv;
         }
@@ -8789,28 +9085,46 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             console.log('[Chat] Cleared chat messages');
 
             // INSTANT CACHE: Show cached messages immediately while loading from Firestore
-            const hasCachedMessages = displayCachedMessagesInstantly();
+            const cachedMessages = getCachedMessages();
+            const hasCachedMessages = cachedMessages && cachedMessages.length > 0;
             if (hasCachedMessages) {
-                console.log('[Cache] Displayed cached messages for instant load');
+                console.log('[Cache] Displaying cached messages instantly');
+                cachedMessages.forEach(msg => {
+                    addMessage(msg.role === 'assistant' ? 'ai' : msg.role, msg.content, msg.timestamp);
+                });
+                console.log('[Cache] Displayed', cachedMessages.length, 'cached messages for instant load');
             }
 
-            // Show loading indicator (subtle if we already have cached messages)
-            showLoadingIndicator();
+            // Only show loading indicator if we have NO cached messages
+            if (!hasCachedMessages) {
+                showLoadingIndicator();
+            }
+
+            // Auto-remove loading indicator after 10 seconds as failsafe
+            const loadingTimeout = setTimeout(() => {
+                console.warn('[Chat] Loading timeout - removing stuck indicator');
+                removeLoadingIndicator();
+            }, 10000);
 
             // Load data in parallel for faster startup
             console.log('[Chat] Starting parallel data loading...');
-            const [messages] = await Promise.all([
-                loadConversationHistory(user.uid),
-                loadLinkStatus().catch(e => console.warn('[Parallel] loadLinkStatus error:', e)),
-                loadActivityFeed().catch(e => console.warn('[Parallel] loadActivityFeed error:', e)),
-                loadPanelKbFiles().catch(e => console.warn('[Parallel] loadPanelKbFiles error:', e))
-            ]);
+            let messages;
+            try {
+                [messages] = await Promise.all([
+                    loadConversationHistory(user.uid),
+                    loadLinkStatus().catch(e => console.warn('[Parallel] loadLinkStatus error:', e)),
+                    loadActivityFeed().catch(e => console.warn('[Parallel] loadActivityFeed error:', e)),
+                    loadPanelKbFiles().catch(e => console.warn('[Parallel] loadPanelKbFiles error:', e))
+                ]);
+            } finally {
+                clearTimeout(loadingTimeout);
+            }
 
             console.log('[Chat] Parallel loading complete');
 
             try {
                 // Process conversation history
-                console.log('[Chat] Loaded', messages?.length || 0, 'messages');
+                console.log('[Chat] Loaded', messages?.length || 0, 'messages from Firestore');
 
                 if (messages && messages.length > 0) {
                     // Populate conversationHistory array
@@ -8824,26 +9138,42 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                         addLoadMoreButton();
                     }
 
-                    // Clear cached display and show fresh Firestore messages
-                    chatMessages.innerHTML = '';
+                    // SMART SYNC: Only re-render if data differs from cache
+                    // Compare message counts and last message content
+                    const cacheMatches = hasCachedMessages &&
+                        cachedMessages.length === messages.length &&
+                        cachedMessages[cachedMessages.length - 1]?.content === messages[messages.length - 1]?.content;
 
-                    // Display all messages in UI with timestamps
-                    messages.forEach(msg => {
-                        addMessage(msg.role === 'assistant' ? 'ai' : msg.role, msg.content, msg.timestamp);
-                    });
-                    console.log('[Chat] Displayed', messages.length, 'messages in UI');
+                    if (cacheMatches) {
+                        // Cache is up to date - no need to re-render UI
+                        console.log('[Cache] Cache matches Firestore - no UI update needed');
+                    } else {
+                        // Cache differs - update UI with Firestore data
+                        console.log('[Cache] Cache differs from Firestore - updating UI');
+                        chatMessages.innerHTML = '';
+
+                        // Display all messages in UI with timestamps
+                        messages.forEach(msg => {
+                            addMessage(msg.role === 'assistant' ? 'ai' : msg.role, msg.content, msg.timestamp);
+                        });
+                        console.log('[Chat] Displayed', messages.length, 'messages in UI');
+                    }
 
                     // Update cache with fresh Firestore messages for next PWA launch
                     cacheMessages(messages);
-                } else {
-                    // No history - show empty state
+                } else if (!hasCachedMessages) {
+                    // No history and no cache - show empty state
                     console.log('[Chat] No messages found, showing empty state');
                     showEmptyState();
                 }
+                // If we have cached messages but Firestore returned empty (network issue?),
+                // keep showing cached messages
             } catch (error) {
                 console.error('[Chat] Error loading conversation:', error);
-                // Show empty state on error
-                showEmptyState();
+                // Only show empty state if we don't have cached messages
+                if (!hasCachedMessages) {
+                    showEmptyState();
+                }
             } finally {
                 removeLoadingIndicator();
                 console.log('[Chat] Finished loading conversation');
@@ -8851,9 +9181,13 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
         }
 
         // Add Message to Chat
-        function addMessage(type, content, timestamp = null) {
+        function addMessage(type, content, timestamp = null, replyTo = null) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
+
+            // Generate unique message ID
+            const msgId = 'msg-' + Date.now() + '-' + (messageIdCounter++);
+            messageDiv.setAttribute('data-msg-id', msgId);
 
             // Only add avatar for AI messages (WhatsApp style)
             if (type === 'ai') {
@@ -8866,11 +9200,26 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             const messageContent = document.createElement('div');
             messageContent.className = 'message-content';
 
+            // Add reply quote if this is a reply
+            if (replyTo && replyTo.content) {
+                const replyQuote = document.createElement('div');
+                replyQuote.className = 'reply-quote';
+                replyQuote.innerHTML = `
+                    <div class="reply-quote-label">Replying to ${replyTo.role === 'ai' ? 'Mindclone' : 'yourself'}</div>
+                    <div class="reply-quote-text">${replyTo.content.slice(0, 100)}${replyTo.content.length > 100 ? '...' : ''}</div>
+                `;
+                messageContent.appendChild(replyQuote);
+            }
+
             // Use markdown for AI messages, plain text for user messages
             if (type === 'ai' && typeof marked !== 'undefined') {
-                messageContent.innerHTML = marked.parse(content);
+                const actualContent = document.createElement('div');
+                actualContent.innerHTML = marked.parse(content);
+                messageContent.appendChild(actualContent);
             } else {
-                messageContent.textContent = content;
+                const actualContent = document.createElement('div');
+                actualContent.textContent = content;
+                messageContent.appendChild(actualContent);
             }
 
             // Add timestamp
@@ -8883,7 +9232,55 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
 
             messageDiv.appendChild(messageContent);
 
-            // Add copy button for AI messages
+            // Add WhatsApp-style dropdown menu for ALL messages
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'message-actions';
+
+            const dropdownBtn = document.createElement('button');
+            dropdownBtn.className = 'message-dropdown-btn';
+            dropdownBtn.innerHTML = '&#x2304;'; // Elegant chevron ⌄
+            dropdownBtn.onclick = (e) => {
+                e.stopPropagation();
+                // Close all other dropdowns
+                document.querySelectorAll('.message-dropdown.visible').forEach(d => d.classList.remove('visible'));
+                dropdown.classList.toggle('visible');
+            };
+
+            const dropdown = document.createElement('div');
+            dropdown.className = 'message-dropdown';
+
+            // Reply option
+            const replyItem = document.createElement('div');
+            replyItem.className = 'message-dropdown-item';
+            replyItem.innerHTML = '<span class="icon">↩</span> Reply';
+            replyItem.onclick = (e) => {
+                e.stopPropagation();
+                dropdown.classList.remove('visible');
+                setReplyTo(msgId, content, type === 'ai' ? 'ai' : 'user');
+            };
+            dropdown.appendChild(replyItem);
+
+            // Copy option
+            const copyItem = document.createElement('div');
+            copyItem.className = 'message-dropdown-item';
+            copyItem.innerHTML = '<span class="icon">📋</span> Copy';
+            copyItem.onclick = (e) => {
+                e.stopPropagation();
+                dropdown.classList.remove('visible');
+                navigator.clipboard.writeText(content).then(() => {
+                    copyItem.innerHTML = '<span class="icon">✓</span> Copied!';
+                    setTimeout(() => {
+                        copyItem.innerHTML = '<span class="icon">📋</span> Copy';
+                    }, 1500);
+                });
+            };
+            dropdown.appendChild(copyItem);
+
+            actionsDiv.appendChild(dropdownBtn);
+            actionsDiv.appendChild(dropdown);
+            messageContent.appendChild(actionsDiv);
+
+            // Keep legacy copy button for AI messages (hidden by CSS but functional)
             if (type === 'ai') {
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'copy-btn';
@@ -8896,6 +9293,8 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
 
             // Scroll to bottom
             chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            return msgId;
         }
 
         // Format timestamp
@@ -8953,6 +9352,38 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
 
         // Typing indicator state
         let currentAbortController = null;
+
+        // Reply feature state
+        let pendingReply = null; // { msgId, content, role }
+        let messageIdCounter = 0; // For generating unique message IDs
+
+        // Reply feature functions
+        function setReplyTo(msgId, content, role) {
+            pendingReply = { msgId, content, role };
+            const replyPreview = document.getElementById('replyPreview');
+            const replyPreviewText = document.getElementById('replyPreviewText');
+            if (replyPreview && replyPreviewText) {
+                replyPreviewText.textContent = content.slice(0, 100) + (content.length > 100 ? '...' : '');
+                replyPreview.classList.add('visible');
+            }
+            chatInput.focus();
+        }
+
+        function cancelReply() {
+            pendingReply = null;
+            const replyPreview = document.getElementById('replyPreview');
+            if (replyPreview) {
+                replyPreview.classList.remove('visible');
+            }
+        }
+
+        // Initialize reply cancel button
+        document.addEventListener('DOMContentLoaded', () => {
+            const replyCancelBtn = document.getElementById('replyCancelBtn');
+            if (replyCancelBtn) {
+                replyCancelBtn.addEventListener('click', cancelReply);
+            }
+        });
 
         // Show simple typing indicator (just bouncing dots)
         function showTypingIndicator() {
@@ -9874,30 +10305,12 @@ Type **"approve"** to save this, or tell me how to improve it.`;
 
                 const settings = await settingsResponse.json();
 
-                // Step 2.5: Claim username if not already set
+                // Step 2.5: Check if username is set (users must claim their own username)
                 let username = settings.username;
                 if (!username) {
-                    console.log('[Workflow] No username found, claiming "alok"');
-                    const claimResponse = await fetch('/api/username?action=claim', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            username: 'alok',
-                            idToken: idToken
-                        })
-                    });
-
-                    const claimData = await claimResponse.json();
-                    if (!claimData.success) {
-                        console.error('[Workflow] Failed to claim username:', claimData);
-                        // Don't throw - user might have username set but settings didn't load
-                        // They can fix it in settings later
-                    } else {
-                        console.log('[Workflow] Successfully claimed username:', claimData.username);
-                        username = claimData.username;
-                    }
+                    console.log('[Workflow] No username found - user needs to claim one in settings');
+                    // Don't auto-claim - users should choose their own username
+                    // They can set it up in the settings tab
                 }
 
                 // Step 3: Enable the public link
@@ -9986,6 +10399,10 @@ Is there anything else you'd like to configure?`;
             // Remove empty state if present
             removeEmptyState();
 
+            // Capture reply context before clearing
+            const replyContext = pendingReply ? { ...pendingReply } : null;
+            cancelReply(); // Clear the reply preview
+
             // Capture file info before clearing
             const fileToUpload = selectedFile;
             const fileDisplayName = selectedFile ? selectedFile.name : null;
@@ -10001,7 +10418,7 @@ Is there anything else you'd like to configure?`;
             // Show user message immediately (with uploading indicator if file present)
             const userTimestamp = new Date();
             const uploadingIndicator = fileDisplayName ? ` 📎 ${fileDisplayName} ⏳` : '';
-            addMessage('user', message + uploadingIndicator, userTimestamp);
+            addMessage('user', message + uploadingIndicator, userTimestamp, replyContext);
 
             // Handle file upload if present
             let fileUrl = null;
@@ -10057,6 +10474,12 @@ Is there anything else you'd like to configure?`;
                 } else {
                     finalMessage = `${message}\n\n[Attached file: ${fileMetadata.name}]\nFile URL: ${fileUrl}`;
                 }
+            }
+
+            // Add reply context to message for AI understanding
+            if (replyContext && replyContext.content) {
+                const truncatedReply = replyContext.content.slice(0, 200) + (replyContext.content.length > 200 ? '...' : '');
+                finalMessage = `[Replying to: "${truncatedReply}"]\n\n${finalMessage}`;
             }
 
             // === WORKFLOW HANDLING ===
