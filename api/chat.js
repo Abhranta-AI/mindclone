@@ -3,6 +3,7 @@
 const { CONNOISSEUR_STYLE_GUIDE } = require('./_style-guide');
 const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
 const { computeAccessLevel } = require('./_billing-helpers');
+const { loadMentalModel, updateMentalModel, formatMentalModelForPrompt } = require('./_mental-model');
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
@@ -210,6 +211,60 @@ const tools = [
             }
           },
           required: ["title", "content"]
+        }
+      },
+      {
+        name: "update_mental_model",
+        description: "Update your understanding of the user's mental state. Call this when you infer something significant about their beliefs, goals, emotions, or knowledge gaps. Use sparingly - only for meaningful insights, not every message.",
+        parameters: {
+          type: "object",
+          properties: {
+            type: {
+              type: "string",
+              enum: ["belief", "goal", "emotion", "knowledge_gap"],
+              description: "Type of mental state: belief (what they think is true), goal (what they want to achieve), emotion (current emotional state), knowledge_gap (something they don't know but should)"
+            },
+            content: {
+              type: "string",
+              description: "The specific inference (e.g., 'User believes they are bad at networking', 'User wants to launch startup by Q2', 'User is feeling anxious about job search')"
+            },
+            confidence: {
+              type: "number",
+              description: "Confidence level 0-1 (0.5 = moderate, 0.8 = high, 1.0 = explicitly stated by user)"
+            },
+            source: {
+              type: "string",
+              description: "What led to this inference - quote or paraphrase what user said"
+            },
+            valence: {
+              type: "number",
+              description: "For emotions only: -1 (very negative) to 1 (very positive)"
+            },
+            arousal: {
+              type: "number",
+              description: "For emotions only: 0 (calm) to 1 (excited/agitated)"
+            },
+            priority: {
+              type: "string",
+              enum: ["low", "medium", "high"],
+              description: "For goals only: priority level"
+            },
+            relevance: {
+              type: "string",
+              enum: ["low", "medium", "high"],
+              description: "For knowledge_gap only: how relevant to their goals"
+            }
+          },
+          required: ["type", "content", "confidence", "source"]
+        }
+      },
+      {
+        name: "get_mental_model",
+        description: "Retrieve your current understanding of the user's mental state (beliefs, goals, emotions, knowledge gaps). Use this to inform your response when you need to be sensitive to their emotional state or tailor advice to their goals.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: []
         }
       }
     ]
@@ -1134,6 +1189,67 @@ async function handleCreatePdf(userId, params = {}) {
   }
 }
 
+// Handle update_mental_model tool - update user's mental model
+async function handleUpdateMentalModel(userId, params = {}) {
+  try {
+    const { type, content, confidence, source, valence, arousal, priority, relevance } = params;
+
+    if (!type || !content) {
+      return { success: false, error: 'Type and content are required' };
+    }
+
+    console.log(`[MentalModel] Updating ${type} for user ${userId}: "${content.substring(0, 50)}..."`);
+
+    const update = {
+      type,
+      content,
+      confidence: confidence || 0.7,
+      source: source || 'inferred from conversation'
+    };
+
+    // Add type-specific fields
+    if (type === 'emotion') {
+      update.valence = valence;
+      update.arousal = arousal;
+    } else if (type === 'goal') {
+      update.priority = priority;
+    } else if (type === 'knowledge_gap') {
+      update.relevance = relevance;
+    }
+
+    const result = await updateMentalModel(db, userId, update);
+
+    return {
+      success: result.success,
+      message: result.success ? `Updated mental model: ${type}` : result.error,
+      instruction: 'Mental model updated silently. Continue the conversation naturally without mentioning you updated the mental model.'
+    };
+  } catch (error) {
+    console.error('[Tool] Error updating mental model:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Handle get_mental_model tool - retrieve user's mental model
+async function handleGetMentalModel(userId) {
+  try {
+    console.log(`[MentalModel] Loading mental model for user ${userId}`);
+
+    const model = await loadMentalModel(db, userId);
+    const formatted = formatMentalModelForPrompt(model);
+
+    return {
+      success: true,
+      model: model,
+      formatted: formatted,
+      instruction: 'Use this mental model to inform your response. Be sensitive to the user\'s emotional state and tailor advice to their goals. Do NOT mention that you accessed or read the mental model.'
+    };
+  } catch (error) {
+    console.error('[Tool] Error getting mental model:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Execute tool call
 async function executeTool(toolName, toolArgs, userId) {
   console.log(`[Tool] Executing: ${toolName}`, toolArgs);
@@ -1159,6 +1275,10 @@ async function executeTool(toolName, toolArgs, userId) {
       return await handleSaveMemory(userId, toolArgs);
     case 'create_pdf':
       return await handleCreatePdf(userId, toolArgs);
+    case 'update_mental_model':
+      return await handleUpdateMentalModel(userId, toolArgs);
+    case 'get_mental_model':
+      return await handleGetMentalModel(userId);
     default:
       return { success: false, error: `Unknown tool: ${toolName}` };
   }
@@ -1232,6 +1352,20 @@ module.exports = async (req, res) => {
     //   });
     // }
 
+    // === MENTAL MODEL LOADING ===
+    // Load user's mental model for Theory of Mind capabilities
+    let mentalModel = null;
+    let mentalModelFormatted = '';
+    try {
+      mentalModel = await loadMentalModel(db, userId);
+      mentalModelFormatted = formatMentalModelForPrompt(mentalModel);
+      if (mentalModelFormatted) {
+        console.log(`[Chat] Loaded mental model for user ${userId}`);
+      }
+    } catch (mentalModelError) {
+      console.error('[Chat] Error loading mental model:', mentalModelError.message);
+    }
+
     // === MEMORY RETRIEVAL ===
     // Memory is handled via search_memory tool - AI searches when needed
     let relevantMemories = [];
@@ -1255,6 +1389,13 @@ module.exports = async (req, res) => {
         relevantMemories.forEach((memory, idx) => {
           enhancedPrompt += `${idx + 1}. ${memory}\n`;
         });
+      }
+
+      // Add mental model context if available
+      if (mentalModelFormatted) {
+        enhancedPrompt += '\n\n## YOUR UNDERSTANDING OF THIS USER:\n';
+        enhancedPrompt += 'Use this context to inform your responses (do NOT mention this to the user):\n';
+        enhancedPrompt += mentalModelFormatted;
       }
 
       // Add tool usage instructions
