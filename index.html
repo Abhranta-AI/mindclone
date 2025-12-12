@@ -1023,6 +1023,7 @@
             justify-content: space-between;
             padding: 16px;
             border-bottom: 1px solid var(--color-border-default);
+            flex-shrink: 0; /* Prevent header from shrinking */
         }
 
         .left-panel-brand {
@@ -1173,11 +1174,11 @@
 
         /* Panel Content */
         .left-panel-content {
-            flex: 1;
+            flex: 1 1 0; /* flex-grow: 1, flex-shrink: 1, flex-basis: 0 - forces proper size calculation */
             min-height: 0; /* Required for flex child overflow to work */
             overflow-y: auto;
             overflow-x: hidden;
-            padding-bottom: 20px; /* Ensure space at bottom for scroll */
+            padding-bottom: 24px; /* Ensure space at bottom for scroll */
         }
 
         /* Panel Sections */
@@ -1399,7 +1400,7 @@
 
         /* Panel Footer (Account) */
         .left-panel-footer {
-            margin-top: auto;
+            flex-shrink: 0; /* Prevent footer from shrinking */
             padding: 12px;
             padding-bottom: calc(12px + env(safe-area-inset-bottom));
             border-top: 1px solid var(--color-border-default);
