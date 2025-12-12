@@ -1176,8 +1176,8 @@
             flex: 1;
             min-height: 0; /* Required for flex child overflow to work */
             overflow-y: auto;
-            display: flex;
-            flex-direction: column;
+            overflow-x: hidden;
+            padding-bottom: 20px; /* Ensure space at bottom for scroll */
         }
 
         /* Panel Sections */
@@ -5827,7 +5827,7 @@
                     <div class="left-panel-section-header" id="feedbackSectionHeader" style="cursor: pointer;">
                         <span class="left-panel-section-icon">💬</span>
                         <span class="left-panel-section-title">Feedback</span>
-                        <span class="left-panel-expand-icon" id="feedbackExpandIcon">▼</span>
+                        <span class="left-panel-expand-icon" id="feedbackExpandIcon">▶</span>
                     </div>
                     <div class="left-panel-section-content" id="feedbackSectionContent" style="display: none;">
                         <!-- Screenshot Section -->
