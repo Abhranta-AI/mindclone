@@ -6101,7 +6101,7 @@
                     <span class="tab-icon">📈</span>
                     <span class="tab-label">Analytics</span>
                 </button>
-                <button class="panel-tab" data-tab="feedback">
+                <button class="panel-tab" data-tab="feedback" id="feedbackTabBtn" style="display: none;">
                     <span class="tab-icon">💬</span>
                     <span class="tab-label">Feedback</span>
                 </button>
@@ -7776,6 +7776,11 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                     if (userData.username) {
                         panelCurrentUsername = userData.username;
                         updatePanelUIForClaimedUsername(userData.username);
+                        // Show feedback tab only for admin user
+                        if (userData.username === 'alok') {
+                            const feedbackTabBtn = document.getElementById('feedbackTabBtn');
+                            if (feedbackTabBtn) feedbackTabBtn.style.display = '';
+                        }
                     } else {
                         updatePanelUIForNoUsername();
                     }
