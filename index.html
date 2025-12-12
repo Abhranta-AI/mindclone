@@ -1174,6 +1174,7 @@
         /* Panel Content */
         .left-panel-content {
             flex: 1;
+            min-height: 0; /* Required for flex child overflow to work */
             overflow-y: auto;
             display: flex;
             flex-direction: column;
