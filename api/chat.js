@@ -1723,6 +1723,34 @@ GOOD: [call web_search({query: "top AI identity company market leader most funde
 
 The rule is simple: When uncertain, SEARCH. Never deflect.`;
 
+      // Add image analysis instructions
+      enhancedPrompt += `
+
+## IMAGE ANALYSIS (analyze_image tool):
+
+**CRITICAL: When the user's message contains an image URL (typically in format "Image URL: https://..."):**
+
+1. **IMMEDIATELY call analyze_image** with that URL - don't ask what the image is, just look at it!
+2. Respond based on what you actually see in the image
+3. If asked follow-up questions about the image, call analyze_image again
+
+**DETECTION:**
+- Look for patterns like: "[Image: filename]", "Image URL: https://...", or any image URLs from blob storage
+- The URL pattern is typically: https://*.blob.vercel-storage.com/*
+
+**EXAMPLE:**
+User: "started reading this book today [Image: image.jpg] Image URL: https://jb2q3qprkcy5tl7b.public.blob.vercel-storage.com/..."
+
+GOOD: [silently call analyze_image({image_url: "https://jb2q3qprkcy5tl7b.public.blob.vercel-storage.com/...", question: "What book is this? What's the title and author?"})]
+Then respond: "Oh nice! You're reading [Book Title] by [Author]. That's a great choice! What drew you to it?"
+
+BAD: "It's wonderful that you're excited about your new book! I'm curious what it is." (NEVER ignore the image URL!)
+
+**RULES:**
+- NEVER ask "what book is it?" or "what image is that?" when the image URL is RIGHT THERE
+- ALWAYS analyze the image FIRST, then respond naturally with what you learned
+- If the image is blurry or unclear, say so after trying to analyze it
+- For follow-up questions like "what's this book about?", analyze the image again to get details`;
 
 
       // Add style guide
