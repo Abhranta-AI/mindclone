@@ -1870,7 +1870,16 @@ Use this to understand time references like "yesterday", "next week", "this mont
 
     // Extract final text response (use findText to handle multi-part responses)
     // Then sanitize to remove any leaked internal tool call patterns
-    let text = sanitizeResponse(findText(candidate?.content?.parts) || '');
+    const rawText = findText(candidate?.content?.parts) || '';
+    let text = sanitizeResponse(rawText);
+
+    // Log response details for debugging empty responses
+    console.log(`[Response] Raw text length: ${rawText.length}, Sanitized length: ${text.length}`);
+    if (!text || text.trim().length < 5) {
+      console.log(`[Response] Short/empty response. Raw: "${rawText.substring(0, 200)}"`);
+      console.log(`[Response] Candidate finish reason: ${candidate?.finishReason || 'none'}`);
+      console.log(`[Response] Parts count: ${candidate?.content?.parts?.length || 0}`);
+    }
 
     // === AUTO-RETRY LOGIC ===
     // If Gemini returns empty or "unable to generate" response, silently retry with a nudge
@@ -1913,17 +1922,18 @@ Use this to understand time references like "yesterday", "next week", "this mont
           text = retryText;
         } else {
           console.log('[Auto-Retry] Retry also failed, using fallback');
-          text = text || 'I need a moment to gather my thoughts. Could you rephrase that?';
+          // Don't set fallback here, let the final fallback handle it
         }
       } else {
         console.log('[Auto-Retry] Retry request failed:', retryData.error?.message);
-        text = text || 'I need a moment to gather my thoughts. Could you rephrase that?';
+        // Don't set fallback here, let the final fallback handle it
       }
     }
 
     // Final fallback if still empty
     if (!text || text.trim().length < 5) {
-      text = 'I need a moment to gather my thoughts. Could you rephrase that?';
+      console.log('[Response] Using final fallback message');
+      text = "I'm having trouble responding to that right now. Could you try asking in a different way, or maybe break your question into smaller parts?";
     }
 
     // === MEMORY STORAGE ===
