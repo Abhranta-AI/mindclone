@@ -45,6 +45,32 @@ module.exports = async (req, res) => {
     let userDoc = await userRef.get();
     let userData = userDoc.exists ? userDoc.data() : null;
 
+    // AUTO-PROVISION TRIAL: If user doesn't exist yet (new signup), create with 7-day trial
+    // This allows users to complete registration (claim username) before paywall
+    if (!userDoc.exists && userEmail) {
+      console.log(`[Billing Status] New user detected, auto-provisioning 7-day trial: ${userEmail}`);
+
+      const trialEnd = new Date();
+      trialEnd.setDate(trialEnd.getDate() + 7);
+
+      const newUserData = {
+        email: userEmail,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        billing: {
+          status: 'created',
+          trialEnd: trialEnd,
+          trialStarted: admin.firestore.FieldValue.serverTimestamp()
+        }
+      };
+
+      await userRef.set(newUserData);
+      console.log(`[Billing Status] Created user with trial ending: ${trialEnd.toISOString()}`);
+
+      // Refresh user data
+      userDoc = await userRef.get();
+      userData = userDoc.data();
+    }
+
     // Check if user should be auto-grandfathered
     if (userEmail && (!userData || !userData.isGrandfathered)) {
       const preGrandfatheredDoc = await db.collection('pregrandfathered').doc(userEmail).get();
