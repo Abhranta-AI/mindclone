@@ -1576,8 +1576,10 @@
 
                 const data = await response.json();
                 console.log('[API Response]', data);
+                console.log('[API Response Status]', response.status, response.ok);
 
                 if (!response.ok) {
+                    console.error('[API Error Response]', data);
                     if (response.status === 429) {
                         // Rate limit exceeded
                         showRateLimitWarning(data.message || 'Rate limit exceeded. Please try again later.');
@@ -1590,7 +1592,7 @@
                         conversationHistory.pop();
                         throw new Error('Service temporarily unavailable');
                     }
-                    throw new Error(data.error || 'Failed to send message');
+                    throw new Error(data.error || data.message || 'Failed to send message');
                 }
 
                 // Add AI response with media if available
@@ -1620,9 +1622,13 @@
                     return;
                 }
                 // Show appropriate error message
+                console.error('[sendMessage] Error:', error);
                 let errorMsg = 'Sorry, I encountered an error. Please try again.';
                 if (error.message === 'Service temporarily unavailable') {
                     errorMsg = 'Service is temporarily busy. Please try again in a few minutes.';
+                } else if (error.message) {
+                    // Show the actual error message for debugging
+                    errorMsg = `Error: ${error.message}`;
                 }
                 addMessage('error', errorMsg);
             } finally {
