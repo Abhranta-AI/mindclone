@@ -358,6 +358,32 @@
             flex-shrink: 0;
         }
 
+        /* Download button */
+        .download-button {
+            padding: 6px 8px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .download-button:hover {
+            background: var(--bg-surface);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .download-button:active {
+            transform: scale(0.95);
+        }
+
         /* Chat Container */
         .chat-container {
             flex: 1;
@@ -868,6 +894,13 @@
                     <span id="profileName" class="profile-name"></span>
                     <span id="profileUsername" class="profile-username"></span>
                 </div>
+                <button id="downloadButton" class="download-button" title="Download chat history" style="display: none;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                </button>
                 <div id="profileBio" class="profile-bio" style="display: none;"></div>
                 <div id="profileGreeting" class="profile-greeting" style="display: none;"></div>
             </div>
@@ -1012,6 +1045,7 @@
         const profileUsername = document.getElementById('profileUsername');
         const profileBio = document.getElementById('profileBio');
         const profileGreeting = document.getElementById('profileGreeting');
+        const downloadButton = document.getElementById('downloadButton');
         const chatContainer = document.getElementById('chatContainer');
         const inputContainer = document.getElementById('inputContainer');
         const messageInput = document.getElementById('messageInput');
@@ -1150,12 +1184,131 @@
             // Send button click
             sendButton.addEventListener('click', sendMessage);
 
+            // Download button click
+            downloadButton.addEventListener('click', downloadChatHistory);
+
             // Enter key to send (Shift+Enter for new line)
             messageInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
                 }
+            });
+        }
+
+        // Download chat history
+        async function downloadChatHistory() {
+            if (!username || !visitorId) {
+                alert('Cannot download: missing session data');
+                return;
+            }
+
+            // Show format selection
+            const format = await showDownloadFormatDialog();
+            if (!format) return; // User cancelled
+
+            try {
+                // Download the chat
+                const url = `/api/export-chat?username=${encodeURIComponent(username)}&visitorId=${encodeURIComponent(visitorId)}&format=${format}`;
+
+                // Create temporary link and trigger download
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `chat-${username}-${new Date().toISOString().split('T')[0]}.${format === 'markdown' ? 'md' : format === 'json' ? 'json' : 'txt'}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                console.log('[Download] Chat history downloaded as', format);
+            } catch (error) {
+                console.error('[Download] Error:', error);
+                alert('Failed to download chat history');
+            }
+        }
+
+        // Show download format dialog
+        function showDownloadFormatDialog() {
+            return new Promise((resolve) => {
+                const dialog = document.createElement('div');
+                dialog.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.8);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 10000;
+                `;
+
+                const content = document.createElement('div');
+                content.style.cssText = `
+                    background: var(--bg-surface);
+                    border: 1px solid var(--border);
+                    border-radius: 12px;
+                    padding: 24px;
+                    max-width: 320px;
+                    width: 90%;
+                `;
+
+                content.innerHTML = `
+                    <h3 style="margin: 0 0 16px 0; color: var(--text); font-size: 18px;">Download Chat</h3>
+                    <p style="margin: 0 0 20px 0; color: var(--text-secondary); font-size: 14px;">Choose a format:</p>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <button class="format-btn" data-format="json" style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; color: var(--text); cursor: pointer; text-align: left; transition: all 0.2s;">
+                            <strong>JSON</strong><br>
+                            <small style="color: var(--text-secondary);">Structured data with timestamps</small>
+                        </button>
+                        <button class="format-btn" data-format="markdown" style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; color: var(--text); cursor: pointer; text-align: left; transition: all 0.2s;">
+                            <strong>Markdown</strong><br>
+                            <small style="color: var(--text-secondary);">Formatted text, easy to read</small>
+                        </button>
+                        <button class="format-btn" data-format="text" style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; color: var(--text); cursor: pointer; text-align: left; transition: all 0.2s;">
+                            <strong>Plain Text</strong><br>
+                            <small style="color: var(--text-secondary);">Simple, universal format</small>
+                        </button>
+                        <button id="cancelDownload" style="margin-top: 8px; padding: 10px; background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--text-secondary); cursor: pointer;">
+                            Cancel
+                        </button>
+                    </div>
+                `;
+
+                dialog.appendChild(content);
+                document.body.appendChild(dialog);
+
+                // Add hover effects
+                const formatBtns = content.querySelectorAll('.format-btn');
+                formatBtns.forEach(btn => {
+                    btn.addEventListener('mouseenter', () => {
+                        btn.style.borderColor = 'var(--accent)';
+                        btn.style.background = 'var(--bg-elevated)';
+                    });
+                    btn.addEventListener('mouseleave', () => {
+                        btn.style.borderColor = 'var(--border)';
+                        btn.style.background = 'var(--bg-elevated)';
+                    });
+                    btn.addEventListener('click', () => {
+                        const format = btn.getAttribute('data-format');
+                        document.body.removeChild(dialog);
+                        resolve(format);
+                    });
+                });
+
+                // Cancel button
+                content.querySelector('#cancelDownload').addEventListener('click', () => {
+                    document.body.removeChild(dialog);
+                    resolve(null);
+                });
+
+                // Click outside to cancel
+                dialog.addEventListener('click', (e) => {
+                    if (e.target === dialog) {
+                        document.body.removeChild(dialog);
+                        resolve(null);
+                    }
+                });
             });
         }
 
@@ -1171,6 +1324,8 @@
         async function loadConversation() {
             try {
                 // Fetch conversation history from server
+                // TODO: Create dedicated endpoint for loading history in unified API
+                // For now, keeping chat-public.js GET endpoint for backward compatibility
                 const response = await fetch(`/api/chat-public?username=${encodeURIComponent(username)}&visitorId=${encodeURIComponent(visitorId)}`);
 
                 if (response.ok) {
@@ -1179,6 +1334,9 @@
                     if (data.messages && data.messages.length > 0) {
                         // Populate conversation history
                         conversationHistory = data.messages;
+
+                        // Show download button since there's conversation history
+                        downloadButton.style.display = 'flex';
 
                         // Clear any existing empty state
                         const emptyState = chatContainer.querySelector('.empty-state');
@@ -1390,6 +1548,7 @@
                 const requestBody = {
                     username,
                     visitorId,
+                    context: 'public', // NEW: Use unified API with public context
                     messages: conversationHistory
                 };
 
@@ -1401,7 +1560,7 @@
                     };
                 }
 
-                // Call public chat API
+                // Call unified chat API with public context
                 const headers = { 'Content-Type': 'application/json' };
 
                 // Add auth token if available (for owner bypass)
@@ -1409,7 +1568,7 @@
                     headers['Authorization'] = `Bearer ${currentUserAuthToken}`;
                 }
 
-                const response = await fetch('/api/chat-public', {
+                const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: headers,
                     body: JSON.stringify(requestBody)
@@ -1437,6 +1596,11 @@
                 // Add AI response with media if available
                 addMessage('ai', data.content, new Date(), data.media);
                 conversationHistory.push({ role: 'assistant', content: data.content });
+
+                // Show download button now that we have conversation history
+                if (conversationHistory.length > 0) {
+                    downloadButton.style.display = 'flex';
+                }
 
                 // Speak the response if voice mode is enabled
                 speakResponse(data.content);

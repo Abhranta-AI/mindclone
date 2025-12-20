@@ -184,8 +184,8 @@ module.exports = async (req, res) => {
     );
 
     // Paginate
-    const parsedLimit = Math.min(parseInt(limit) || 20, 50); // Max 50 per page
-    const parsedOffset = Math.max(parseInt(offset) || 0, 0);
+    const parsedLimit = Math.min(parseInt(limit, 10) || 20, 50); // Max 50 per page
+    const parsedOffset = Math.max(parseInt(offset, 10) || 0, 0);
     const start = parsedOffset;
     const end = start + parsedLimit;
     const paginatedLinks = filteredLinks.slice(start, end);

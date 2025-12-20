@@ -111,13 +111,13 @@ async function getVisitorDetails(userId, visitorId) {
       const data = doc.data();
       const message = {
         messageId: doc.id,
-        role: data.role,
-        content: data.content,
-        timestamp: data.timestamp
+        role: data?.role,
+        content: data?.content,
+        timestamp: data?.timestamp
       };
 
       // Include displayAction if present (for slide/excel displays)
-      if (data.displayAction) {
+      if (data?.displayAction) {
         message.displayAction = data.displayAction;
       }
 
@@ -126,8 +126,8 @@ async function getVisitorDetails(userId, visitorId) {
 
     return {
       visitorId: visitorId,
-      firstVisit: visitorData.firstVisit || visitorData.lastVisit,
-      lastVisit: visitorData.lastVisit,
+      firstVisit: visitorData?.firstVisit || visitorData?.lastVisit,
+      lastVisit: visitorData?.lastVisit,
       messageCount: messages.length,
       messages: messages
     };
@@ -281,7 +281,7 @@ module.exports = async (req, res) => {
   } catch (error) {
     console.error('Analytics API error:', error);
     return res.status(500).json({
-      error: error.message || 'Internal server error'
+      error: error?.message || 'Internal server error'
     });
   }
 };

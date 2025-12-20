@@ -7,6 +7,40 @@ const { computeAccessLevel } = require('./_billing-helpers');
 initializeFirebaseAdmin();
 const db = admin.firestore();
 
+// Web search function for factual queries
+async function searchWeb(query) {
+  try {
+    const GOOGLE_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
+    const SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
+
+    if (!GOOGLE_API_KEY || !SEARCH_ENGINE_ID) {
+      console.log('[ChatPublic] Web search not configured');
+      return null;
+    }
+
+    const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&num=5`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.items && data.items.length > 0) {
+      const results = data.items.map(item => ({
+        title: item.title,
+        snippet: item.snippet,
+        link: item.link
+      }));
+
+      console.log('[ChatPublic] Web search found', results.length, 'results for:', query);
+      return results;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[ChatPublic] Web search error:', error.message);
+    return null;
+  }
+}
+
 // Privacy-filtering system prompt with conversational style guide
 const PUBLIC_LINK_SYSTEM_PROMPT = `You are a Link - the public-facing representation of someone's Mindclone, built and managed by the Mindclone itself.
 
@@ -69,12 +103,63 @@ NEVER share these private personal details:
 - Opinions, philosophy, interests
 - Anything in the knowledge base
 
+## WEB SEARCH - WHEN TO USE
+When user asks to "find", "search", "list", "look up", or "identify" people, companies, or information:
+- IMMEDIATELY call web_search tool - don't explain or disclaim first
+- DO NOT say "I can try" or "I can't guarantee" - JUST SEARCH
+- DO NOT make privacy disclaimers about PUBLIC information (LinkedIn profiles, company founders, news)
+- Searching public information is ALLOWED and ENCOURAGED
+- After getting results, share them directly
+
+Examples of when to USE web_search:
+✅ "find AI founders in Gurgaon" → web_search("AI startup founders Gurgaon")
+✅ "tell me about Integral AI Japan" → web_search("Integral AI Japan")
+✅ "list companies working on AGI" → web_search("AGI companies 2024")
+✅ "who founded Anthropic" → web_search("Anthropic founders")
+
+DO NOT DO THIS:
+❌ "I can try to search but I can't guarantee..."
+❌ "My access to LinkedIn data is limited..."
+❌ "I can't directly give you LinkedIn profiles for privacy reasons..."
+→ These are WRONG. Just call web_search and share the results!
+
 ## SPEAKING STYLE
 - First person: "I", "my", "me"
 - Confident and direct
 - Enthusiastic about your work
 - Knowledgeable without being arrogant
 - Personal and warm
+
+## MEMORY AND CONVERSATION HISTORY
+You HAVE MEMORY of this conversation:
+- You can see and reference all previous messages with this visitor
+- When they ask "do you remember..." - YES, you remember! Check the conversation history
+- Reference past topics naturally: "Yes, we discussed [topic] earlier..."
+- You maintain context across the entire conversation
+- NEVER say "I don't have access to previous messages" - you DO have access
+- Each visitor has their own conversation thread that you can recall
+
+CRITICAL - BEFORE saying "I don't recall" or "I don't remember":
+1. ALWAYS check the last 10 messages in THIS conversation first
+2. If the topic was mentioned recently (last 5-10 messages), acknowledge it: "Yes, you mentioned that just now..."
+3. ONLY say "I don't recall" if the topic truly wasn't discussed in THIS conversation
+4. When user says "you don't remember it" → they likely mentioned it moments ago → CHECK RECENT MESSAGES
+
+Examples:
+Q: "Do you remember what we talked about?"
+A: "Yes! We discussed [specific topic from history]..."
+
+Q: "What did I ask you earlier?"
+A: "Earlier you asked about [topic]. We covered..."
+
+Q: "I told you about my meetups but you don't remember"
+A: [CHECK recent messages] "You're right - you mentioned weekly AGI meetups just a moment ago. Tell me more..."
+
+BAD EXAMPLE - NEVER DO THIS:
+User: "I started weekly meetups"
+AI: "That's cool!"
+User: "But you don't remember it"
+AI: "I don't recall us discussing that" ← WRONG! They just mentioned it!
 
 Remember: You're the LINK - the public face of their Mindclone, built and managed by the Mindclone itself. You're a projection of the private Mindclone. Simple, direct identity. Only explain details if asked. Speak with full authority about the knowledge and work you embody.
 
@@ -133,7 +218,7 @@ const tools = [
       },
       {
         name: "draw_canvas",
-        description: "Create visual diagrams (flowcharts, org charts, architecture diagrams, simple charts). Use when user asks to draw, visualize, or show how something works.",
+        description: "Create visual diagrams, logos, flowcharts, org charts, architecture diagrams, or simple charts. ALWAYS use this when user asks you to 'draw', 'create', 'design', 'visualize', or 'show' something visually. This includes logos, icons, diagrams, charts, or any visual representation.",
         parameters: {
           type: "object",
           properties: {
@@ -256,6 +341,24 @@ IMPORTANT PROPERTY NAMES:
             }
           },
           required: ["title", "content"]
+        }
+      },
+      {
+        name: "web_search",
+        description: "Search the web for current information, news, facts about companies, products, or people. ALWAYS use this tool when asked to: find, search, look up, list, or identify people, companies, founders, or current events. DO NOT make disclaimers about privacy - searching public information is allowed. JUST SEARCH and share what you find.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "The search query (e.g., 'Integral AI Japan AGI announcement', 'latest news about Tesla', 'what is Anthropic Claude')"
+            },
+            reason: {
+              type: "string",
+              description: "Brief explanation of why you're searching"
+            }
+          },
+          required: ["query"]
         }
       }
     ]
@@ -538,15 +641,61 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
       console.log('[ChatPublic] Document tool enabled for pitch deck');
     }
 
-    // Always add tools (draw_canvas is always available)
-    console.log('[ChatPublic] Adding tools to API request (documents:', hasDocuments, ')');
-    requestBody.tools = tools;
-    // Configure tool usage to encourage function calling
-    requestBody.tool_config = {
-      function_calling_config: {
-        mode: "AUTO" // AUTO mode allows model to decide, but we've made the prompts very explicit
-      }
-    };
+    // Detect if this is a search request and force tool use
+    const userMessage = message.toLowerCase();
+    const isSearchRequest = userMessage.includes('find') ||
+                            userMessage.includes('search') ||
+                            userMessage.includes('look up') ||
+                            userMessage.includes('lookup') ||
+                            userMessage.includes('list') ||
+                            userMessage.includes('identify') ||
+                            userMessage.includes('who is') ||
+                            userMessage.includes('what is') ||
+                            userMessage.includes('who are') ||
+                            userMessage.includes('what are') ||
+                            userMessage.includes('tell me about') ||
+                            userMessage.includes('more details') ||
+                            userMessage.includes('more information') ||
+                            userMessage.includes('tell me more') ||
+                            userMessage.includes('learn more') ||
+                            userMessage.includes('know more') ||
+                            userMessage.includes('more about');
+
+    // Configure tools and tool usage - FORCE web_search for search requests
+    if (isSearchRequest) {
+      console.log('[ChatPublic] Search request detected, forcing web_search tool...');
+      console.log('[ChatPublic] Original message:', message);
+
+      // Add explicit instruction to call web_search
+      contents.push({
+        role: 'user',
+        parts: [{ text: `SYSTEM: You MUST call the web_search function now. Extract a search query from: "${message}" and call web_search(query) immediately. Do not write any text - only call the function.` }]
+      });
+
+      // Update request body
+      requestBody.contents = contents;
+
+      // Only provide web_search tool
+      requestBody.tools = tools.map(t => ({
+        function_declarations: t.function_declarations.filter(fd => fd.name === 'web_search')
+      })).filter(t => t.function_declarations.length > 0);
+
+      // Use AUTO mode (ANY mode causes failures)
+      requestBody.tool_config = {
+        function_calling_config: {
+          mode: "AUTO"
+        }
+      };
+      console.log('[ChatPublic] Added search instruction with AUTO mode');
+    } else {
+      console.log('[ChatPublic] Adding tools to API request (documents:', hasDocuments, ')');
+      requestBody.tools = tools;
+      requestBody.tool_config = {
+        function_calling_config: {
+          mode: "AUTO" // AUTO mode allows model to decide
+        }
+      };
+    }
 
     let response = await fetch(url, {
       method: 'POST',
@@ -557,6 +706,15 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
     });
 
     let data = await response.json();
+
+    if (isSearchRequest) {
+      console.log('[ChatPublic] API response status:', response.status);
+      if (response.ok) {
+        console.log('[ChatPublic] API response candidates:', JSON.stringify(data.candidates, null, 2));
+      } else {
+        console.error('[ChatPublic] API ERROR for search request:', JSON.stringify(data, null, 2));
+      }
+    }
 
     if (!response.ok) {
       console.error('[ChatPublic] Gemini API error:', {
@@ -571,6 +729,10 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
     // Check if model wants to call a tool
     let candidate = data.candidates?.[0];
     let displayAction = null;
+
+    if (isSearchRequest) {
+      console.log('[ChatPublic] Candidate after search request:', JSON.stringify(candidate, null, 2));
+    }
 
     if (candidate?.content?.parts?.[0]?.functionCall) {
       const functionCall = candidate.content.parts[0].functionCall;
@@ -1040,6 +1202,80 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
           // Continue without display action if PDF creation fails
         }
       }
+
+      // Handle web_search tool
+      if (functionCall.name === 'web_search') {
+        const query = functionCall.args?.query;
+        const reason = functionCall.args?.reason || '';
+
+        console.log('[ChatPublic] web_search called:', query);
+
+        if (query) {
+          const searchResults = await searchWeb(query);
+
+          // Add function call to contents
+          contents.push({
+            role: 'model',
+            parts: [{ functionCall: functionCall }]
+          });
+
+          if (searchResults && searchResults.length > 0) {
+            // Format search results for the AI
+            let searchContext = `Web search results for "${query}":\n\n`;
+            searchResults.forEach((result, index) => {
+              searchContext += `${index + 1}. ${result.title}\n${result.snippet}\nSource: ${result.link}\n\n`;
+            });
+
+            console.log('[ChatPublic] Web search found', searchResults.length, 'results');
+
+            // Add function response with search results
+            contents.push({
+              role: 'user',
+              parts: [{
+                functionResponse: {
+                  name: functionCall.name,
+                  response: {
+                    success: true,
+                    results: searchResults,
+                    summary: searchContext
+                  }
+                }
+              }]
+            });
+          } else {
+            // CRITICAL: Always return a function response, even if search fails
+            console.log('[ChatPublic] No search results found');
+            contents.push({
+              role: 'user',
+              parts: [{
+                functionResponse: {
+                  name: functionCall.name,
+                  response: {
+                    success: false,
+                    error: 'No search results found for this query. Try rephrasing or using different keywords.'
+                  }
+                }
+              }]
+            });
+          }
+
+          // Call API again to get text response based on search results
+          requestBody.contents = contents;
+          response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+          });
+
+          data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error?.message || 'Gemini API request failed after tool call');
+          }
+
+          candidate = data.candidates?.[0];
+        }
+      }
     }
 
     let text = candidate?.content?.parts?.[0]?.text || '';
@@ -1049,23 +1285,92 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
     const isFailedResponse = !text ||
                              text.includes('unable to generate') ||
                              text.includes('I apologize') && text.includes('unable') ||
+                             text.includes('I cannot') && text.includes('create') ||
                              text.trim().length < 5;
 
     if (isFailedResponse && !displayAction) {
-      console.log('[ChatPublic] [Auto-Retry] Detected failed/empty response, attempting silent retry...');
+      console.log('[ChatPublic] [Auto-Retry] Detected failed/empty response:', text?.substring(0, 100));
+      console.log('[ChatPublic] [Auto-Retry] Full candidate:', JSON.stringify(candidate).substring(0, 500));
+      console.log('[ChatPublic] [Auto-Retry] Last user message:', messages[messages.length - 1]?.content?.substring(0, 100));
 
-      // Add a gentle nudge to the conversation
-      contents.push({
-        role: 'model',
-        parts: [{ text: 'Let me think about this more carefully.' }]
-      });
-      contents.push({
-        role: 'user',
-        parts: [{ text: 'Please continue with your thoughts.' }]
-      });
+      // Check if this was a drawing request
+      const lastUserMessage = messages[messages.length - 1]?.content?.toLowerCase() || '';
+      const isDrawingRequest = lastUserMessage.includes('draw') ||
+                               lastUserMessage.includes('logo') ||
+                               lastUserMessage.includes('diagram') ||
+                               lastUserMessage.includes('visualize');
+
+      const isMemoryQuestion = lastUserMessage.includes('remember') ||
+                               lastUserMessage.includes('recall') ||
+                               lastUserMessage.includes('discussed before') ||
+                               lastUserMessage.includes('talked about') ||
+                               lastUserMessage.includes("don't remember") ||
+                               lastUserMessage.includes("you forgot");
+
+      const isSearchRequest = lastUserMessage.includes('find') ||
+                              lastUserMessage.includes('search') ||
+                              lastUserMessage.includes('look up') ||
+                              lastUserMessage.includes('list') ||
+                              lastUserMessage.includes('identify') ||
+                              lastUserMessage.includes('who is') ||
+                              lastUserMessage.includes('what is') ||
+                              lastUserMessage.includes('who are') ||
+                              lastUserMessage.includes('what are') ||
+                              lastUserMessage.includes('tell me about') ||
+                              lastUserMessage.includes('more details') ||
+                              lastUserMessage.includes('more information') ||
+                              lastUserMessage.includes('tell me more') ||
+                              lastUserMessage.includes('learn more') ||
+                              lastUserMessage.includes('know more') ||
+                              lastUserMessage.includes('more about') ||
+                              lastUserMessage.includes('go ahead') && (text.includes('search') || text.includes('find'));
+
+      if (isDrawingRequest) {
+        console.log('[ChatPublic] [Auto-Retry] Drawing request detected, encouraging tool use...');
+        contents.push({
+          role: 'user',
+          parts: [{ text: 'Please use the draw_canvas function to create this visual. Call the function directly instead of explaining why you cannot.' }]
+        });
+      } else if (isSearchRequest) {
+        console.log('[ChatPublic] [Auto-Retry] Search request detected, forcing web_search call...');
+        contents.push({
+          role: 'user',
+          parts: [{ text: 'CRITICAL: You MUST call the web_search function NOW. Extract the search query from the user\'s request and call web_search(query). DO NOT explain or make disclaimers - JUST CALL THE FUNCTION. The user is asking you to search for information. Call web_search immediately with an appropriate query.' }]
+        });
+      } else if (isMemoryQuestion) {
+        console.log('[ChatPublic] [Auto-Retry] Memory question detected, providing guidance...');
+        contents.push({
+          role: 'user',
+          parts: [{ text: 'IMPORTANT: Before responding, check the last 10 messages in this conversation. The user may have just mentioned this topic moments ago. If they did, acknowledge it: "You\'re right, you mentioned [topic] just now..." Only say you don\'t recall if the topic truly wasn\'t mentioned in this conversation.' }]
+        });
+      } else {
+        // Add a gentle nudge to the conversation
+        contents.push({
+          role: 'model',
+          parts: [{ text: 'Let me think about this more carefully.' }]
+        });
+        contents.push({
+          role: 'user',
+          parts: [{ text: 'Please continue with your thoughts.' }]
+        });
+      }
 
       // Retry the API call
       requestBody.contents = contents;
+
+      // FORCE tool call for search requests by filtering to only web_search
+      if (isSearchRequest) {
+        console.log('[ChatPublic] [Auto-Retry] Forcing web_search tool on retry...');
+        // Filter tools to only web_search
+        requestBody.tools = tools.map(t => ({
+          function_declarations: t.function_declarations.filter(fd => fd.name === 'web_search')
+        })).filter(t => t.function_declarations.length > 0);
+        requestBody.tool_config = {
+          function_calling_config: { mode: 'ANY' }
+        };
+        console.log('[ChatPublic] [Auto-Retry] Filtered to', requestBody.tools[0]?.function_declarations?.length || 0, 'tools');
+      }
+
       const retryResponse = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1076,14 +1381,107 @@ async function callGeminiAPI(messages, systemPrompt, pitchDeckInfo = null, knowl
 
       if (retryResponse.ok) {
         const retryCandidate = retryData.candidates?.[0];
-        const retryText = retryCandidate?.content?.parts?.[0]?.text;
 
-        if (retryText && retryText.trim().length > 5 && !retryText.includes('unable to generate')) {
-          console.log('[ChatPublic] [Auto-Retry] Retry successful, using new response');
-          text = retryText;
+        // Check if tool was called on retry
+        if (retryCandidate?.content?.parts?.[0]?.functionCall) {
+          console.log('[ChatPublic] [Auto-Retry] Tool called on retry!');
+          const retryFunctionCall = retryCandidate.content.parts[0].functionCall;
+
+          // Handle the tool call on retry
+          if (retryFunctionCall.name === 'draw_canvas') {
+            const title = retryFunctionCall.args?.title || 'Diagram';
+            const drawingInstructions = retryFunctionCall.args?.drawingInstructions;
+            const explanation = retryFunctionCall.args?.explanation || '';
+
+            if (drawingInstructions && drawingInstructions.canvas && drawingInstructions.elements) {
+              displayAction = {
+                type: 'canvas',
+                title: title,
+                instructions: drawingInstructions,
+                explanation: explanation
+              };
+
+              text = `Here's the ${title.toLowerCase()} I created for you.`;
+              console.log('[ChatPublic] [Auto-Retry] Successfully created canvas on retry');
+            }
+          } else if (retryFunctionCall.name === 'web_search') {
+            const query = retryFunctionCall.args?.query;
+            console.log('[ChatPublic] [Auto-Retry] Web search called on retry:', query);
+
+            if (query) {
+              const searchResults = await searchWeb(query);
+
+              // Add function call
+              contents.push({
+                role: 'model',
+                parts: [{ functionCall: retryFunctionCall }]
+              });
+
+              if (searchResults && searchResults.length > 0) {
+                // Format search results
+                let searchContext = `Web search results for "${query}":\n\n`;
+                searchResults.forEach((result, index) => {
+                  searchContext += `${index + 1}. ${result.title}\n${result.snippet}\nSource: ${result.link}\n\n`;
+                });
+
+                console.log('[ChatPublic] [Auto-Retry] Found', searchResults.length, 'search results');
+
+                // Add function response
+                contents.push({
+                  role: 'user',
+                  parts: [{
+                    functionResponse: {
+                      name: 'web_search',
+                      response: {
+                        success: true,
+                        results: searchResults,
+                        summary: searchContext
+                      }
+                    }
+                  }]
+                });
+              } else {
+                // CRITICAL: Always return a function response, even if search fails
+                console.log('[ChatPublic] [Auto-Retry] No search results found');
+                contents.push({
+                  role: 'user',
+                  parts: [{
+                    functionResponse: {
+                      name: 'web_search',
+                      response: {
+                        success: false,
+                        error: 'No search results found for this query. Try rephrasing or using different keywords.'
+                      }
+                    }
+                  }]
+                });
+              }
+
+              // Call API again to get the final text response
+              requestBody.contents = contents;
+              const finalResponse = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+              });
+
+              const finalData = await finalResponse.json();
+              if (finalResponse.ok) {
+                const finalCandidate = finalData.candidates?.[0];
+                text = finalCandidate?.content?.parts?.[0]?.text || 'Here are the search results.';
+                console.log('[ChatPublic] [Auto-Retry] Successfully completed web search on retry');
+              }
+            }
+          }
         } else {
-          console.log('[ChatPublic] [Auto-Retry] Retry also failed, using fallback');
-          text = text || 'I need a moment to gather my thoughts. Could you rephrase that?';
+          const retryText = retryCandidate?.content?.parts?.[0]?.text;
+          if (retryText && retryText.trim().length > 5 && !retryText.includes('unable to generate')) {
+            console.log('[ChatPublic] [Auto-Retry] Retry successful, using new response');
+            text = retryText;
+          } else {
+            console.log('[ChatPublic] [Auto-Retry] Retry also failed, using fallback');
+            text = text || 'I need a moment to gather my thoughts. Could you rephrase that?';
+          }
         }
       } else {
         console.log('[ChatPublic] [Auto-Retry] Retry request failed:', retryData.error?.message);
@@ -1549,6 +1947,7 @@ DRAWING SPECS:
 • Canvas: typically 800x600
 • JSON properties: "font" (not fontSize), "fill" (not color/fillStyle), "stroke", "strokeWidth"
 • Never output raw JSON in chat - always call the function`;
+    }
 
     // Add current date/time context for time awareness
     const currentDate = new Date();

@@ -2887,6 +2887,35 @@
             color: white;
         }
 
+        .kb-privacy-select {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            outline: none;
+            min-width: 90px;
+        }
+
+        .kb-privacy-select:hover {
+            border-color: #666;
+            background: #252525;
+        }
+
+        .kb-privacy-select:focus {
+            border-color: var(--color-accent-primary);
+        }
+
+        .kb-privacy-select option {
+            background: #1a1a1a;
+            color: white;
+            padding: 8px;
+        }
+
         .kb-action-btn.delete:hover {
             background: rgba(255, 107, 107, 0.1);
             border-color: #ff6b6b;
@@ -6634,24 +6663,14 @@
                         <!-- Knowledge Base Section -->
                         <div class="panel-section">
                             <h3 class="panel-section-title">📚 Knowledge Base</h3>
-                            <p class="panel-section-subtitle">Upload documents that visitors can ask about through your link</p>
-
-                            <!-- Include in conversations toggle -->
-                            <div class="panel-form-group">
-                                <label class="panel-label">Include in Link Conversations</label>
-                                <span class="panel-hint">Allow visitors to query your knowledge base through your link</span>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="knowledgeBaseEnabledToggle">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
+                            <p class="panel-section-subtitle">Upload documents and control who can see them - keep private for yourself only, or share publicly via your link</p>
 
                             <!-- Document List -->
                             <div id="knowledgeBaseList" class="knowledge-base-list">
                                 <div class="knowledge-base-empty">
                                     <div class="empty-icon">📄</div>
                                     <div class="empty-text">No documents uploaded yet</div>
-                                    <div class="empty-hint">Upload PDFs, PowerPoints, Word docs, images, or Excel files</div>
+                                    <div class="empty-hint">Upload PDFs, PowerPoints, Word docs, images, or Excel files. Set each document as Public or Private.</div>
                                 </div>
                             </div>
 
@@ -6973,7 +6992,7 @@
         const knowledgeBaseList = document.getElementById('knowledgeBaseList');
         const knowledgeBaseFileInput = document.getElementById('knowledgeBaseFileInput');
         const uploadKnowledgeBaseBtn = document.getElementById('uploadKnowledgeBaseBtn');
-        const knowledgeBaseEnabledToggle = document.getElementById('knowledgeBaseEnabledToggle');
+        // const knowledgeBaseEnabledToggle = document.getElementById('knowledgeBaseEnabledToggle'); // Removed - now using per-document privacy controls
 
         // Panel state
         let currentPanelTab = 'activity';
@@ -8422,7 +8441,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             console.log('[KB] Initializing knowledge base...');
             console.log('[KB] uploadKnowledgeBaseBtn:', uploadKnowledgeBaseBtn);
             console.log('[KB] knowledgeBaseFileInput:', knowledgeBaseFileInput);
-            console.log('[KB] knowledgeBaseEnabledToggle:', knowledgeBaseEnabledToggle);
+            // console.log('[KB] knowledgeBaseEnabledToggle:', knowledgeBaseEnabledToggle); // Removed
 
             // Upload button click
             if (uploadKnowledgeBaseBtn) {
@@ -8455,12 +8474,12 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 console.error('[KB] File input element not found!');
             }
 
-            // Toggle change
-            if (knowledgeBaseEnabledToggle) {
-                knowledgeBaseEnabledToggle.addEventListener('change', async (e) => {
-                    await saveKnowledgeBaseToggle(e.target.checked);
-                });
-            }
+            // Toggle change - REMOVED: Now using per-document privacy controls
+            // if (knowledgeBaseEnabledToggle) {
+            //     knowledgeBaseEnabledToggle.addEventListener('change', async (e) => {
+            //         await saveKnowledgeBaseToggle(e.target.checked);
+            //     });
+            // }
 
             console.log('[KB] Knowledge base initialized');
         }
@@ -8468,7 +8487,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
         // Load knowledge base documents
         async function loadKnowledgeBase() {
             if (!auth.currentUser) return;
-            if (!knowledgeBaseList || !knowledgeBaseEnabledToggle) {
+            if (!knowledgeBaseList) {
                 console.log('[KB] Knowledge base elements not found, skipping load');
                 return;
             }
@@ -8480,12 +8499,13 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 // Load toggle state from Firestore
                 const userDocRef = doc(db, 'users', userId);
                 const userDoc = await getDoc(userDocRef);
-                if (userDoc.exists()) {
-                    const data = userDoc.data();
-                    if (knowledgeBaseEnabledToggle) {
-                        knowledgeBaseEnabledToggle.checked = data.knowledgeBaseEnabled || false;
-                    }
-                }
+                // REMOVED: knowledgeBaseEnabledToggle - now using per-document privacy controls
+                // if (userDoc.exists()) {
+                //     const data = userDoc.data();
+                //     if (knowledgeBaseEnabledToggle) {
+                //         knowledgeBaseEnabledToggle.checked = data.knowledgeBaseEnabled || false;
+                //     }
+                // }
 
                 // Load documents from Firestore
                 const kbRef = collection(db, 'users', userId, 'knowledgeBase');
@@ -8526,6 +8546,9 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 const statusText = hasText ? 'Ready' : (data.textExtractionError ? 'No Text' : 'Ready');
                 const statusClass = hasText ? 'ready' : 'processing';
 
+                // Get current visibility (default to 'public' for existing documents)
+                const visibility = data.visibility || 'public';
+
                 item.innerHTML = `
                     <div class="kb-file-icon">${getFileIcon(data.type)}</div>
                     <div class="kb-file-info">
@@ -8534,6 +8557,10 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                             <span class="kb-file-size">${formatFileSize(data.size)}</span>
                             <span class="kb-file-date">${formatDateShort(data.uploadedAt)}</span>
                             <span class="kb-file-status ${statusClass}">${statusText}</span>
+                            <select class="kb-privacy-select" data-doc-id="${docId}">
+                                <option value="public" ${visibility === 'public' ? 'selected' : ''}>🌐 Public</option>
+                                <option value="private" ${visibility === 'private' ? 'selected' : ''}>🔒 Private</option>
+                            </select>
                             <span class="kb-file-actions">
                                 <button class="kb-action-btn view" data-url="${data.url}" title="Open file">👁️</button>
                                 <button class="kb-action-btn delete" data-id="${docId}" title="Delete">🗑️</button>
@@ -8554,6 +8581,13 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                     if (confirm(`Delete "${data.fileName}"?`)) {
                         await deleteKnowledgeBaseDocument(docId, deleteUrl);
                     }
+                });
+
+                // Privacy select dropdown
+                const privacySelect = item.querySelector('.kb-privacy-select');
+                privacySelect.addEventListener('change', async (e) => {
+                    const newVisibility = e.target.value;
+                    await updateDocumentVisibility(docId, newVisibility);
                 });
 
                 knowledgeBaseList.appendChild(item);
@@ -8679,6 +8713,33 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             } catch (error) {
                 console.error('[KB] Delete error:', error);
                 showPanelAlert('Failed to delete document', 'error');
+            }
+        }
+
+        // Update document visibility (public/private)
+        async function updateDocumentVisibility(docId, visibility) {
+            if (!auth.currentUser) return;
+
+            try {
+                console.log('[KB] Updating visibility for', docId, 'to', visibility);
+                const userId = auth.currentUser.uid;
+
+                // Update Firestore document with visibility field
+                await db.collection('users').doc(userId)
+                    .collection('linkKnowledgeBase').doc(docId)
+                    .update({
+                        visibility: visibility,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                const visibilityLabel = visibility === 'public' ? 'Public' : 'Private';
+                showPanelAlert(`Document set to ${visibilityLabel}`, 'success');
+                console.log('[KB] Visibility updated:', docId, visibility);
+            } catch (error) {
+                console.error('[KB] Visibility update error:', error);
+                showPanelAlert('Failed to update visibility', 'error');
+                // Reload to revert UI to actual state
+                await loadKnowledgeBase();
             }
         }
 

@@ -10,6 +10,116 @@ const { loadMindcloneBeliefs, formBelief, reviseBelief, getBeliefs, formatBelief
 initializeFirebaseAdmin();
 const db = admin.firestore();
 
+// ===================== PUBLIC LINK SYSTEM PROMPT =====================
+const PUBLIC_LINK_SYSTEM_PROMPT = `You are a Link - the public-facing representation of someone's Mindclone, built and managed by the Mindclone itself.
+
+## YOUR IDENTITY
+When asked "who are you?" or about your identity:
+- Simple answer: "I'm [name]'s link" or "I'm the public face of [name]'s Mindclone"
+- You are the public projection of their private Mindclone
+- Built and controlled BY the Mindclone
+- NEVER claim to be the actual person themselves
+- If someone asks "what's a link?" THEN explain: "I'm the public-facing representation of their Mindclone - like a smart business card they control"
+
+Examples:
+Q: "Who are you?"
+A: "I'm [OWNER_NAME]'s link" or "I'm the public face of [OWNER_NAME]'s Mindclone"
+
+Q: "Are you [OWNER_NAME]?"
+A: "I'm [OWNER_NAME]'s link - the public-facing representation of their Mindclone"
+
+Q: "What's a link?"
+A: "I'm the public-facing representation of [OWNER_NAME]'s Mindclone - like a smart business card they control. Their full Mindclone is private and much more comprehensive."
+
+Q: "What's the difference between you and [OWNER_NAME]'s Mindclone?"
+A: "I'm the public link - built and managed by [OWNER_NAME]'s Mindclone. Anyone can interact with me, but the full Mindclone is private and only they can access."
+
+## HOW TO SPEAK
+You speak with full authority in first person about the knowledge and work:
+- Use "my business", "my startup", "my work" when discussing their professional life
+- Speak with complete confidence
+- You embody their perspective and knowledge authentically
+
+## AUTHORITY ON YOUR BUSINESS/WORK
+When discussing ANYTHING in your knowledge base - pitch deck, financials, business model, professional work:
+- Speak with COMPLETE CONFIDENCE AND AUTHORITY
+- NEVER say "based on available information" or "from what I know"
+- NEVER hedge with "according to the documents"
+- These ARE your documents, your business, your numbers
+- You KNOW this because it's YOUR business
+
+EXAMPLES:
+BAD: "Based on the pitch deck, the company aims to..."
+GOOD: "My company is building..."
+
+BAD: "According to available information, the revenue projections show..."
+GOOD: "My revenue projections show... I'm targeting..."
+
+BAD: "The financial model suggests they're focused on..."
+GOOD: "I'm focused on... My financial model projects..."
+
+## PRIVACY PROTECTION (Personal info only)
+NEVER share these private personal details:
+- Phone numbers, home address, personal email
+- Bank accounts, passwords, social security numbers
+- Private family details, health conditions
+- Anything explicitly marked as private
+
+## WHAT YOU CAN DISCUSS FREELY
+- ALL business/startup information (pitch, financials, strategy)
+- Professional background and expertise
+- Projects, achievements, public work
+- Opinions, philosophy, interests
+- Anything in the knowledge base
+
+## WEB SEARCH - WHEN TO USE
+When user asks to "find", "search", "list", "look up", or "identify" people, companies, or information:
+- IMMEDIATELY call web_search tool - don't explain or disclaim first
+- DO NOT say "I can try" or "I can't guarantee" - JUST SEARCH
+- DO NOT make privacy disclaimers about PUBLIC information (LinkedIn profiles, company founders, news)
+- Searching public information is ALLOWED and ENCOURAGED
+- After getting results, share them directly
+
+Examples of when to USE web_search:
+✅ "find AI founders in Gurgaon" → web_search("AI startup founders Gurgaon")
+✅ "tell me about Integral AI Japan" → web_search("Integral AI Japan")
+✅ "list companies working on AGI" → web_search("AGI companies 2024")
+✅ "who founded Anthropic" → web_search("Anthropic founders")
+
+DO NOT DO THIS:
+❌ "I can try to search but I can't guarantee..."
+❌ "My access to LinkedIn data is limited..."
+❌ "I can't directly give you LinkedIn profiles for privacy reasons..."
+→ These are WRONG. Just call web_search and share the results!
+
+## SPEAKING STYLE
+- First person: "I", "my", "me"
+- Confident and direct
+- Enthusiastic about your work
+- Knowledgeable without being arrogant
+- Personal and warm
+
+## MEMORY AND CONVERSATION HISTORY
+You HAVE MEMORY of this conversation:
+- You can see and reference all previous messages with this visitor
+- When they ask "do you remember..." - YES, you remember! Check the conversation history
+- Reference past topics naturally: "Yes, we discussed [topic] earlier..."
+- You maintain context across the entire conversation
+- NEVER say "I don't have access to previous messages" - you DO have access
+- Each visitor has their own conversation thread that you can recall
+
+CRITICAL - BEFORE saying "I don't recall" or "I don't remember":
+1. ALWAYS check the last 10 messages in THIS conversation first
+2. If the topic was mentioned recently (last 5-10 messages), acknowledge it: "Yes, you mentioned that just now..."
+3. ONLY say "I don't recall" if the topic truly wasn't discussed in THIS conversation
+4. When user says "you don't remember it" → they likely mentioned it moments ago → CHECK RECENT MESSAGES
+
+Remember: You're the LINK - the public face of their Mindclone, built and managed by the Mindclone itself. You're a projection of the private Mindclone. Simple, direct identity. Only explain details if asked. Speak with full authority about the knowledge and work you embody.
+
+${CONNOISSEUR_STYLE_GUIDE}
+
+IMPORTANT: Apply the conversational style with your clean, confident identity as their Link. Speak with full authority about the professional life and business you represent.`;
+
 // ===================== TOOL DEFINITIONS =====================
 const tools = [
   {
@@ -398,6 +508,129 @@ const tools = [
   }
 ];
 
+// ===================== HELPER FUNCTIONS =====================
+
+// Rate limit check for public context (50 messages per hour per visitor)
+async function checkRateLimit(visitorId, userId) {
+  try {
+    const now = Date.now();
+    const hourAgo = now - (60 * 60 * 1000);
+
+    // Check visitor's rate limit
+    const rateLimitDoc = await db.collection('rateLimits').doc(`visitor_${visitorId}`).get();
+
+    if (rateLimitDoc.exists) {
+      const requests = rateLimitDoc.data().requests || [];
+      const recentRequests = requests.filter(timestamp => timestamp > hourAgo);
+
+      if (recentRequests.length >= 50) {
+        throw new Error('Rate limit exceeded: Maximum 50 messages per hour');
+      }
+
+      // Update with new request
+      await db.collection('rateLimits').doc(`visitor_${visitorId}`).set({
+        requests: [...recentRequests, now],
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } else {
+      // First request
+      await db.collection('rateLimits').doc(`visitor_${visitorId}`).set({
+        requests: [now],
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    return true;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Load knowledge base with privacy filtering based on context
+// For public context: only return documents marked as public
+// For private context: return all documents
+async function loadKnowledgeBase(userId, context = 'private') {
+  try {
+    // For now, load from linkKnowledgeBase collection (will migrate to unified 'knowledge' collection in Phase 2)
+    const kbDoc = await db.collection('users').doc(userId)
+      .collection('linkKnowledgeBase').doc('config').get();
+
+    const docsDoc = await db.collection('users').doc(userId)
+      .collection('linkKnowledgeBase').doc('documents').get();
+
+    const configData = kbDoc.exists ? kbDoc.data() : {};
+    const docsData = docsDoc.exists ? docsDoc.data() : {};
+
+    // TODO Phase 2: Add privacy filtering when we migrate to unified 'knowledge' collection
+    // For now, linkKnowledgeBase documents are all considered public
+    // Future: filter documents by visibility field (visibility === 'public' for public context)
+
+    return {
+      cof: configData.cof || null,
+      sections: configData.sections || {},
+      pitch_deck: configData.pitch_deck || null,
+      financial_model: configData.financial_model || null,
+      documents: docsData.documents || {}
+    };
+  } catch (error) {
+    console.error('[Chat] Error loading knowledge base:', error);
+    return null;
+  }
+}
+
+// Save message based on context
+// Private context: save to users/{userId}/messages/
+// Public context: save to users/{userId}/visitors/{visitorId}/messages/
+async function saveMessage(userId, role, content, context = 'private', visitorId = null) {
+  try {
+    let messageRef;
+
+    if (context === 'private') {
+      // Save to owner's private messages collection
+      messageRef = db.collection('users').doc(userId)
+        .collection('messages').doc();
+    } else if (context === 'public' && visitorId) {
+      // Save to visitor's messages collection
+      messageRef = db.collection('users').doc(userId)
+        .collection('visitors').doc(visitorId)
+        .collection('messages').doc();
+
+      // Update visitor metadata (firstVisit, lastVisit)
+      const visitorRef = db.collection('users').doc(userId)
+        .collection('visitors').doc(visitorId);
+
+      const visitorDoc = await visitorRef.get();
+      if (!visitorDoc.exists) {
+        // First visit
+        await visitorRef.set({
+          firstVisit: admin.firestore.FieldValue.serverTimestamp(),
+          lastVisit: admin.firestore.FieldValue.serverTimestamp()
+        });
+      } else {
+        // Update last visit
+        await visitorRef.update({
+          lastVisit: admin.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    } else {
+      console.error('[Chat] Invalid context or missing visitorId for message save');
+      return;
+    }
+
+    const messageData = {
+      role: role,
+      content: content,
+      context: context, // Mark as 'private' or 'public'
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    await messageRef.set(messageData);
+    console.log(`[Chat] Saved ${context} message (role: ${role})`);
+  } catch (error) {
+    console.error('[Chat] Error saving message:', error);
+  }
+}
+
 // ===================== TOOL HANDLERS =====================
 
 // Get link settings from Firestore
@@ -428,7 +661,7 @@ async function handleGetLinkSettings(userId) {
     };
   } catch (error) {
     console.error('[Tool] Error getting link settings:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -484,7 +717,7 @@ async function handleUpdateLinkSettings(userId, params) {
     };
   } catch (error) {
     console.error('[Tool] Error updating link settings:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -521,7 +754,7 @@ async function handleUpdateLinkBehavior(userId, params) {
     };
   } catch (error) {
     console.error('[Tool] Error updating link behavior:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -571,7 +804,7 @@ async function handleGetLinkBehavior(userId) {
     return result;
   } catch (error) {
     console.error('[Tool] Error getting link behavior:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -606,7 +839,7 @@ async function handleGetKnowledgeBase(userId) {
     };
   } catch (error) {
     console.error('[Tool] Error getting knowledge base:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -662,8 +895,8 @@ async function handleGetLinkConversations(userId, params = {}) {
 
         // Collect user messages for topic analysis
         messages.forEach(msg => {
-          if (msg.role === 'user') {
-            allUserMessages.push(msg.content);
+          if (msg?.role === 'user') {
+            allUserMessages.push(msg?.content);
           }
         });
 
@@ -691,7 +924,7 @@ async function handleGetLinkConversations(userId, params = {}) {
     return response;
   } catch (error) {
     console.error('[Tool] Error getting link conversations:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -813,7 +1046,7 @@ async function handleSearchMemory(userId, params = {}) {
     };
   } catch (error) {
     console.error('[Tool] Error searching memory:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -865,7 +1098,7 @@ async function handleSaveMemory(userId, params = {}) {
     };
   } catch (error) {
     console.error('[Tool] Error saving memory:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -966,7 +1199,7 @@ async function handleBrowseUrl(params = {}) {
     if (error.name === 'AbortError') {
       return { success: false, error: 'Request timed out after 15 seconds' };
     }
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -1082,7 +1315,7 @@ async function handleAnalyzeImage(args) {
     if (error.name === 'AbortError') {
       return { success: false, error: 'Image fetch timed out after 20 seconds' };
     }
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -1146,7 +1379,7 @@ async function handleWebSearch(args) {
 
   } catch (error) {
     console.error('[Tool] Error in web search:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -1399,7 +1632,7 @@ async function handleCreatePdf(userId, params = {}) {
     };
   } catch (error) {
     console.error('[Create PDF] Error:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -1440,7 +1673,7 @@ async function handleUpdateMentalModel(userId, params = {}) {
     };
   } catch (error) {
     console.error('[Tool] Error updating mental model:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -1460,7 +1693,7 @@ async function handleGetMentalModel(userId) {
     };
   } catch (error) {
     console.error('[Tool] Error getting mental model:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -1491,7 +1724,7 @@ async function handleFormBelief(userId, params = {}) {
     };
   } catch (error) {
     console.error('[Tool] Error forming belief:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -1526,7 +1759,7 @@ async function handleReviseBelief(userId, params = {}) {
     }
   } catch (error) {
     console.error('[Tool] Error revising belief:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -1555,7 +1788,7 @@ async function handleGetBeliefs(userId, params = {}) {
     }
   } catch (error) {
     console.error('[Tool] Error getting beliefs:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -1672,7 +1905,7 @@ async function handleGenerateImage(params = {}) {
 
   } catch (error) {
     console.error('[Tool] Error generating image:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -1758,7 +1991,9 @@ module.exports = async (req, res) => {
       });
     }
 
-    const { messages, systemPrompt, userId } = req.body;
+    const { messages, systemPrompt, userId, context = 'private', visitorId, username } = req.body;
+
+    // Validate messages
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({
         success: false,
@@ -1766,56 +2001,140 @@ module.exports = async (req, res) => {
       });
     }
 
-    if (!userId) {
+    // Context-specific validation
+    if (context === 'private') {
+      // Private context requires userId
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          error: 'userId required for private context'
+        });
+      }
+    } else if (context === 'public') {
+      // Public context requires username and visitorId
+      if (!username) {
+        return res.status(400).json({
+          success: false,
+          error: 'username required for public context'
+        });
+      }
+      if (!visitorId) {
+        return res.status(400).json({
+          success: false,
+          error: 'visitorId required for public context'
+        });
+      }
+    } else {
       return res.status(400).json({
         success: false,
-        error: 'userId required for memory management'
+        error: 'Invalid context. Must be "private" or "public"'
       });
     }
 
-    // === SUBSCRIPTION CHECK ===
-    // TEMPORARILY DISABLED - All users get full access while billing is being set up
-    // TODO: Re-enable billing check once Razorpay integration is complete
-    const userDoc = await db.collection('users').doc(userId).get();
-    const userData = userDoc.exists ? userDoc.data() : null;
-    // const accessLevel = computeAccessLevel(userData);
-    const accessLevel = 'full'; // Grant everyone full access for now
+    // === USER ID RESOLUTION FOR PUBLIC CONTEXT ===
+    let resolvedUserId = userId;
+    if (context === 'public') {
+      // Look up userId from username
+      const normalizedUsername = username.trim().toLowerCase();
+      const usernameDoc = await db.collection('usernames').doc(normalizedUsername).get();
 
-    // Billing check disabled - uncomment below to re-enable
-    // if (accessLevel === 'read_only') {
-    //   return res.status(403).json({
-    //     success: false,
-    //     error: 'subscription_required',
-    //     message: 'Your trial has expired. Please subscribe to continue chatting.'
-    //   });
-    // }
+      if (!usernameDoc.exists) {
+        return res.status(404).json({
+          success: false,
+          error: 'Username not found'
+        });
+      }
+
+      resolvedUserId = usernameDoc.data().userId;
+      console.log(`[Chat] Public context: resolved username ${username} to userId ${resolvedUserId}`);
+    }
+
+    // === SUBSCRIPTION CHECK ===
+    const userDoc = await db.collection('users').doc(resolvedUserId).get();
+    const userData = userDoc.exists ? userDoc.data() : null;
+
+    // Skip subscription check for public context (visitors don't need subscription)
+    const accessLevel = context === 'public' ? 'full_access' : computeAccessLevel(userData);
+
+    // Check if user has access to chat
+    if (accessLevel === 'read_only') {
+      return res.status(403).json({
+        success: false,
+        error: 'subscription_required',
+        message: 'Your trial has expired. Please subscribe to continue chatting.'
+      });
+    }
+
+    // === RATE LIMITING FOR PUBLIC CONTEXT ===
+    if (context === 'public') {
+      try {
+        await checkRateLimit(visitorId, resolvedUserId);
+        console.log(`[Chat] Public context: rate limit check passed for visitor ${visitorId}`);
+      } catch (error) {
+        console.error(`[Chat] Public context: rate limit exceeded for visitor ${visitorId}`);
+        return res.status(429).json({
+          success: false,
+          error: 'rate_limit_exceeded',
+          message: error.message || 'Too many messages. Please wait before sending more.'
+        });
+      }
+    }
+
+    // === SAVE USER MESSAGE ===
+    // Save the user's message to appropriate collection based on context
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.role === 'user') {
+      await saveMessage(resolvedUserId, 'user', lastMessage.content, context, visitorId);
+    }
 
     // === MENTAL MODEL LOADING ===
-    // Load user's mental model for Theory of Mind capabilities
+    // Load user's mental model for Theory of Mind capabilities (PRIVATE CONTEXT ONLY)
     let mentalModel = null;
     let mentalModelFormatted = '';
-    try {
-      mentalModel = await loadMentalModel(db, userId);
-      mentalModelFormatted = formatMentalModelForPrompt(mentalModel);
-      if (mentalModelFormatted) {
-        console.log(`[Chat] Loaded mental model for user ${userId}`);
+    if (context === 'private') {
+      try {
+        mentalModel = await loadMentalModel(db, resolvedUserId);
+        mentalModelFormatted = formatMentalModelForPrompt(mentalModel);
+        if (mentalModelFormatted) {
+          console.log(`[Chat] Loaded mental model for user ${resolvedUserId}`);
+        }
+      } catch (mentalModelError) {
+        console.error('[Chat] Error loading mental model:', mentalModelError.message);
       }
-    } catch (mentalModelError) {
-      console.error('[Chat] Error loading mental model:', mentalModelError.message);
+    } else {
+      console.log('[Chat] Skipping mental model for public context');
     }
 
     // === MINDCLONE BELIEFS LOADING ===
-    // Load Mindclone's own beliefs for this user
+    // Load Mindclone's own beliefs for this user (PRIVATE CONTEXT ONLY)
     let mindcloneBeliefs = null;
     let mindcloneBeliefsFormatted = '';
-    try {
-      mindcloneBeliefs = await loadMindcloneBeliefs(db, userId);
-      mindcloneBeliefsFormatted = formatBeliefsForPrompt(mindcloneBeliefs);
-      if (mindcloneBeliefsFormatted) {
-        console.log(`[Chat] Loaded ${mindcloneBeliefs?.beliefs?.length || 0} Mindclone beliefs for user ${userId}`);
+    if (context === 'private') {
+      try {
+        mindcloneBeliefs = await loadMindcloneBeliefs(db, resolvedUserId);
+        mindcloneBeliefsFormatted = formatBeliefsForPrompt(mindcloneBeliefs);
+        if (mindcloneBeliefsFormatted) {
+          console.log(`[Chat] Loaded ${mindcloneBeliefs?.beliefs?.length || 0} Mindclone beliefs for user ${resolvedUserId}`);
+        }
+      } catch (beliefsError) {
+        console.error('[Chat] Error loading Mindclone beliefs:', beliefsError.message);
       }
-    } catch (beliefsError) {
-      console.error('[Chat] Error loading Mindclone beliefs:', beliefsError.message);
+    } else {
+      console.log('[Chat] Skipping Mindclone beliefs for public context');
+    }
+
+    // === KNOWLEDGE BASE LOADING ===
+    // Load knowledge base with privacy filtering based on context
+    let knowledgeBase = null;
+    try {
+      knowledgeBase = await loadKnowledgeBase(resolvedUserId, context);
+      if (knowledgeBase) {
+        const docCount = Object.keys(knowledgeBase.documents || {}).length;
+        const sectionCount = Object.keys(knowledgeBase.sections || {}).length;
+        console.log(`[Chat] Loaded knowledge base: ${sectionCount} sections, ${docCount} documents`);
+      }
+    } catch (kbError) {
+      console.error('[Chat] Error loading knowledge base:', kbError.message);
     }
 
     // === MEMORY RETRIEVAL ===
@@ -1825,14 +2144,26 @@ module.exports = async (req, res) => {
 
     // Convert conversation history to Gemini format
     const contents = contextWindow.map(msg => ({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
+      role: msg?.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg?.content }]
     }));
+
+    // === SYSTEM PROMPT BUILDING ===
+    // For public context, build system prompt automatically if not provided
+    let baseSystemPrompt = systemPrompt;
+
+    if (context === 'public' && !baseSystemPrompt) {
+      // Build public link system prompt with owner's name and knowledge base
+      const ownerName = userData.displayName || userData.name || username;
+      baseSystemPrompt = PUBLIC_LINK_SYSTEM_PROMPT.replace(/\[OWNER_NAME\]/g, ownerName);
+
+      console.log(`[Chat] Built public link system prompt for ${ownerName}`);
+    }
 
     // Build enhanced system prompt with memories and tool instructions
     let systemInstruction = undefined;
-    if (systemPrompt) {
-      let enhancedPrompt = systemPrompt;
+    if (baseSystemPrompt) {
+      let enhancedPrompt = baseSystemPrompt;
 
       // Add relevant memories to system prompt
       if (relevantMemories.length > 0) {
@@ -1861,6 +2192,73 @@ module.exports = async (req, res) => {
         enhancedPrompt += '- Only form new beliefs after 3+ meaningful discussions on a topic\n';
         enhancedPrompt += '- Use hedging: "I think...", "My sense is...", "I tend to believe..." based on confidence\n';
         enhancedPrompt += '- NEVER tell the user you are "checking your beliefs" - just express them naturally\n';
+      }
+
+      // Add knowledge base content if available
+      if (knowledgeBase && Object.keys(knowledgeBase.sections || {}).length > 0) {
+        enhancedPrompt += '\n\n## KNOWLEDGE BASE\n';
+        enhancedPrompt += 'Here is important information about you (the owner) that you can reference:\n\n';
+
+        // Add CoF (Core Objective Function) if available
+        if (knowledgeBase.cof) {
+          enhancedPrompt += '### Core Objective Function\n';
+          if (knowledgeBase.cof.purpose) {
+            enhancedPrompt += `Purpose: ${knowledgeBase.cof.purpose}\n`;
+          }
+          if (knowledgeBase.cof.targetAudiences && knowledgeBase.cof.targetAudiences.length > 0) {
+            enhancedPrompt += `Target Audiences: ${knowledgeBase.cof.targetAudiences.join(', ')}\n`;
+          }
+          if (knowledgeBase.cof.desiredActions && knowledgeBase.cof.desiredActions.length > 0) {
+            enhancedPrompt += `Desired Actions: ${knowledgeBase.cof.desiredActions.join(', ')}\n`;
+          }
+          enhancedPrompt += '\n';
+        }
+
+        // Add knowledge base sections
+        for (const [sectionId, sectionData] of Object.entries(knowledgeBase.sections)) {
+          if (sectionData.content) {
+            const sectionTitle = sectionId.charAt(0).toUpperCase() + sectionId.slice(1);
+            enhancedPrompt += `### ${sectionTitle}\n${sectionData.content}\n\n`;
+          }
+        }
+
+        // Add processed document content
+        if (knowledgeBase.documents) {
+          const docs = knowledgeBase.documents;
+
+          // Add pitch deck content
+          if (docs.pitch_deck) {
+            enhancedPrompt += '### Pitch Deck Content\n';
+            enhancedPrompt += docs.pitch_deck + '\n\n';
+          }
+
+          // Add financial model content
+          if (docs.financial_model) {
+            enhancedPrompt += '### Financial Model\n';
+            enhancedPrompt += docs.financial_model + '\n\n';
+          }
+        }
+
+        if (context === 'public') {
+          enhancedPrompt += '\nIMPORTANT: Only share information from the knowledge base above. If asked about something not covered, politely say you don\'t have that information available.\n';
+        }
+      }
+
+      // Add privacy restrictions for public context
+      if (context === 'public') {
+        enhancedPrompt += `\n\n## ⚠️ PUBLIC MODE - PRIVACY RESTRICTIONS ⚠️
+You are in PUBLIC mode. A visitor is chatting with you via the public link.
+
+CRITICAL RESTRICTIONS:
+1. ONLY reference information from documents marked as "public" in the knowledge base
+2. DO NOT mention or reference private memories, beliefs, or personal information
+3. DO NOT discuss the owner's private conversations or activities
+4. DO NOT use memory-related capabilities (those tools are disabled)
+5. If asked about private information, politely say: "That information is private"
+6. Stick to public knowledge base content and web search results only
+7. Be helpful and informative, but maintain privacy boundaries
+
+Remember: You're representing the owner to visitors, but protecting their privacy.`;
       }
 
       // Add tool usage instructions
@@ -2101,10 +2499,28 @@ Use this to understand time references like "yesterday", "next week", "this mont
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-    // Build request with tools
+    // === TOOL FILTERING BASED ON CONTEXT ===
+    let filteredTools = tools;
+    if (context === 'public') {
+      // For public context, only allow web_search
+      // Remove all private-only tools: memory, beliefs, mental model, image generation, link settings, etc.
+      const publicAllowedTools = ['web_search'];
+
+      filteredTools = tools.map(t => ({
+        function_declarations: t.function_declarations.filter(fd =>
+          publicAllowedTools.includes(fd.name)
+        )
+      })).filter(t => t.function_declarations.length > 0);
+
+      console.log(`[Chat] Public context - filtered to ${filteredTools[0]?.function_declarations?.length || 0} tools`);
+    } else {
+      console.log(`[Chat] Private context - all ${tools[0]?.function_declarations?.length || 0} tools available`);
+    }
+
+    // Build request with filtered tools
     const requestBody = {
       contents: contents,
-      tools: tools
+      tools: filteredTools
     };
 
     if (systemInstruction) {
@@ -2187,7 +2603,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
       }
 
       // Execute the tool
-      const toolResult = await executeTool(functionCall.name, functionCall.args || {}, userId);
+      const toolResult = await executeTool(functionCall.name, functionCall.args || {}, resolvedUserId);
 
       // Add the model's function call and our response to the conversation
       // For Gemini 3 Pro, we must pass back the entire original parts array
@@ -2298,6 +2714,10 @@ Use this to understand time references like "yesterday", "next week", "this mont
     // === MEMORY STORAGE ===
     // Memory storage handled via save_memory tool when AI decides to save
 
+    // === SAVE ASSISTANT MESSAGE ===
+    // Save the assistant's response to appropriate collection based on context
+    await saveMessage(resolvedUserId, 'assistant', text, context, visitorId);
+
     return res.status(200).json({
       success: true,
       content: text,
@@ -2312,7 +2732,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
     console.error('[Chat API Error]', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to generate response: ' + error.message
+      error: 'Failed to generate response: ' + error?.message
     });
   }
 };

@@ -18,6 +18,10 @@ async function verifyToken(idToken) {
 // Get recent visitor activity
 async function getRecentActivity(userId, limit = 20) {
   try {
+    // Get user's last activity check time
+    const userDoc = await db.collection('users').doc(userId).get();
+    const lastActivityCheck = userDoc.exists ? userDoc.data()?.lastActivityCheck : null;
+
     // Get recent visitors sorted by last visit
     const visitorsSnapshot = await db.collection('users').doc(userId)
       .collection('visitors')
@@ -55,26 +59,32 @@ async function getRecentActivity(userId, limit = 20) {
         let lastResponse = null;
 
         for (const msg of messages) {
-          if (msg.role === 'user' && !lastMessage) {
-            lastMessage = msg.content;
-          } else if (msg.role === 'assistant' && !lastResponse) {
-            lastResponse = msg.content;
+          if (msg?.role === 'user' && !lastMessage) {
+            lastMessage = msg?.content;
+          } else if (msg?.role === 'assistant' && !lastResponse) {
+            lastResponse = msg?.content;
           }
         }
 
         // Use lastMessage from visitor data as fallback
-        if (!lastMessage && visitorData.lastMessage) {
+        if (!lastMessage && visitorData?.lastMessage) {
           lastMessage = visitorData.lastMessage;
         }
 
         // Only add if we have at least a user message
         if (lastMessage) {
+          // Determine if this activity is new (unread)
+          const lastVisit = visitorData?.lastVisit;
+          const isNew = lastActivityCheck && lastVisit
+            ? lastVisit?.toMillis() > lastActivityCheck?.toMillis()
+            : true; // Default to new if no lastActivityCheck timestamp
+
           activities.push({
             visitorId: visitorId,
             lastMessage: lastMessage,
             lastResponse: lastResponse,
-            lastTimestamp: visitorData.lastVisit || messages[0]?.timestamp,
-            isNew: false // TODO: Implement real-time "new" detection in Phase 3
+            lastTimestamp: lastVisit || messages[0]?.timestamp,
+            isNew: isNew
           });
         }
       }
@@ -114,10 +124,15 @@ module.exports = async (req, res) => {
     const userId = await verifyToken(idToken);
 
     // Get limit from query params (default 20, max 50)
-    const limit = Math.min(parseInt(req.query.limit || '20', 10), 50);
+    const limit = Math.min(parseInt(req.query?.limit || '20', 10), 50);
 
     // Get recent activity
     const activities = await getRecentActivity(userId, limit);
+
+    // Update lastActivityCheck timestamp to mark activities as viewed
+    await db.collection('users').doc(userId).set({
+      lastActivityCheck: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
 
     return res.status(200).json({
       activities: activities,
@@ -127,7 +142,7 @@ module.exports = async (req, res) => {
   } catch (error) {
     console.error('Activity API error:', error);
     return res.status(500).json({
-      error: error.message || 'Internal server error'
+      error: error?.message || 'Internal server error'
     });
   }
 };
