@@ -221,6 +221,7 @@ module.exports = async (req, res) => {
         url: blob.url,
         blobUrl: blob.url,
         docKey: docKey,
+        visibility: 'public', // Default to public visibility
         uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
         // Text extraction results
         extractedText: extraction.text ? extraction.text.substring(0, 50000) : null, // Limit stored text
@@ -243,6 +244,7 @@ module.exports = async (req, res) => {
           fileUrl: blob.url,
           text: extraction.text.substring(0, 50000), // Limit for context window
           pageCount: extraction.pageCount || null,
+          visibility: 'public', // Default to public visibility
           uploadedAt: admin.firestore.FieldValue.serverTimestamp()
         };
 

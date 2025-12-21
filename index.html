@@ -1700,8 +1700,31 @@
             color: #ef4444;
         }
 
+        .panel-kb-privacy {
+            font-size: 10px;
+            padding: 2px 4px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--bg-surface);
+            color: var(--text-secondary);
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .panel-kb-item:hover .panel-kb-privacy {
+            opacity: 1;
+        }
+
+        .panel-kb-privacy:focus {
+            opacity: 1;
+            outline: none;
+            border-color: var(--accent);
+        }
+
         .left-panel.collapsed .panel-kb-name,
-        .left-panel.collapsed .panel-kb-delete {
+        .left-panel.collapsed .panel-kb-delete,
+        .left-panel.collapsed .panel-kb-privacy {
             display: none;
         }
 
@@ -6106,63 +6129,6 @@
         </div>
     </header>
 
-    <!-- Feedback Modal -->
-    <div id="feedbackModal" class="feedback-modal">
-        <div class="feedback-modal-overlay" id="feedbackModalOverlay"></div>
-        <div class="feedback-modal-content">
-            <div class="feedback-modal-header">
-                <div class="feedback-modal-title">
-                    <span>💬</span>
-                    <span>Send Feedback</span>
-                </div>
-                <button id="feedbackModalClose" class="modal-close-btn" aria-label="Close modal">×</button>
-            </div>
-            <div class="feedback-modal-body">
-                <!-- Screenshot Section -->
-                <div class="feedback-form-group">
-                    <label class="feedback-form-label">Screenshot</label>
-                    <div class="feedback-screenshot-preview" id="feedbackScreenshotPreview">
-                        <span class="screenshot-placeholder">Capturing...</span>
-                    </div>
-                    <button id="retakeScreenshotBtn" class="feedback-retake-btn">
-                        <span>📷</span> Retake Screenshot
-                    </button>
-                </div>
-
-                <!-- Type Section -->
-                <div class="feedback-form-group">
-                    <label class="feedback-form-label">Type</label>
-                    <select id="feedbackTypeSelect" class="feedback-select">
-                        <option value="bug">🐛 Bug Report</option>
-                        <option value="feature">💡 Feature Request</option>
-                        <option value="other">💬 Other</option>
-                    </select>
-                </div>
-
-                <!-- Message Section -->
-                <div class="feedback-form-group">
-                    <label class="feedback-form-label">Your Feedback</label>
-                    <textarea id="feedbackMessageInput" class="feedback-textarea" placeholder="Describe the issue or suggestion..." rows="4" maxlength="2000"></textarea>
-                    <div class="feedback-char-count">
-                        <span id="feedbackCharCount">0</span>/2000
-                    </div>
-                </div>
-            </div>
-            <div class="feedback-modal-footer">
-                <button id="feedbackCancelBtn" class="feedback-btn feedback-btn-secondary">Cancel</button>
-                <button type="button" id="feedbackSubmitBtn" class="feedback-btn feedback-btn-primary" onclick="submitModalFeedback()">
-                    <span class="btn-text">Submit Feedback</span>
-                    <span class="btn-loading hidden">Sending...</span>
-                </button>
-            </div>
-            <!-- Success Message -->
-            <div id="feedbackSuccessMessage" class="feedback-success hidden">
-                <span class="success-icon">✓</span>
-                <span>Thank you! Your feedback has been submitted.</span>
-            </div>
-        </div>
-    </div>
-
     <!-- Activity Feed Modal -->
     <div id="activityModal" class="activity-modal hidden">
         <div class="activity-modal-overlay"></div>
@@ -6247,7 +6213,7 @@
                         <div class="panel-kb-list" id="panelKbList">
                             <!-- KB files will be listed here -->
                         </div>
-                        <input type="file" id="panelKbFileInput" class="hidden" accept=".pdf,.doc,.docx,.txt,.md,.json" multiple>
+                        <input type="file" id="panelKbFileInput" class="hidden" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.csv,.pptx,.ppt,.doc,.docx,.txt,.md,.json" multiple>
                         <button class="panel-upload-btn" id="panelUploadBtn">
                             <span>+</span>
                             <span>Upload Document</span>
@@ -6255,13 +6221,6 @@
                     </div>
                 </div>
 
-                <!-- Feedback Section (admin only) - Just a button now -->
-                <div class="left-panel-section" id="feedbackSection" style="display: none;">
-                    <button id="openFeedbackModalBtn" class="panel-button panel-button-secondary" style="width: 100%; margin-top: 8px;">
-                        <span class="button-icon">💬</span>
-                        <span>Send Feedback</span>
-                    </button>
-                </div>
             </div>
 
             <!-- Panel Footer (Account) -->
@@ -6546,10 +6505,6 @@
                     <span class="tab-icon">📈</span>
                     <span class="tab-label">Analytics</span>
                 </button>
-                <button class="panel-tab" data-tab="feedback" id="feedbackTabBtn" style="display: none;">
-                    <span class="tab-icon">💬</span>
-                    <span class="tab-label">Feedback</span>
-                </button>
             </div>
 
             <!-- Tab Content Container -->
@@ -6582,11 +6537,11 @@
                         <!-- Alert Container -->
                         <div id="panelAlertContainer" class="panel-alert-container"></div>
 
-                        <!-- Username Section -->
-                        <div class="panel-section">
-                            <h3 class="panel-section-title">Your Username</h3>
-                            <p class="panel-section-subtitle">Choose a unique username for your link</p>
+                        <!-- Public Link Section -->
+                        <div class="panel-section" id="panelLinkConfigSection">
+                            <h3 class="panel-section-title">Mindclone Link</h3>
 
+                            <!-- Username -->
                             <div class="panel-form-group">
                                 <label class="panel-label">Username</label>
                                 <span class="panel-hint">3-20 characters, lowercase letters, numbers, and underscores only</span>
@@ -6607,80 +6562,23 @@
                                 <button id="panelClaimUsernameBtn" class="panel-button" disabled>Claim Username</button>
                                 <button id="panelReleaseUsernameBtn" class="panel-button panel-button-danger hidden">Release Username</button>
                             </div>
-                        </div>
 
-                        <!-- Link Configuration Section -->
-                        <div class="panel-section" id="panelLinkConfigSection">
-                            <h3 class="panel-section-title">Link Configuration</h3>
-                            <p class="panel-section-subtitle">Control how your link appears to its visitors</p>
-
-                            <div class="panel-form-group">
+                            <!-- Enable Toggle -->
+                            <div class="panel-form-group" id="panelEnableLinkGroup" style="display: none;">
                                 <label class="panel-label">Enable Link</label>
-                                <span class="panel-hint">Allow anyone to chat with your link</span>
+                                <span class="panel-hint">When on, anyone with your link can chat with your mindclone</span>
                                 <label class="toggle-switch">
                                     <input type="checkbox" id="panelLinkEnabledToggle">
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
 
-                            <div class="panel-form-group">
-                                <label class="panel-label">Display Name</label>
-                                <span class="panel-hint">Your name shown to visitors on your public link page</span>
-                                <input type="text" id="panelDisplayNameInput" class="panel-input" placeholder="Your Name">
-                            </div>
-
-                            <div class="panel-form-group">
-                                <label class="panel-label">Bio</label>
-                                <span class="panel-hint">Tell visitors about yourself (max 200 characters)</span>
-                                <textarea id="panelBioInput" class="panel-textarea" placeholder="Software engineer, AI enthusiast, avid reader..." maxlength="200"></textarea>
-                                <div class="char-count">
-                                    <span id="panelBioCharCount">0</span>/200
-                                </div>
-                            </div>
-
-                            <div class="panel-form-group">
-                                <label class="panel-label">Custom Greeting (Optional)</label>
-                                <span class="panel-hint">First message visitors see when they open your link</span>
-                                <textarea id="panelGreetingInput" class="panel-textarea" placeholder="Hi! I'm [Your Name]'s Mindclone. Ask me anything!"></textarea>
-                            </div>
-
-                            <button id="panelSaveSettingsBtn" class="panel-button panel-button-primary">Save Settings</button>
-                        </div>
-
-                        <!-- Link Preview Section -->
-                        <div class="panel-section" id="panelLinkPreviewSection" style="display: none;">
-                            <h3 class="panel-section-title">Your Link</h3>
-                            <p class="panel-section-subtitle">Share this link with anyone to let them chat with your Mindclone</p>
-
-                            <div class="link-preview">
-                                <div class="link-url">
-                                    <a href="#" id="panelPublicLinkUrl" target="_blank"></a>
-                                </div>
+                            <!-- Copy Link (shown when claimed) -->
+                            <div id="panelLinkPreviewSection" style="display: none;">
                                 <button id="panelCopyLinkBtn" class="copy-btn">Copy Link</button>
                             </div>
                         </div>
 
-                        <!-- Knowledge Base Section -->
-                        <div class="panel-section">
-                            <h3 class="panel-section-title">📚 Knowledge Base</h3>
-                            <p class="panel-section-subtitle">Upload documents and control who can see them - keep private for yourself only, or share publicly via your link</p>
-
-                            <!-- Document List -->
-                            <div id="knowledgeBaseList" class="knowledge-base-list">
-                                <div class="knowledge-base-empty">
-                                    <div class="empty-icon">📄</div>
-                                    <div class="empty-text">No documents uploaded yet</div>
-                                    <div class="empty-hint">Upload PDFs, PowerPoints, Word docs, images, or Excel files. Set each document as Public or Private.</div>
-                                </div>
-                            </div>
-
-                            <!-- Upload Button -->
-                            <input type="file" id="knowledgeBaseFileInput" style="display: none;" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.csv,.pptx,.ppt,.doc,.docx,.txt" multiple>
-                            <button id="uploadKnowledgeBaseBtn" class="panel-button panel-button-primary">
-                                <span class="button-icon">📤</span>
-                                <span>Upload Documents</span>
-                            </button>
-                        </div>
                     </div>
                 </div>
 
@@ -6725,37 +6623,6 @@
                     </div>
                 </div>
 
-                <!-- Feedback Tab (Admin Only) -->
-                <div class="panel-tab-content" id="feedbackTab">
-                    <div class="feedback-scroll-container">
-                        <div class="panel-section">
-                            <h3 class="panel-section-title">User Feedback</h3>
-                            <p class="panel-section-subtitle">Review and manage feedback submissions</p>
-
-                            <div class="feedback-filters">
-                                <label class="panel-label">Status Filter</label>
-                                <select id="feedbackStatusFilter" class="panel-select">
-                                    <option value="all">All</option>
-                                    <option value="new" selected>New</option>
-                                    <option value="reviewed">Reviewed</option>
-                                    <option value="resolved">Resolved</option>
-                                </select>
-                            </div>
-
-                            <button id="refreshFeedbackBtn" class="panel-button" style="margin-top: 12px;">
-                                Refresh
-                            </button>
-                        </div>
-
-                        <div id="feedbackList" class="feedback-list">
-                            <!-- Feedback items will be dynamically added here -->
-                            <div class="feedback-empty">
-                                <div class="icon">💬</div>
-                                <div class="message">No feedback yet<br>Click Refresh to load</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -6972,13 +6839,8 @@
         const panelReleaseUsernameBtn = document.getElementById('panelReleaseUsernameBtn');
         const panelDeleteUsernameIcon = document.getElementById('panelDeleteUsernameIcon');
         const panelLinkEnabledToggle = document.getElementById('panelLinkEnabledToggle');
-        const panelDisplayNameInput = document.getElementById('panelDisplayNameInput');
-        const panelBioInput = document.getElementById('panelBioInput');
-        const panelBioCharCount = document.getElementById('panelBioCharCount');
-        const panelGreetingInput = document.getElementById('panelGreetingInput');
-        const panelSaveSettingsBtn = document.getElementById('panelSaveSettingsBtn');
+        const panelEnableLinkGroup = document.getElementById('panelEnableLinkGroup');
         const panelLinkPreviewSection = document.getElementById('panelLinkPreviewSection');
-        const panelPublicLinkUrl = document.getElementById('panelPublicLinkUrl');
         const panelCopyLinkBtn = document.getElementById('panelCopyLinkBtn');
         const panelAlertContainer = document.getElementById('panelAlertContainer');
 
@@ -7682,7 +7544,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
         // Restore last active tab on page load
         function restorePanelTab() {
             const savedTab = localStorage.getItem('panelActiveTab');
-            if (savedTab && ['activity', 'settings', 'analytics', 'feedback'].includes(savedTab)) {
+            if (savedTab && ['activity', 'settings', 'analytics'].includes(savedTab)) {
                 switchPanelTab(savedTab);
             }
         }
@@ -7695,378 +7557,6 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 history.replaceState(null, null, window.location.pathname);
             }
         }
-
-        // ==================== FEEDBACK SECTION ====================
-
-        let feedbackScreenshotData = null;
-
-        // Initialize feedback section event listeners
-        function initFeedbackTab() {
-            const captureBtn = document.getElementById('captureScreenshotBtn');
-            const removeBtn = document.getElementById('removeScreenshotBtn');
-            const feedbackMessage = document.getElementById('feedbackMessage');
-            const submitBtn = document.getElementById('submitFeedbackBtn');
-            const charCount = document.getElementById('feedbackCharCount');
-            const sectionHeader = document.getElementById('feedbackSectionHeader');
-            const sectionContent = document.getElementById('feedbackSectionContent');
-            const expandIcon = document.getElementById('feedbackExpandIcon');
-
-            // Setup expand/collapse toggle for feedback section
-            if (sectionHeader && sectionContent && expandIcon) {
-                sectionHeader.addEventListener('click', function() {
-                    const isExpanded = sectionContent.style.display !== 'none';
-                    sectionContent.style.display = isExpanded ? 'none' : 'block';
-                    expandIcon.textContent = isExpanded ? '▶' : '▼';
-                });
-            }
-
-            if (captureBtn) {
-                captureBtn.addEventListener('click', captureScreenshot);
-            }
-
-            if (removeBtn) {
-                removeBtn.addEventListener('click', removeScreenshot);
-            }
-
-            if (feedbackMessage) {
-                feedbackMessage.addEventListener('input', function() {
-                    if (charCount) {
-                        charCount.textContent = this.value.length;
-                    }
-                    updateFeedbackSubmitButton();
-                });
-            }
-
-            if (submitBtn) {
-                submitBtn.addEventListener('click', submitFeedback);
-            }
-        }
-
-        // Capture screenshot using html2canvas
-        async function captureScreenshot() {
-            const captureBtn = document.getElementById('captureScreenshotBtn');
-            const preview = document.getElementById('screenshotPreview');
-            const screenshotImg = document.getElementById('screenshotImage');
-
-            try {
-                captureBtn.disabled = true;
-                captureBtn.innerHTML = '<span class="button-icon">...</span><span>Capturing...</span>';
-
-                // Dynamically load html2canvas if not already loaded
-                if (typeof html2canvas === 'undefined') {
-                    await new Promise((resolve, reject) => {
-                        const script = document.createElement('script');
-                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-                        script.onload = resolve;
-                        script.onerror = reject;
-                        document.head.appendChild(script);
-                    });
-                }
-
-                // Capture the main content area (excluding the right panel where feedback is)
-                const mainContent = document.querySelector('.main-content') || document.body;
-                const canvas = await html2canvas(mainContent, {
-                    scale: 0.5, // Reduce size for upload
-                    useCORS: true,
-                    allowTaint: true,
-                    logging: false
-                });
-
-                feedbackScreenshotData = canvas.toDataURL('image/jpeg', 0.7);
-                screenshotImg.src = feedbackScreenshotData;
-                preview.classList.remove('hidden');
-                captureBtn.classList.add('hidden');
-                updateFeedbackSubmitButton();
-
-            } catch (error) {
-                console.error('[Feedback] Screenshot capture failed:', error);
-                showPanelAlert('Failed to capture screenshot', 'error');
-            } finally {
-                captureBtn.disabled = false;
-                captureBtn.innerHTML = '<span class="button-icon">📷</span><span>Capture Screenshot</span>';
-            }
-        }
-
-        // Remove captured screenshot
-        function removeScreenshot() {
-            feedbackScreenshotData = null;
-            const preview = document.getElementById('screenshotPreview');
-            const captureBtn = document.getElementById('captureScreenshotBtn');
-            preview.classList.add('hidden');
-            captureBtn.classList.remove('hidden');
-            updateFeedbackSubmitButton();
-        }
-
-        // Update submit button state
-        function updateFeedbackSubmitButton() {
-            const feedbackMessage = document.getElementById('feedbackMessage');
-            const submitBtn = document.getElementById('submitFeedbackBtn');
-            if (feedbackMessage && submitBtn) {
-                submitBtn.disabled = feedbackMessage.value.trim().length < 10;
-            }
-        }
-
-        // Submit feedback to API
-        async function submitFeedback() {
-            const feedbackMessage = document.getElementById('feedbackMessage');
-            const feedbackType = document.getElementById('feedbackType');
-            const submitBtn = document.getElementById('submitFeedbackBtn');
-            const successMsg = document.getElementById('feedbackSuccess');
-
-            if (!feedbackMessage || feedbackMessage.value.trim().length < 10) {
-                showPanelAlert('Please enter at least 10 characters of feedback', 'error');
-                return;
-            }
-
-            try {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<span class="button-icon">...</span><span>Submitting...</span>';
-
-                const payload = {
-                    userId: currentUser?.uid || 'anonymous',
-                    userEmail: currentUser?.email || 'anonymous',
-                    type: feedbackType?.value || 'other',
-                    message: feedbackMessage.value.trim(),
-                    screenshot: feedbackScreenshotData,
-                    timestamp: new Date().toISOString(),
-                    userAgent: navigator.userAgent,
-                    url: window.location.href
-                };
-
-                const response = await fetch('/api/feedback', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to submit feedback');
-                }
-
-                // Show success message
-                successMsg.classList.remove('hidden');
-                feedbackMessage.value = '';
-                removeScreenshot();
-                document.getElementById('feedbackCharCount').textContent = '0';
-
-                setTimeout(() => {
-                    successMsg.classList.add('hidden');
-                }, 5000);
-
-            } catch (error) {
-                console.error('[Feedback] Submission failed:', error);
-                showPanelAlert('Failed to submit feedback. Please try again.', 'error');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<span class="button-icon">📤</span><span>Submit Feedback</span>';
-                updateFeedbackSubmitButton();
-            }
-        }
-
-        // ==================== FEEDBACK MODAL ====================
-
-        let feedbackModalScreenshot = null;
-
-        // Open feedback modal
-        async function openFeedbackModal() {
-            const modal = document.getElementById('feedbackModal');
-            const preview = document.getElementById('feedbackScreenshotPreview');
-
-            // Show modal
-            modal.classList.add('visible');
-
-            // Capture screenshot automatically when modal opens
-            await captureModalScreenshot();
-        }
-
-        // Close feedback modal
-        function closeFeedbackModal() {
-            const modal = document.getElementById('feedbackModal');
-            modal.classList.remove('visible');
-
-            // Reset form
-            feedbackModalScreenshot = null;
-            document.getElementById('feedbackMessageInput').value = '';
-            document.getElementById('feedbackCharCount').textContent = '0';
-            document.getElementById('feedbackSuccessMessage').classList.add('hidden');
-            document.getElementById('feedbackScreenshotPreview').innerHTML = '<span class="screenshot-placeholder">Capturing...</span>';
-        }
-
-        // Capture screenshot for modal (crops bottom bar)
-        async function captureModalScreenshot() {
-            const preview = document.getElementById('feedbackScreenshotPreview');
-
-            try {
-                preview.innerHTML = '<span class="screenshot-placeholder">Capturing...</span>';
-
-                // Dynamically load html2canvas if not already loaded
-                if (typeof html2canvas === 'undefined') {
-                    await new Promise((resolve, reject) => {
-                        const script = document.createElement('script');
-                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-                        script.onload = resolve;
-                        script.onerror = reject;
-                        document.head.appendChild(script);
-                    });
-                }
-
-                // Capture the main content area
-                const mainContent = document.querySelector('.main-content') || document.body;
-
-                // Get the height and crop bottom 60px (input bar)
-                const rect = mainContent.getBoundingClientRect();
-                const cropBottom = 60; // Height of input bar to crop
-
-                const canvas = await html2canvas(mainContent, {
-                    scale: 0.5,
-                    useCORS: true,
-                    allowTaint: true,
-                    logging: false,
-                    height: rect.height - cropBottom, // Crop bottom bar
-                    y: 0
-                });
-
-                feedbackModalScreenshot = canvas.toDataURL('image/jpeg', 0.7);
-                preview.innerHTML = `<img src="${feedbackModalScreenshot}" alt="Screenshot">`;
-
-            } catch (error) {
-                console.error('[Feedback Modal] Screenshot capture failed:', error);
-                preview.innerHTML = '<span class="screenshot-placeholder">Failed to capture</span>';
-            }
-        }
-
-        // Submit feedback from modal
-        async function submitModalFeedback() {
-            console.log('[Feedback Modal] Submit button clicked');
-
-            const messageInput = document.getElementById('feedbackMessageInput');
-            const typeSelect = document.getElementById('feedbackTypeSelect');
-            const submitBtn = document.getElementById('feedbackSubmitBtn');
-            const successMsg = document.getElementById('feedbackSuccessMessage');
-
-            if (!submitBtn) {
-                console.error('[Feedback Modal] Submit button not found');
-                return;
-            }
-
-            const btnText = submitBtn.querySelector('.btn-text');
-            const btnLoading = submitBtn.querySelector('.btn-loading');
-
-            if (!messageInput || messageInput.value.trim().length < 10) {
-                alert('Please enter at least 10 characters of feedback');
-                return;
-            }
-
-            try {
-                submitBtn.disabled = true;
-                if (btnText) btnText.classList.add('hidden');
-                if (btnLoading) btnLoading.classList.remove('hidden');
-
-                console.log('[Feedback Modal] Preparing payload...');
-
-                // Get current user from Firebase auth
-                const user = auth.currentUser;
-                const payload = {
-                    userId: user?.uid || 'anonymous',
-                    userEmail: user?.email || 'anonymous',
-                    type: typeSelect?.value || 'other',
-                    message: messageInput.value.trim(),
-                    screenshot: feedbackModalScreenshot,
-                    timestamp: new Date().toISOString(),
-                    userAgent: navigator.userAgent,
-                    url: window.location.href
-                };
-
-                console.log('[Feedback Modal] Sending to /api/feedback...');
-
-                const response = await fetch('/api/feedback', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                console.log('[Feedback Modal] Response status:', response.status);
-
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.error || 'Failed to submit feedback');
-                }
-
-                // Show success message
-                if (successMsg) successMsg.classList.remove('hidden');
-
-                // Close modal after 2 seconds
-                setTimeout(() => {
-                    closeFeedbackModal();
-                }, 2000);
-
-            } catch (error) {
-                console.error('[Feedback Modal] Submission failed:', error);
-                alert('Failed to submit feedback: ' + error.message);
-            } finally {
-                submitBtn.disabled = false;
-                if (btnText) btnText.classList.remove('hidden');
-                if (btnLoading) btnLoading.classList.add('hidden');
-            }
-        }
-
-        // Initialize feedback modal
-        function initFeedbackModal() {
-            // Open modal button
-            const openBtn = document.getElementById('openFeedbackModalBtn');
-            if (openBtn) {
-                openBtn.addEventListener('click', openFeedbackModal);
-            }
-
-            // Close modal
-            const closeBtn = document.getElementById('feedbackModalClose');
-            const overlay = document.getElementById('feedbackModalOverlay');
-            const cancelBtn = document.getElementById('feedbackCancelBtn');
-
-            if (closeBtn) closeBtn.addEventListener('click', closeFeedbackModal);
-            if (overlay) overlay.addEventListener('click', closeFeedbackModal);
-            if (cancelBtn) cancelBtn.addEventListener('click', closeFeedbackModal);
-
-            // Retake screenshot button
-            const retakeBtn = document.getElementById('retakeScreenshotBtn');
-            if (retakeBtn) {
-                retakeBtn.addEventListener('click', captureModalScreenshot);
-            }
-
-            // Message input character count
-            const messageInput = document.getElementById('feedbackMessageInput');
-            const charCount = document.getElementById('feedbackCharCount');
-            if (messageInput && charCount) {
-                messageInput.addEventListener('input', () => {
-                    charCount.textContent = messageInput.value.length;
-                });
-            }
-
-            // Submit button
-            const submitBtn = document.getElementById('feedbackSubmitBtn');
-            if (submitBtn) {
-                console.log('[Feedback Modal] Attaching submit button listener');
-                submitBtn.addEventListener('click', submitModalFeedback);
-            } else {
-                console.error('[Feedback Modal] Submit button not found during init!');
-            }
-
-            // Close on Escape key
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    const modal = document.getElementById('feedbackModal');
-                    if (modal && modal.classList.contains('visible')) {
-                        closeFeedbackModal();
-                    }
-                }
-            });
-        }
-
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            initFeedbackTab();
-            initFeedbackModal();
-        });
 
         // ==================== PANEL ALERTS ====================
 
@@ -8088,14 +7578,28 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
         function initializePanelSettings() {
             console.log('[Panel] Initializing settings...');
 
-            if (!panelBioInput || !panelUsernameInput) {
+            if (!panelUsernameInput) {
                 console.error('[Panel] Settings elements not found!');
                 return;
             }
 
-            // Bio character count
-            panelBioInput.addEventListener('input', () => {
-                panelBioCharCount.textContent = panelBioInput.value.length;
+            // Auto-save when link enabled toggle changes
+            panelLinkEnabledToggle.addEventListener('change', async () => {
+                if (!auth.currentUser || !panelCurrentUsername) return;
+
+                try {
+                    const userDocRef = doc(db, 'users', auth.currentUser.uid);
+                    await setDoc(userDocRef, {
+                        linkEnabled: panelLinkEnabledToggle.checked,
+                        updatedAt: serverTimestamp()
+                    }, { merge: true });
+
+                    const status = panelLinkEnabledToggle.checked ? 'enabled' : 'disabled';
+                    showPanelAlert(`Link ${status}`, 'success');
+                } catch (error) {
+                    console.error('Error saving link status:', error);
+                    showPanelAlert('Failed to update link status', 'error');
+                }
             });
 
             // Username availability checking
@@ -8286,49 +7790,9 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 }
             });
 
-            // Save settings
-            panelSaveSettingsBtn.addEventListener('click', async () => {
-                if (!auth.currentUser || !panelCurrentUsername) {
-                    showPanelAlert('Please claim a username first', 'warning');
-                    return;
-                }
-
-                panelSaveSettingsBtn.disabled = true;
-                panelSaveSettingsBtn.innerHTML = '<span class="loading-spinner"></span> Saving...';
-
-                try {
-                    const userDocRef = doc(db, 'users', auth.currentUser.uid);
-
-                    await setDoc(userDocRef, {
-                        linkEnabled: panelLinkEnabledToggle.checked,
-                        displayName: panelDisplayNameInput.value.trim() || auth.currentUser.displayName || panelCurrentUsername,
-                        bio: panelBioInput.value.trim(),
-                        customGreeting: panelGreetingInput.value.trim(),
-                        updatedAt: serverTimestamp()
-                    }, { merge: true });
-
-                    showPanelAlert('Settings saved successfully!', 'success');
-
-                    if (panelLinkEnabledToggle.checked) {
-                        showPanelLinkPreview(panelCurrentUsername);
-                    } else {
-                        panelLinkPreviewSection.style.display = 'none';
-                    }
-
-                    // Reload link status
-                    await loadLinkStatus();
-                } catch (error) {
-                    console.error('Error saving settings:', error);
-                    showPanelAlert('Failed to save settings', 'error');
-                } finally {
-                    panelSaveSettingsBtn.disabled = false;
-                    panelSaveSettingsBtn.textContent = 'Save Settings';
-                }
-            });
-
             // Copy link
             panelCopyLinkBtn.addEventListener('click', async () => {
-                const url = panelPublicLinkUrl.href;
+                const url = `https://mindclone.link/${panelCurrentUsername}`;
                 try {
                     await navigator.clipboard.writeText(url);
                     panelCopyLinkBtn.textContent = 'Copied!';
@@ -8353,6 +7817,8 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             panelClaimUsernameBtn.classList.add('hidden');
             panelReleaseUsernameBtn.classList.add('hidden');
             panelDeleteUsernameIcon.classList.remove('hidden'); // Show delete button
+            panelEnableLinkGroup.style.display = 'block'; // Show enable toggle
+            showPanelLinkPreview(username); // Show link preview
         }
 
         // Update UI for no username
@@ -8366,14 +7832,12 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             panelClaimUsernameBtn.textContent = 'Claim Username';
             panelReleaseUsernameBtn.classList.add('hidden');
             panelDeleteUsernameIcon.classList.add('hidden'); // Hide delete button
-            panelLinkPreviewSection.style.display = 'none';
+            panelEnableLinkGroup.style.display = 'none'; // Hide enable toggle
+            panelLinkPreviewSection.style.display = 'none'; // Hide link preview
         }
 
-        // Show link preview
+        // Show link preview (just the copy button)
         function showPanelLinkPreview(username) {
-            const url = `https://mindclone.link/${username}`;
-            panelPublicLinkUrl.href = url;
-            panelPublicLinkUrl.textContent = url;
             panelLinkPreviewSection.style.display = 'block';
         }
 
@@ -8396,27 +7860,11 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                     if (userData.username) {
                         panelCurrentUsername = userData.username;
                         updatePanelUIForClaimedUsername(userData.username);
-                        // Show feedback section in left panel only for admin user
-                        if (userData.username === 'alok') {
-                            const feedbackSection = document.getElementById('feedbackSection');
-                            if (feedbackSection) feedbackSection.style.display = '';
-                            // Also show Feedback tab in right panel for admin
-                            const feedbackTabBtn = document.getElementById('feedbackTabBtn');
-                            if (feedbackTabBtn) feedbackTabBtn.style.display = '';
-                        }
                     } else {
                         updatePanelUIForNoUsername();
                     }
 
                     panelLinkEnabledToggle.checked = userData.linkEnabled || false;
-                    panelDisplayNameInput.value = userData.displayName || auth.currentUser.displayName || '';
-                    panelBioInput.value = userData.bio || '';
-                    panelBioCharCount.textContent = panelBioInput.value.length;
-                    panelGreetingInput.value = userData.customGreeting || '';
-
-                    if (userData.linkEnabled && userData.username) {
-                        showPanelLinkPreview(userData.username);
-                    }
                 }
 
                 // Load knowledge base (don't let this break settings loading)
@@ -8724,13 +8172,28 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 console.log('[KB] Updating visibility for', docId, 'to', visibility);
                 const userId = auth.currentUser.uid;
 
-                // Update Firestore document with visibility field
-                await db.collection('users').doc(userId)
-                    .collection('linkKnowledgeBase').doc(docId)
-                    .update({
-                        visibility: visibility,
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                // 1. Update knowledgeBase collection (for UI display)
+                const kbDocRef = db.collection('users').doc(userId)
+                    .collection('knowledgeBase').doc(docId);
+
+                // Get the docKey so we can also update linkKnowledgeBase
+                const kbDoc = await kbDocRef.get();
+                const docKey = kbDoc.exists ? kbDoc.data().docKey : null;
+
+                await kbDocRef.update({
+                    visibility: visibility,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // 2. Also update linkKnowledgeBase/documents (for AI context)
+                if (docKey) {
+                    const linkKbRef = db.collection('users').doc(userId)
+                        .collection('linkKnowledgeBase').doc('documents');
+                    await linkKbRef.update({
+                        [`documents.${docKey}.visibility`]: visibility
                     });
+                    console.log('[KB] Also updated linkKnowledgeBase for docKey:', docKey);
+                }
 
                 const visibilityLabel = visibility === 'public' ? 'Public' : 'Private';
                 showPanelAlert(`Document set to ${visibilityLabel}`, 'success');
@@ -8739,7 +8202,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 console.error('[KB] Visibility update error:', error);
                 showPanelAlert('Failed to update visibility', 'error');
                 // Reload to revert UI to actual state
-                await loadKnowledgeBase();
+                await loadPanelKbFiles();
             }
         }
 
@@ -8814,136 +8277,6 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             }
             return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
-        }
-
-        // ==================== FEEDBACK ADMIN TAB (Admin Only) ====================
-
-        // Initialize feedback admin
-        function initializeFeedbackAdmin() {
-            const refreshBtn = document.getElementById('refreshFeedbackBtn');
-            const statusFilter = document.getElementById('feedbackStatusFilter');
-
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', () => {
-                    loadFeedbackAdmin();
-                });
-            }
-
-            if (statusFilter) {
-                statusFilter.addEventListener('change', () => {
-                    loadFeedbackAdmin();
-                });
-            }
-
-            console.log('[Feedback Admin] Initialized');
-        }
-
-        // Load feedback from Firestore
-        async function loadFeedbackAdmin() {
-            const feedbackList = document.getElementById('feedbackList');
-            const statusFilter = document.getElementById('feedbackStatusFilter');
-
-            if (!feedbackList) return;
-
-            const filterValue = statusFilter ? statusFilter.value : 'new';
-
-            try {
-                feedbackList.innerHTML = '<div class="feedback-empty"><div class="icon">⏳</div><div class="message">Loading...</div></div>';
-
-                // Query feedback collection
-                let feedbackQuery;
-                if (filterValue === 'all') {
-                    feedbackQuery = query(
-                        collection(db, 'feedback'),
-                        orderBy('submittedAt', 'desc'),
-                        limit(50)
-                    );
-                } else {
-                    feedbackQuery = query(
-                        collection(db, 'feedback'),
-                        where('status', '==', filterValue),
-                        orderBy('submittedAt', 'desc'),
-                        limit(50)
-                    );
-                }
-
-                const snapshot = await getDocs(feedbackQuery);
-
-                if (snapshot.empty) {
-                    feedbackList.innerHTML = '<div class="feedback-empty"><div class="icon">💬</div><div class="message">No feedback found</div></div>';
-                    return;
-                }
-
-                feedbackList.innerHTML = '';
-                snapshot.forEach(docSnap => {
-                    const feedback = docSnap.data();
-                    const card = createFeedbackCard(docSnap.id, feedback);
-                    feedbackList.appendChild(card);
-                });
-
-                console.log('[Feedback Admin] Loaded', snapshot.size, 'feedback items');
-            } catch (error) {
-                console.error('[Feedback Admin] Error loading feedback:', error);
-                feedbackList.innerHTML = '<div class="feedback-empty"><div class="icon">❌</div><div class="message">Error loading feedback<br>' + error.message + '</div></div>';
-            }
-        }
-
-        // Create feedback card element
-        function createFeedbackCard(feedbackId, feedback) {
-            const card = document.createElement('div');
-            card.className = 'feedback-card';
-
-            // Format date
-            let dateStr = 'Unknown';
-            if (feedback.submittedAt) {
-                const date = feedback.submittedAt.toDate ? feedback.submittedAt.toDate() : new Date(feedback.submittedAt);
-                dateStr = date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-            }
-
-            // Type badge class
-            const typeClass = feedback.type === 'bug' ? 'bug' : feedback.type === 'feature' ? 'feature' : 'other';
-
-            card.innerHTML = `
-                <div class="feedback-card-header">
-                    <span class="feedback-type-badge ${typeClass}">${feedback.type || 'other'}</span>
-                    <select class="feedback-status-select" data-feedback-id="${feedbackId}">
-                        <option value="new" ${feedback.status === 'new' ? 'selected' : ''}>New</option>
-                        <option value="reviewed" ${feedback.status === 'reviewed' ? 'selected' : ''}>Reviewed</option>
-                        <option value="resolved" ${feedback.status === 'resolved' ? 'selected' : ''}>Resolved</option>
-                    </select>
-                </div>
-                <div class="feedback-message">${escapeHtml(feedback.message || '')}</div>
-                <div class="feedback-meta">
-                    <span>From: ${escapeHtml(feedback.userEmail || feedback.userId || 'Anonymous')}</span>
-                    <span>${dateStr}</span>
-                </div>
-                ${feedback.screenshotUrl ? `<img src="${feedback.screenshotUrl}" class="feedback-screenshot-thumb" onclick="window.open('${feedback.screenshotUrl}', '_blank')" alt="Screenshot">` : ''}
-            `;
-
-            // Add status change listener
-            const statusSelect = card.querySelector('.feedback-status-select');
-            if (statusSelect) {
-                statusSelect.addEventListener('change', async (e) => {
-                    await updateFeedbackStatus(feedbackId, e.target.value);
-                });
-            }
-
-            return card;
-        }
-
-        // Update feedback status in Firestore
-        async function updateFeedbackStatus(feedbackId, newStatus) {
-            try {
-                const feedbackRef = doc(db, 'feedback', feedbackId);
-                await updateDoc(feedbackRef, {
-                    status: newStatus,
-                    updatedAt: serverTimestamp()
-                });
-                console.log('[Feedback Admin] Updated status to:', newStatus);
-            } catch (error) {
-                console.error('[Feedback Admin] Error updating status:', error);
-                alert('Failed to update status: ' + error.message);
-            }
         }
 
         // ==================== PANEL ANALYTICS TAB ====================
@@ -9416,6 +8749,21 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             });
         }
 
+        // Get file type icon based on file extension
+        function getFileTypeIcon(fileName) {
+            const ext = fileName.split('.').pop().toLowerCase();
+            const icons = {
+                pdf: '📕',
+                doc: '📘', docx: '📘',
+                xls: '📊', xlsx: '📊', csv: '📊',
+                ppt: '📙', pptx: '📙',
+                png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️',
+                txt: '📝', md: '📝',
+                json: '📋'
+            };
+            return icons[ext] || '📄';
+        }
+
         // Load KB files into panel
         async function loadPanelKbFiles() {
             if (!auth.currentUser || !panelKbList) return;
@@ -9432,14 +8780,30 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                     const data = docSnap.data();
                     count++;
 
+                    const visibility = data.visibility || 'public';
+                    const icon = getFileTypeIcon(data.fileName);
+
                     const item = document.createElement('div');
                     item.className = 'panel-kb-item';
                     item.innerHTML = `
-                        <span class="panel-kb-icon">📄</span>
+                        <span class="panel-kb-icon">${icon}</span>
                         <span class="panel-kb-name" title="${data.fileName}">${data.fileName}</span>
+                        <select class="panel-kb-privacy" data-doc-id="${docSnap.id}" title="Visibility">
+                            <option value="public" ${visibility === 'public' ? 'selected' : ''}>🌐</option>
+                            <option value="private" ${visibility === 'private' ? 'selected' : ''}>🔒</option>
+                        </select>
                         <button class="panel-kb-delete" title="Delete">✕</button>
                     `;
 
+                    // Privacy dropdown change
+                    const privacySelect = item.querySelector('.panel-kb-privacy');
+                    privacySelect.addEventListener('change', async (e) => {
+                        e.stopPropagation();
+                        const newVisibility = e.target.value;
+                        await updateDocumentVisibility(docSnap.id, newVisibility);
+                    });
+
+                    // Delete button
                     const deleteBtn = item.querySelector('.panel-kb-delete');
                     deleteBtn.addEventListener('click', async (e) => {
                         e.stopPropagation();
@@ -10195,8 +9559,6 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             initializePanelTabs();
             initializePanelSettings();
             initializePanelAnalytics();
-            initializeKnowledgeBase();
-            initializeFeedbackAdmin();
 
             // Set up real-time listener for activity feed
             setupActivityListener();

@@ -551,7 +551,6 @@ async function checkRateLimit(visitorId, userId) {
 // For private context: return all documents
 async function loadKnowledgeBase(userId, context = 'private') {
   try {
-    // For now, load from linkKnowledgeBase collection (will migrate to unified 'knowledge' collection in Phase 2)
     const kbDoc = await db.collection('users').doc(userId)
       .collection('linkKnowledgeBase').doc('config').get();
 
@@ -561,16 +560,28 @@ async function loadKnowledgeBase(userId, context = 'private') {
     const configData = kbDoc.exists ? kbDoc.data() : {};
     const docsData = docsDoc.exists ? docsDoc.data() : {};
 
-    // TODO Phase 2: Add privacy filtering when we migrate to unified 'knowledge' collection
-    // For now, linkKnowledgeBase documents are all considered public
-    // Future: filter documents by visibility field (visibility === 'public' for public context)
+    // Filter documents by visibility based on context
+    let filteredDocuments = docsData.documents || {};
+
+    if (context === 'public') {
+      // For public context, only include documents marked as public (or those without visibility field, defaulting to public)
+      filteredDocuments = {};
+      for (const [docKey, docData] of Object.entries(docsData.documents || {})) {
+        // Default to public if visibility is not set (backward compatibility)
+        const visibility = docData.visibility || 'public';
+        if (visibility === 'public') {
+          filteredDocuments[docKey] = docData;
+        }
+      }
+      console.log(`[Chat] Filtered ${Object.keys(docsData.documents || {}).length} docs to ${Object.keys(filteredDocuments).length} public docs for public context`);
+    }
 
     return {
       cof: configData.cof || null,
       sections: configData.sections || {},
       pitch_deck: configData.pitch_deck || null,
       financial_model: configData.financial_model || null,
-      documents: docsData.documents || {}
+      documents: filteredDocuments
     };
   } catch (error) {
     console.error('[Chat] Error loading knowledge base:', error);
