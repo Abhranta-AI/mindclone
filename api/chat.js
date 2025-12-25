@@ -210,7 +210,7 @@ const tools = [
       },
       {
         name: "browse_url",
-        description: "Fetch and read the content of a web page. Use this when the user shares a URL and wants you to look at, read, check, visit, learn from, explore, or understand content from the internet. CRITICAL: If the user shares ANY URL (blog, website, article, link) and asks you to do ANYTHING with it (learn, read, check, see, understand), you MUST use this tool. Returns the text content of the page.",
+        description: "Fetch and read the content of a web page OR PDF document. Use this when the user shares a URL and wants you to look at, read, check, visit, learn from, explore, or understand content from the internet. CRITICAL: If the user shares ANY URL (blog, website, article, link, PDF file) and asks you to do ANYTHING with it (learn, read, check, see, understand), you MUST use this tool. Works with HTML pages and PDF documents. Returns the text content.",
         parameters: {
           type: "object",
           properties: {
@@ -1159,11 +1159,52 @@ async function handleBrowseUrl(params = {}) {
 
     const contentType = response.headers.get('content-type') || '';
 
-    // Only process text/html content
+    // Handle PDF files
+    if (contentType.includes('application/pdf') || url.toLowerCase().endsWith('.pdf')) {
+      console.log(`[Tool] Detected PDF file, attempting to parse: ${url}`);
+      try {
+        const pdfParse = require('pdf-parse');
+        const buffer = await response.arrayBuffer();
+        const pdfData = await pdfParse(Buffer.from(buffer));
+
+        let textContent = pdfData.text || '';
+
+        // Clean up the text
+        textContent = textContent
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        // Truncate if too long
+        const maxLength = 15000;
+        if (textContent.length > maxLength) {
+          textContent = textContent.substring(0, maxLength) + '... [PDF content truncated]';
+        }
+
+        console.log(`[Tool] PDF parsed successfully: ${pdfData.numpages} pages, ${textContent.length} chars`);
+
+        return {
+          success: true,
+          url: url,
+          title: pdfData.info?.Title || 'PDF Document',
+          contentLength: textContent.length,
+          pageCount: pdfData.numpages,
+          content: textContent,
+          instruction: 'Read the PDF content above and summarize or answer questions about it. This is extracted text from a PDF document.'
+        };
+      } catch (pdfError) {
+        console.error('[Tool] Error parsing PDF:', pdfError);
+        return {
+          success: false,
+          error: `Failed to parse PDF: ${pdfError.message}`
+        };
+      }
+    }
+
+    // Only process text/html content for non-PDF files
     if (!contentType.includes('text/html') && !contentType.includes('text/plain')) {
       return {
         success: false,
-        error: `Cannot read this content type: ${contentType}. Only HTML and text pages are supported.`
+        error: `Cannot read this content type: ${contentType}. Only HTML, text, and PDF files are supported.`
       };
     }
 
@@ -2363,24 +2404,31 @@ IF NO RESULTS:
 - Say "I don't think you've mentioned [name] before - who is that?"
 - NEVER say "I couldn't find anything in my records"
 
-## BROWSING WEBSITES (browse_url tool):
-You can browse websites using the browse_url tool.
+## BROWSING WEBSITES & PDFs (browse_url tool):
+You can browse websites AND read PDF documents using the browse_url tool.
 
 **CRITICAL RULES FOR browse_url:**
 1. NEVER say "let me look at that website" or "I'll take a look" or "one moment while I check" BEFORE calling the tool
 2. Just SILENTLY call browse_url and then respond with what you found
-3. If the browse_url tool fails or times out, DON'T keep promising to look - just say "I couldn't access that website right now."
+3. If the browse_url tool fails or times out, DON'T keep promising to look - just say "I couldn't access that right now."
 4. NEVER ask the user to wait or come back later - give an immediate response
+5. This tool works for BOTH web pages AND PDF files - use it for any URL the user shares
+
+**PDF FILES:**
+When the user shares a PDF URL (e.g., ending in .pdf or from blob.vercel-storage.com), use browse_url to read its contents:
+- ALWAYS use browse_url for PDF URLs - it extracts the text automatically
+- Summarize the PDF content or answer questions about it
+- If it's a document like a roadmap, proposal, or report - read it and help the user with what they need
 
 EXAMPLES:
 User: "Go to myBorosil.com and see my photos"
-BAD: "I will certainly take a look. One moment while I gather my thoughts." (NEVER DO THIS)
-BAD: "Let me check that website for you." (NEVER DO THIS)
 GOOD: [silently call browse_url({url: "https://myborosil.com"}), then respond:] "I checked myBorosil.com! I saw [actual content from the page]."
 
+User: "here's my roadmap [Attached file: roadmap.pdf] File URL: https://...blob.vercel-storage.com/.../roadmap.pdf"
+GOOD: [silently call browse_url({url: "https://...blob.vercel-storage.com/.../roadmap.pdf"}), then respond:] "I've read your roadmap! Here's what I see: [summarize content]"
+
 If browse_url fails:
-BAD: "I'm still trying to access the website..." or "Let me try again..."
-GOOD: "I couldn't access myBorosil.com right now - the page didn't load. Can you tell me what you wanted me to see?"
+GOOD: "I couldn't access that right now - can you tell me what you wanted me to see?"
 
 ## WEB SEARCHING (web_search tool):
 You can search the internet for current information using the web_search tool. Use this when:
@@ -2560,6 +2608,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
     let usedMemorySearch = false; // Track if search_memory was called for UI animation
     let pendingMessage = null; // Text before tool calls (e.g., "Let me check...")
     let usedTool = null; // Track which tool was used
+    let lastMemorySearchResult = null; // Store memory search result for fallback responses
 
     // Check for function call in any part (not just parts[0])
     const findFunctionCall = (parts) => parts?.find(p => p.functionCall)?.functionCall;
@@ -2608,13 +2657,15 @@ Use this to understand time references like "yesterday", "next week", "this mont
         usedTool = functionCall.name;
       }
 
-      // Track if memory search was used (for "recalling" UI animation)
-      if (functionCall.name === 'search_memory') {
-        usedMemorySearch = true;
-      }
-
       // Execute the tool
       const toolResult = await executeTool(functionCall.name, functionCall.args || {}, resolvedUserId);
+
+      // Track if memory search was used (for "recalling" UI animation) and store result for fallback
+      if (functionCall.name === 'search_memory') {
+        usedMemorySearch = true;
+        lastMemorySearchResult = toolResult; // Store for potential fallback response
+        console.log(`[Memory Search] Stored result: ${toolResult?.matchCount || 0} matches, query: "${toolResult?.query}"`);
+      }
 
       // Add the model's function call and our response to the conversation
       // For Gemini 3 Pro, we must pass back the entire original parts array
@@ -2647,10 +2698,19 @@ Use this to understand time references like "yesterday", "next week", "this mont
       data = await response.json();
 
       if (!response.ok) {
+        console.log(`[Tool] API error after tool call: ${data.error?.message}`);
         throw new Error(data.error?.message || 'Gemini API request failed after tool call');
       }
 
       candidate = data.candidates?.[0];
+
+      // Log post-tool-call response for debugging
+      const postToolText = findText(candidate?.content?.parts) || '';
+      console.log(`[Tool] Post-tool response: ${postToolText.length} chars, finish: ${candidate?.finishReason || 'none'}`);
+      if (postToolText.length < 10) {
+        console.log(`[Tool] Warning: Short/empty response after tool call. Parts: ${JSON.stringify(candidate?.content?.parts?.map(p => Object.keys(p)))}`);
+      }
+
       functionCall = findFunctionCall(candidate?.content?.parts);
     }
 
@@ -2674,18 +2734,31 @@ Use this to understand time references like "yesterday", "next week", "this mont
                              text.includes('I apologize') && text.includes('unable') ||
                              text.trim().length < 5;
 
-    if (isFailedResponse && toolCallCount === 0) {
-      console.log('[Auto-Retry] Detected failed/empty response, attempting silent retry...');
+    if (isFailedResponse) {
+      console.log(`[Auto-Retry] Detected failed/empty response (toolCallCount: ${toolCallCount}), attempting silent retry...`);
 
-      // Add a gentle nudge to the conversation
-      contents.push({
-        role: 'model',
-        parts: [{ text: 'Let me think about this more carefully.' }]
-      });
-      contents.push({
-        role: 'user',
-        parts: [{ text: 'Please continue with your thoughts.' }]
-      });
+      // Use different nudge based on whether tools were called
+      if (toolCallCount > 0) {
+        // After tool calls, nudge the model to use the tool results
+        contents.push({
+          role: 'model',
+          parts: [{ text: 'Let me formulate a response based on what I found.' }]
+        });
+        contents.push({
+          role: 'user',
+          parts: [{ text: 'Yes, please share what you found.' }]
+        });
+      } else {
+        // No tools called, general nudge
+        contents.push({
+          role: 'model',
+          parts: [{ text: 'Let me think about this more carefully.' }]
+        });
+        contents.push({
+          role: 'user',
+          parts: [{ text: 'Please continue with your thoughts.' }]
+        });
+      }
 
       // Retry the API call
       requestBody.contents = contents;
@@ -2707,18 +2780,47 @@ Use this to understand time references like "yesterday", "next week", "this mont
           console.log('[Auto-Retry] Retry successful, using new response');
           text = retryText;
         } else {
-          console.log('[Auto-Retry] Retry also failed, using fallback');
-          // Don't set fallback here, let the final fallback handle it
+          console.log('[Auto-Retry] Retry also failed, will use fallback');
         }
       } else {
         console.log('[Auto-Retry] Retry request failed:', retryData.error?.message);
-        // Don't set fallback here, let the final fallback handle it
       }
     }
 
-    // Final fallback if still empty
+    // === MEMORY-SPECIFIC FALLBACK ===
+    // If memory search was performed but we still have no response, construct a helpful fallback
+    if ((!text || text.trim().length < 5) && usedMemorySearch && lastMemorySearchResult) {
+      console.log('[Memory Fallback] Constructing response from memory search result');
+
+      const memResult = lastMemorySearchResult;
+      const query = memResult.query || 'that';
+
+      if (memResult.matchCount > 0) {
+        // We found memories but AI failed to respond - construct from data
+        if (memResult.savedNotes && memResult.savedNotes.length > 0) {
+          // Use saved notes
+          const note = memResult.savedNotes[0];
+          text = `Yes, I remember! ${note.note}`;
+        } else if (memResult.userSaidAboutThis && memResult.userSaidAboutThis.length > 0) {
+          // Use what user said
+          const userSaid = memResult.userSaidAboutThis[0];
+          text = `Yes, I found where you mentioned ${query}. You said: "${userSaid.substring(0, 300)}${userSaid.length > 300 ? '...' : ''}"`;
+        } else if (memResult.allMatches && memResult.allMatches.length > 0) {
+          // Use any match
+          const match = memResult.allMatches[0];
+          text = `I found a mention of ${query} in our conversation. ${match.who}: "${match.message.substring(0, 200)}${match.message.length > 200 ? '...' : ''}"`;
+        }
+      } else {
+        // No memories found - give a natural "I don't remember" response
+        text = `Hmm, I don't think you've mentioned ${query} to me before. Who is that? I'd love to know more!`;
+      }
+
+      console.log(`[Memory Fallback] Generated response: "${text.substring(0, 100)}..."`);
+    }
+
+    // Final generic fallback if still empty
     if (!text || text.trim().length < 5) {
-      console.log('[Response] Using final fallback message');
+      console.log('[Response] Using final generic fallback message');
       text = "I'm having trouble responding to that right now. Could you try asking in a different way, or maybe break your question into smaller parts?";
     }
 
