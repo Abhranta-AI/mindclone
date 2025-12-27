@@ -9462,6 +9462,12 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
 
         // Show Chat Interface
         async function showChatInterface(user) {
+            // Prevent re-initialization if already shown
+            if (window.chatInterfaceInitialized) {
+                console.log('[Chat] Interface already initialized, skipping re-init');
+                return;
+            }
+            window.chatInterfaceInitialized = true;
             // Hide landing page
             const landingPage = document.getElementById('landingPage');
             if (landingPage) {
