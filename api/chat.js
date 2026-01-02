@@ -1312,7 +1312,7 @@ async function handleAnalyzeImage(args) {
     const prompt = question || 'Describe this image in detail. What do you see? Include any text, people, objects, and the overall scene.';
 
     const visionResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2556,7 +2556,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
       };
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
 
     // === TOOL FILTERING BASED ON CONTEXT ===
     let filteredTools = tools;
