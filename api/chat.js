@@ -1312,7 +1312,7 @@ async function handleAnalyzeImage(args) {
     const prompt = question || 'Describe this image in detail. What do you see? Include any text, people, objects, and the overall scene.';
 
     const visionResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2556,7 +2556,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
       };
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
     // === TOOL FILTERING BASED ON CONTEXT ===
     let filteredTools = tools;
@@ -2640,6 +2640,32 @@ Use this to understand time references like "yesterday", "next week", "this mont
       return text;
     };
 
+    // Detect and remove duplicated text (same content appearing twice consecutively)
+    const deduplicateText = (text) => {
+      if (!text || text.length < 40) return text;
+
+      // Check if text is duplicated (same content twice with possible minor separator)
+      const halfLength = Math.floor(text.length / 2);
+      for (let i = halfLength - 10; i <= halfLength + 10; i++) {
+        if (i < 10 || i >= text.length - 10) continue;
+
+        const firstHalf = text.substring(0, i).trim();
+        const secondHalf = text.substring(i).trim();
+
+        // Check for exact duplication
+        if (firstHalf.length > 20 && firstHalf === secondHalf) {
+          console.log('[Response] Detected duplicated text, removing duplicate');
+          return firstHalf;
+        }
+        // Check if second half starts with first half (partial duplication)
+        if (firstHalf.length > 30 && secondHalf.startsWith(firstHalf)) {
+          console.log('[Response] Detected partial duplication, using second half');
+          return secondHalf;
+        }
+      }
+      return text;
+    };
+
     let functionCall = findFunctionCall(candidate?.content?.parts);
 
     while (functionCall && toolCallCount < maxToolCalls) {
@@ -2718,6 +2744,9 @@ Use this to understand time references like "yesterday", "next week", "this mont
     // Then sanitize to remove any leaked internal tool call patterns
     const rawText = findText(candidate?.content?.parts) || '';
     let text = sanitizeResponse(rawText);
+
+    // Remove any duplicated text (Gemini sometimes echoes its own text)
+    text = deduplicateText(text);
 
     // Log response details for debugging empty responses
     console.log(`[Response] Raw text length: ${rawText.length}, Sanitized length: ${text.length}`);
@@ -2822,6 +2851,13 @@ Use this to understand time references like "yesterday", "next week", "this mont
     if (!text || text.trim().length < 5) {
       console.log('[Response] Using final generic fallback message');
       text = "I'm having trouble responding to that right now. Could you try asking in a different way, or maybe break your question into smaller parts?";
+    }
+
+    // === PENDING MESSAGE DEDUPLICATION ===
+    // Remove pendingMessage from content if it's duplicated at the start
+    if (pendingMessage && text.startsWith(pendingMessage)) {
+      text = text.substring(pendingMessage.length).trim();
+      console.log('[Response] Stripped duplicate pendingMessage from content');
     }
 
     // === MEMORY STORAGE ===
