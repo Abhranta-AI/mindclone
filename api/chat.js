@@ -940,7 +940,7 @@ async function handleGetLinkConversations(userId, params = {}) {
 }
 
 // Search through conversation history in Firestore
-async function handleSearchMemory(userId, params = {}) {
+async function handleSearchMemory(userId, params = {}, context = 'private', visitorId = null) {
   try {
     const query = params.query;
     const limit = Math.min(params.limit || 20, 50);
@@ -949,22 +949,44 @@ async function handleSearchMemory(userId, params = {}) {
       return { success: false, error: 'Search query is required' };
     }
 
-    console.log(`[Memory Search] Searching for "${query}" in user ${userId}'s messages and saved memories`);
+    // For public context, search visitor's conversation history (not owner's memories)
+    const isPublicContext = context === 'public' && visitorId;
 
-    // Get all messages (Firestore doesn't support full-text search, so we fetch and filter)
-    // Fetch recent messages (last 1000) ordered by timestamp
-    const messagesSnapshot = await db.collection('users').doc(userId)
-      .collection('messages')
-      .orderBy('timestamp', 'desc')
-      .limit(1000)
-      .get();
+    if (isPublicContext) {
+      console.log(`[Memory Search] Searching visitor ${visitorId}'s conversations for "${query}"`);
+    } else {
+      console.log(`[Memory Search] Searching for "${query}" in user ${userId}'s messages and saved memories`);
+    }
 
-    // Also fetch saved memories
-    const memoriesSnapshot = await db.collection('users').doc(userId)
-      .collection('memories')
-      .orderBy('createdAt', 'desc')
-      .limit(100)
-      .get();
+    // Get messages from the appropriate collection
+    let messagesSnapshot;
+    if (isPublicContext) {
+      // For public context, search visitor's messages
+      messagesSnapshot = await db.collection('users').doc(userId)
+        .collection('visitors').doc(visitorId)
+        .collection('messages')
+        .orderBy('timestamp', 'desc')
+        .limit(1000)
+        .get();
+    } else {
+      // For private context, search owner's messages
+      messagesSnapshot = await db.collection('users').doc(userId)
+        .collection('messages')
+        .orderBy('timestamp', 'desc')
+        .limit(1000)
+        .get();
+    }
+
+    // For public context, skip owner's saved memories (they're private)
+    // For private context, fetch saved memories
+    let memoriesSnapshot = { docs: [], empty: true };
+    if (!isPublicContext) {
+      memoriesSnapshot = await db.collection('users').doc(userId)
+        .collection('memories')
+        .orderBy('createdAt', 'desc')
+        .limit(100)
+        .get();
+    }
 
     // Search for query in message content (case-insensitive)
     const searchLower = query.toLowerCase();
@@ -1984,8 +2006,8 @@ async function handleGenerateImage(params = {}) {
 }
 
 // Execute tool call
-async function executeTool(toolName, toolArgs, userId) {
-  console.log(`[Tool] Executing: ${toolName}`, toolArgs);
+async function executeTool(toolName, toolArgs, userId, context = 'private', visitorId = null) {
+  console.log(`[Tool] Executing: ${toolName}`, toolArgs, `context: ${context}`);
 
   switch (toolName) {
     case 'get_link_settings':
@@ -1997,7 +2019,7 @@ async function executeTool(toolName, toolArgs, userId) {
     case 'get_link_conversations':
       return await handleGetLinkConversations(userId, toolArgs);
     case 'search_memory':
-      return await handleSearchMemory(userId, toolArgs);
+      return await handleSearchMemory(userId, toolArgs, context, visitorId);
     case 'browse_url':
       return await handleBrowseUrl(toolArgs);
     case 'analyze_image':
@@ -2598,7 +2620,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
     if (context === 'public') {
       // For public context, only allow web_search
       // Remove all private-only tools: memory, beliefs, mental model, image generation, link settings, etc.
-      const publicAllowedTools = ['web_search'];
+      const publicAllowedTools = ['web_search', 'analyze_image', 'search_memory'];
 
       filteredTools = tools.map(t => ({
         function_declarations: t.function_declarations.filter(fd =>
@@ -2743,7 +2765,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
       }
 
       // Execute the tool
-      const toolResult = await executeTool(functionCall.name, functionCall.args || {}, resolvedUserId);
+      const toolResult = await executeTool(functionCall.name, functionCall.args || {}, resolvedUserId, context, visitorId);
 
       // Track if memory search was used (for "recalling" UI animation) and store result for fallback
       if (functionCall.name === 'search_memory') {

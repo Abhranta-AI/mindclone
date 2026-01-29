@@ -630,6 +630,76 @@
             max-width: 280px;
         }
 
+        /* Visitor Auth Bar */
+        .visitor-auth-bar {
+            padding: 8px 16px;
+            text-align: center;
+            background: linear-gradient(to top, var(--bg) 80%, transparent);
+        }
+
+        .visitor-signed-out {
+            display: flex;
+            justify-content: center;
+        }
+
+        .visitor-sign-in-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 8px 16px;
+            color: var(--text-muted);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .visitor-sign-in-btn:hover {
+            border-color: var(--accent);
+            color: var(--text);
+        }
+
+        .visitor-sign-in-btn .google-icon {
+            flex-shrink: 0;
+        }
+
+        .visitor-signed-in {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .visitor-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .visitor-name {
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        .visitor-sign-out-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 4px 10px;
+            color: var(--text-muted);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .visitor-sign-out-btn:hover {
+            border-color: #e74c3c;
+            color: #e74c3c;
+        }
+
         /* Input Container - Floating style with gradient fade */
         .input-container {
             padding: 0 16px 16px 16px;
@@ -933,6 +1003,26 @@
             </div>
         </div>
 
+        <!-- Visitor Auth Bar -->
+        <div id="visitorAuthBar" class="visitor-auth-bar" style="display: none;">
+            <div id="visitorSignedOut" class="visitor-signed-out">
+                <button id="visitorSignInBtn" class="visitor-sign-in-btn">
+                    <svg class="google-icon" width="18" height="18" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Sign in to remember me
+                </button>
+            </div>
+            <div id="visitorSignedIn" class="visitor-signed-in" style="display: none;">
+                <img id="visitorAvatar" class="visitor-avatar" alt="You">
+                <span id="visitorName" class="visitor-name"></span>
+                <button id="visitorSignOutBtn" class="visitor-sign-out-btn">Sign out</button>
+            </div>
+        </div>
+
         <!-- Input Container -->
         <div id="inputContainer" class="input-container" style="display: none;">
             <div id="rateLimitWarning" class="rate-limit-warning" style="display: none;"></div>
@@ -988,8 +1078,8 @@
     <script type="module">
         // Firebase imports
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, doc, getDoc, collection } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, doc, getDoc, setDoc, collection } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
         // Initialize Firebase
         const firebaseConfig = {
@@ -1009,17 +1099,39 @@
         // Track if current user is the owner of this link
         let currentUserAuthToken = null;
 
-        // Check if user is logged in
+        // Check if user is logged in (handles both owner bypass and visitor auth)
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 try {
                     currentUserAuthToken = await user.getIdToken();
                     console.log('[Auth] User logged in, token available for owner bypass');
+
+                    // Update visitor auth state
+                    visitorUser = user;
+                    updateVisitorAuthUI();
+
+                    // Update visitorId to use Firebase UID
+                    const oldVisitorId = visitorId;
+                    visitorId = user.uid;
+                    console.log(`[Visitor Auth] Signed in as ${user.displayName}, visitorId: ${visitorId}`);
+
+                    // If this is a new sign-in (not page reload), update Firestore
+                    if (oldVisitorId && oldVisitorId !== user.uid) {
+                        await updateVisitorProfile(user);
+                    }
                 } catch (error) {
                     console.error('[Auth] Error getting token:', error);
                 }
             } else {
                 currentUserAuthToken = null;
+                visitorUser = null;
+                updateVisitorAuthUI();
+
+                // Fall back to localStorage-based visitorId
+                if (username) {
+                    visitorId = getOrCreateVisitorId();
+                    console.log('[Visitor Auth] Signed out, using anonymous visitorId:', visitorId);
+                }
             }
         });
 
@@ -1052,6 +1164,15 @@
         const voiceButton = document.getElementById('voiceButton');
         const sendButton = document.getElementById('sendButton');
         const typingIndicator = document.getElementById('typingIndicator');
+
+        // Visitor Auth Elements
+        const visitorAuthBar = document.getElementById('visitorAuthBar');
+        const visitorSignedOut = document.getElementById('visitorSignedOut');
+        const visitorSignedIn = document.getElementById('visitorSignedIn');
+        const visitorSignInBtn = document.getElementById('visitorSignInBtn');
+        const visitorSignOutBtn = document.getElementById('visitorSignOutBtn');
+        const visitorAvatar = document.getElementById('visitorAvatar');
+        const visitorNameEl = document.getElementById('visitorName');
         const rateLimitWarning = document.getElementById('rateLimitWarning');
 
         // Display Panel Elements
@@ -1067,6 +1188,10 @@
         let conversationHistory = [];
         let isProcessing = false;
         let slideImages = []; // Store slide image URLs
+
+        // Visitor authentication state
+        let visitorUser = null; // Firebase user object for signed-in visitor
+        const googleProvider = new GoogleAuthProvider();
         let currentSlideIndex = 0;
 
         // Initialize
@@ -1085,8 +1210,14 @@
             await loadProfile();
         }
 
-        // Get or create visitor ID from localStorage
+        // Get or create visitor ID (Firebase UID if signed in, otherwise localStorage)
         function getOrCreateVisitorId() {
+            // If signed in with Google, use Firebase UID
+            if (visitorUser) {
+                return visitorUser.uid;
+            }
+
+            // Otherwise, fall back to localStorage UUID (anonymous)
             const storageKey = `mindclone_visitor_${username}`;
             let id = localStorage.getItem(storageKey);
 
@@ -1105,6 +1236,111 @@
                 const v = c === 'x' ? r : (r & 0x3 | 0x8);
                 return v.toString(16);
             });
+        }
+
+        // Update visitor auth UI based on sign-in state
+        function updateVisitorAuthUI() {
+            if (!visitorAuthBar) return;
+
+            if (visitorUser) {
+                // Show signed-in state
+                visitorSignedOut.style.display = 'none';
+                visitorSignedIn.style.display = 'flex';
+                visitorAvatar.src = visitorUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(visitorUser.displayName || 'User')}&background=random`;
+                visitorNameEl.textContent = visitorUser.displayName || 'Signed in';
+            } else {
+                // Show signed-out state
+                visitorSignedOut.style.display = 'flex';
+                visitorSignedIn.style.display = 'none';
+            }
+        }
+
+        // Handle visitor sign-in with Google
+        async function handleVisitorSignIn() {
+            try {
+                visitorSignInBtn.disabled = true;
+                visitorSignInBtn.textContent = 'Signing in...';
+
+                const result = await signInWithPopup(auth, googleProvider);
+                console.log('[Visitor Auth] Sign-in successful:', result.user.displayName);
+
+                // Update visitor profile in Firestore
+                await updateVisitorProfile(result.user);
+
+            } catch (error) {
+                console.error('[Visitor Auth] Sign-in error:', error);
+                // Handle specific errors
+                if (error.code === 'auth/popup-closed-by-user') {
+                    console.log('[Visitor Auth] Sign-in popup closed by user');
+                } else if (error.code === 'auth/cancelled-popup-request') {
+                    console.log('[Visitor Auth] Sign-in popup cancelled');
+                }
+            } finally {
+                visitorSignInBtn.disabled = false;
+                visitorSignInBtn.innerHTML = `
+                    <svg class="google-icon" width="18" height="18" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Sign in to remember me
+                `;
+            }
+        }
+
+        // Handle visitor sign-out
+        async function handleVisitorSignOut() {
+            try {
+                await signOut(auth);
+                console.log('[Visitor Auth] Sign-out successful');
+            } catch (error) {
+                console.error('[Visitor Auth] Sign-out error:', error);
+            }
+        }
+
+        // Update visitor profile in Firestore
+        async function updateVisitorProfile(user) {
+            try {
+                // We need to get the owner's userId first
+                const normalizedUsername = username.trim().toLowerCase();
+                const usernameDoc = await getDoc(doc(db, 'usernames', normalizedUsername));
+
+                if (!usernameDoc.exists()) return;
+
+                const ownerId = usernameDoc.data().userId;
+
+                // Update visitor document
+                const visitorRef = doc(db, 'users', ownerId, 'visitors', user.uid);
+                const visitorDoc = await getDoc(visitorRef);
+
+                const visitorData = {
+                    displayName: user.displayName,
+                    email: user.email,
+                    photoURL: user.photoURL,
+                    lastVisit: new Date(),
+                    isAuthenticated: true
+                };
+
+                if (!visitorDoc.exists()) {
+                    visitorData.firstVisit = new Date();
+                }
+
+                // Use setDoc with merge to update/create
+                await setDoc(visitorRef, visitorData, { merge: true });
+
+                console.log('[Visitor Auth] Profile updated in Firestore');
+            } catch (error) {
+                console.error('[Visitor Auth] Error updating profile:', error);
+            }
+        }
+
+        // Set up visitor auth event listeners
+        if (visitorSignInBtn) {
+            visitorSignInBtn.addEventListener('click', handleVisitorSignIn);
+        }
+        if (visitorSignOutBtn) {
+            visitorSignOutBtn.addEventListener('click', handleVisitorSignOut);
         }
 
         // Load profile from Firestore (bypass broken API)
@@ -1161,7 +1397,11 @@
             loadingContainer.style.display = 'none';
             profileHeader.style.display = 'block';
             chatContainer.style.display = 'flex';
+            visitorAuthBar.style.display = 'block';
             inputContainer.style.display = 'block';
+
+            // Update visitor auth UI state
+            updateVisitorAuthUI();
 
             // Generate avatar from display name or username if no photoURL
             const name = profile.displayName || profile.username;
