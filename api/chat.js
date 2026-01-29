@@ -1311,7 +1311,7 @@ async function handleAnalyzeImage(args) {
     const apiKey = process.env.GEMINI_API_KEY;
     const prompt = question || 'Describe this image in detail. What do you see? Include any text, people, objects, and the overall scene.';
 
-    const VISION_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+    const VISION_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-lite-latest'];
     let visionResponse, visionData;
     let visionSuccess = false;
 
@@ -2585,6 +2585,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
       'gemini-2.5-flash',
       'gemini-2.0-flash',
       'gemini-2.0-flash-lite',
+      'gemini-flash-lite-latest',
     ];
     let currentModelIndex = 0;
     let currentModel = GEMINI_MODELS[0];
