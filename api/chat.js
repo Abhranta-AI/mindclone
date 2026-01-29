@@ -1,4 +1,4 @@
-// Gemini API handler with Tool Calling
+// xAI Grok API handler with Tool Calling
 // Memory system uses Firestore (users/{userId}/memories collection)
 const { CONNOISSEUR_STYLE_GUIDE } = require('./_style-guide');
 const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
@@ -9,6 +9,83 @@ const { loadMindcloneBeliefs, formBelief, reviseBelief, getBeliefs, formatBelief
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
 const db = admin.firestore();
+
+// ===================== FORMAT CONVERTERS FOR xAI API =====================
+// Convert Gemini-style tools to OpenAI-style tools
+function convertToolsToOpenAI(geminiTools) {
+  const openaiTools = [];
+  for (const toolGroup of geminiTools) {
+    for (const func of toolGroup.function_declarations || []) {
+      openaiTools.push({
+        type: "function",
+        function: {
+          name: func.name,
+          description: func.description,
+          parameters: func.parameters
+        }
+      });
+    }
+  }
+  return openaiTools;
+}
+
+// Convert Gemini-style messages to OpenAI-style messages
+function convertMessagesToOpenAI(geminiContents, systemPrompt = null) {
+  const messages = [];
+
+  // Add system message if provided
+  if (systemPrompt) {
+    messages.push({ role: "system", content: systemPrompt });
+  }
+
+  for (const msg of geminiContents) {
+    const role = msg.role === 'model' ? 'assistant' : msg.role;
+
+    // Handle tool calls in assistant messages
+    if (msg.parts) {
+      const textParts = msg.parts.filter(p => p.text).map(p => p.text).join('');
+      const functionCall = msg.parts.find(p => p.functionCall);
+      const functionResponse = msg.parts.find(p => p.functionResponse);
+
+      if (functionCall) {
+        // This is an assistant message with a tool call
+        messages.push({
+          role: 'assistant',
+          content: textParts || null,
+          tool_calls: [{
+            id: `call_${Date.now()}`,
+            type: 'function',
+            function: {
+              name: functionCall.functionCall.name,
+              arguments: JSON.stringify(functionCall.functionCall.args || {})
+            }
+          }]
+        });
+      } else if (functionResponse) {
+        // This is a tool response
+        messages.push({
+          role: 'tool',
+          tool_call_id: `call_${Date.now() - 1}`,
+          content: JSON.stringify(functionResponse.functionResponse.response)
+        });
+      } else {
+        // Regular message
+        messages.push({
+          role: role,
+          content: textParts || ''
+        });
+      }
+    } else if (msg.content) {
+      // Already in simple format
+      messages.push({
+        role: role,
+        content: msg.content
+      });
+    }
+  }
+
+  return messages;
+}
 
 // ===================== PUBLIC LINK SYSTEM PROMPT =====================
 const PUBLIC_LINK_SYSTEM_PROMPT = `You are a Link - the public-facing representation of someone's Mindclone, built and managed by the Mindclone itself.
@@ -1329,68 +1406,47 @@ async function handleAnalyzeImage(args) {
       mimeType = 'image/jpeg'; // Default
     }
 
-    // Call Gemini vision API with model fallback
-    const apiKey = process.env.GEMINI_API_KEY;
+    // Call xAI vision API
+    const apiKey = process.env.XAI_API_KEY;
     const prompt = question || 'Describe this image in detail. What do you see? Include any text, people, objects, and the overall scene.';
 
-    const VISION_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-lite-latest'];
-    let visionResponse, visionData;
-    let visionSuccess = false;
+    console.log(`[Vision] Using xAI grok-2-vision-1212`);
 
-    for (const model of VISION_MODELS) {
-      const visionUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      console.log(`[Vision] Trying model: ${model}`);
-
-      visionResponse = await fetch(visionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: base64Image
-                }
+    const visionResponse = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'grok-2-vision-1212',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:${mimeType};base64,${base64Image}`
               }
-            ]
-          }],
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 1024
-          }
-        })
-      });
+            }
+          ]
+        }],
+        max_tokens: 1024
+      })
+    });
 
-      if (visionResponse.ok) {
-        visionData = await visionResponse.json();
-        visionSuccess = true;
-        console.log(`[Vision] Success with model: ${model}`);
-        break;
-      }
-
+    if (!visionResponse.ok) {
       const errorData = await visionResponse.json().catch(() => ({}));
-      if (errorData.error?.message?.includes('quota') || visionResponse.status === 429) {
-        console.log(`[Vision] Model ${model} quota exceeded, trying next...`);
-        continue;
-      }
-
-      // Non-quota error
-      console.error('[Tool] Gemini vision API error:', errorData.error?.message);
+      console.error('[Tool] xAI vision API error:', errorData.error);
       return {
         success: false,
         error: `Vision API error: ${visionResponse.status}`
       };
     }
 
-    if (!visionSuccess) {
-      return {
-        success: false,
-        error: 'All vision models quota exceeded. Please try again later.'
-      };
-    }
-    const analysis = visionData.candidates?.[0]?.content?.parts?.[0]?.text;
+    const visionData = await visionResponse.json();
+    const analysis = visionData.choices?.[0]?.message?.content;
 
     if (!analysis) {
       return {
@@ -1901,7 +1957,7 @@ async function handleGenerateImage(params = {}) {
 
     console.log(`[Tool] Generating image: "${prompt.substring(0, 50)}..." (style: ${style})`);
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.XAI_API_KEY;
     if (!apiKey) {
       return { success: false, error: 'Image generation is not configured' };
     }
@@ -1927,40 +1983,31 @@ async function handleGenerateImage(params = {}) {
         break;
     }
 
-    // Call Gemini's Imagen model
-    const imagenResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey
-        },
-        body: JSON.stringify({
-          instances: [{ prompt: enhancedPrompt }],
-          parameters: {
-            sampleCount: 1,
-            aspectRatio: '1:1',
-            personGeneration: 'allow_adult'
-          }
-        })
-      }
-    );
+    // Call xAI's image generation model
+    const imagenResponse = await fetch('https://api.x.ai/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'grok-2-image-1212',
+        prompt: enhancedPrompt,
+        n: 1,
+        response_format: 'b64_json'
+      })
+    });
 
     if (!imagenResponse.ok) {
-      const errorText = await imagenResponse.text();
-      console.error('[Tool] Imagen API error:', imagenResponse.status, errorText);
+      const errorData = await imagenResponse.json().catch(() => ({}));
+      console.error('[Tool] xAI image API error:', imagenResponse.status, errorData);
 
-      // Parse error for better user messaging
-      try {
-        const errorData = JSON.parse(errorText);
-        if (errorData.error?.message?.includes('safety')) {
-          return {
-            success: false,
-            error: 'The image request was blocked for safety reasons. Try a different description.'
-          };
-        }
-      } catch (e) {}
+      if (errorData.error?.message?.includes('safety') || errorData.error?.message?.includes('content')) {
+        return {
+          success: false,
+          error: 'The image request was blocked for safety reasons. Try a different description.'
+        };
+      }
 
       return { success: false, error: `Image generation failed: ${imagenResponse.status}` };
     }
@@ -1968,13 +2015,13 @@ async function handleGenerateImage(params = {}) {
     const imagenData = await imagenResponse.json();
 
     // Extract the generated image (base64 encoded)
-    const predictions = imagenData.predictions;
-    if (!predictions || predictions.length === 0 || !predictions[0].bytesBase64Encoded) {
+    const imageData = imagenData.data?.[0];
+    if (!imageData || !imageData.b64_json) {
       console.error('[Tool] No image in response:', JSON.stringify(imagenData).substring(0, 500));
       return { success: false, error: 'No image was generated. Try a different prompt.' };
     }
 
-    const imageBase64 = predictions[0].bytesBase64Encoded;
+    const imageBase64 = imageData.b64_json;
     const imageBuffer = Buffer.from(imageBase64, 'base64');
 
     // Upload to Vercel Blob
@@ -2067,7 +2114,7 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       status: 'ok',
       provider: 'gemini',
-      hasApiKey: !!process.env.GEMINI_API_KEY,
+      hasApiKey: !!process.env.XAI_API_KEY,
       hasMemory: true, // Firestore-based memory system
       toolsEnabled: true
     });
@@ -2078,12 +2125,12 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.XAI_API_KEY;
 
     if (!apiKey) {
       return res.status(500).json({
         success: false,
-        error: 'GEMINI_API_KEY not configured'
+        error: 'XAI_API_KEY not configured'
       });
     }
 
@@ -2600,62 +2647,55 @@ Use this to understand time references like "yesterday", "next week", "this mont
       };
     }
 
-    // === MODEL FALLBACK CONFIGURATION ===
-    // Try models in order until one works (handles quota limits)
-    const GEMINI_MODELS = [
-      'gemini-3-flash-preview',
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-2.0-flash-lite',
-      'gemini-flash-lite-latest',
-    ];
+    // === xAI GROK MODEL CONFIGURATION ===
+    const XAI_MODELS = ['grok-3', 'grok-3-mini'];
     let currentModelIndex = 0;
-    let currentModel = GEMINI_MODELS[0];
-
-    const getModelUrl = (model) =>
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    let currentModel = XAI_MODELS[0];
 
     // === TOOL FILTERING BASED ON CONTEXT ===
-    let filteredTools = tools;
+    let filteredToolsGemini = tools;
     if (context === 'public') {
-      // For public context, only allow web_search
-      // Remove all private-only tools: memory, beliefs, mental model, image generation, link settings, etc.
       const publicAllowedTools = ['web_search', 'analyze_image', 'search_memory'];
-
-      filteredTools = tools.map(t => ({
+      filteredToolsGemini = tools.map(t => ({
         function_declarations: t.function_declarations.filter(fd =>
           publicAllowedTools.includes(fd.name)
         )
       })).filter(t => t.function_declarations.length > 0);
-
-      console.log(`[Chat] Public context - filtered to ${filteredTools[0]?.function_declarations?.length || 0} tools`);
+      console.log(`[Chat] Public context - filtered tools`);
     } else {
-      console.log(`[Chat] Private context - all ${tools[0]?.function_declarations?.length || 0} tools available`);
+      console.log(`[Chat] Private context - all tools available`);
     }
 
-    // Build request with filtered tools
+    // Convert to OpenAI format for xAI
+    const openaiTools = convertToolsToOpenAI(filteredToolsGemini);
+
+    // Extract system prompt text
+    const systemPromptText = systemInstruction?.parts?.[0]?.text || null;
+
+    // Convert messages to OpenAI format
+    const openaiMessages = convertMessagesToOpenAI(contents, systemPromptText);
+
+    // Build xAI request
     const requestBody = {
-      contents: contents,
-      tools: filteredTools
+      model: currentModel,
+      messages: openaiMessages,
+      tools: openaiTools.length > 0 ? openaiTools : undefined
     };
-
-    if (systemInstruction) {
-      requestBody.systemInstruction = systemInstruction;
-    }
 
     // Initial API call with model fallback
     let response, data;
     let apiCallSuccess = false;
 
-    while (!apiCallSuccess && currentModelIndex < GEMINI_MODELS.length) {
-      currentModel = GEMINI_MODELS[currentModelIndex];
-      const url = getModelUrl(currentModel);
-      console.log(`[Chat] Trying model: ${currentModel}`);
+    while (!apiCallSuccess && currentModelIndex < XAI_MODELS.length) {
+      currentModel = XAI_MODELS[currentModelIndex];
+      requestBody.model = currentModel;
+      console.log(`[Chat] Trying xAI model: ${currentModel}`);
 
-      response = await fetch(url, {
+      response = await fetch('https://api.x.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify(requestBody)
       });
@@ -2663,27 +2703,25 @@ Use this to understand time references like "yesterday", "next week", "this mont
       data = await response.json();
 
       if (!response.ok) {
-        const errorMsg = data.error?.message || '';
-        // Check if it's a quota error - try next model
-        if (errorMsg.includes('quota') || errorMsg.includes('RESOURCE_EXHAUSTED') || response.status === 429) {
-          console.log(`[Chat] Model ${currentModel} quota exceeded, trying next model...`);
+        const errorMsg = data.error?.message || data.error || '';
+        if (errorMsg.includes('quota') || errorMsg.includes('rate') || response.status === 429) {
+          console.log(`[Chat] Model ${currentModel} rate limited, trying next model...`);
           currentModelIndex++;
           continue;
         }
-        // For other errors, throw
-        throw new Error(errorMsg || 'Gemini API request failed');
+        throw new Error(errorMsg || 'xAI API request failed');
       }
 
       apiCallSuccess = true;
-      console.log(`[Chat] Successfully using model: ${currentModel}`);
+      console.log(`[Chat] Successfully using xAI model: ${currentModel}`);
     }
 
     if (!apiCallSuccess) {
-      throw new Error('All Gemini models quota exceeded. Please try again later.');
+      throw new Error('All xAI models failed. Please try again later.');
     }
 
-    // Check if model wants to call a tool
-    let candidate = data.candidates?.[0];
+    // Check if model wants to call a tool (xAI/OpenAI format)
+    let choice = data.choices?.[0];
     let maxToolCalls = 5; // Prevent infinite loops
     let toolCallCount = 0;
     let usedMemorySearch = false; // Track if search_memory was called for UI animation
@@ -2691,9 +2729,9 @@ Use this to understand time references like "yesterday", "next week", "this mont
     let usedTool = null; // Track which tool was used
     let lastMemorySearchResult = null; // Store memory search result for fallback responses
 
-    // Check for function call in any part (not just parts[0])
-    const findFunctionCall = (parts) => parts?.find(p => p.functionCall)?.functionCall;
-    const findText = (parts) => parts?.filter(p => p.text).map(p => p.text).join('');
+    // Helper functions for xAI/OpenAI format
+    const getToolCall = (choice) => choice?.message?.tool_calls?.[0];
+    const getText = (choice) => choice?.message?.content || '';
 
     // Sanitize response to remove leaked internal tool call patterns
     // Gemini sometimes outputs tool calls as text instead of structured functionCall
@@ -2747,63 +2785,68 @@ Use this to understand time references like "yesterday", "next week", "this mont
       return text;
     };
 
-    let functionCall = findFunctionCall(candidate?.content?.parts);
+    let toolCall = getToolCall(choice);
 
-    while (functionCall && toolCallCount < maxToolCalls) {
+    while (toolCall && toolCallCount < maxToolCalls) {
       toolCallCount++;
-      console.log(`[Tool] Model requested: ${functionCall.name}`);
+      const funcName = toolCall.function?.name;
+      const funcArgs = JSON.parse(toolCall.function?.arguments || '{}');
+      console.log(`[Tool] Model requested: ${funcName}`);
 
       // Capture any text that came with this tool call as "pending message"
-      // Only capture on first tool call
       if (toolCallCount === 1) {
-        const textBefore = findText(candidate?.content?.parts);
+        const textBefore = getText(choice);
         if (textBefore) {
           pendingMessage = textBefore;
           console.log(`[Tool] Pending message: "${pendingMessage.substring(0, 50)}..."`);
         }
-        usedTool = functionCall.name;
+        usedTool = funcName;
       }
 
       // Execute the tool
-      const toolResult = await executeTool(functionCall.name, functionCall.args || {}, resolvedUserId, context, visitorId);
+      const toolResult = await executeTool(funcName, funcArgs, resolvedUserId, context, visitorId);
 
-      // Track if memory search was used (for "recalling" UI animation) and store result for fallback
-      if (functionCall.name === 'search_memory') {
+      // Track if memory search was used
+      if (funcName === 'search_memory') {
         usedMemorySearch = true;
-        lastMemorySearchResult = toolResult; // Store for potential fallback response
+        lastMemorySearchResult = toolResult;
         console.log(`[Memory Search] Stored result: ${toolResult?.matchCount || 0} matches, query: "${toolResult?.query}"`);
       }
 
-      // Add the model's function call and our response to the conversation
-      // For Gemini 3 Pro, we must pass back the entire original parts array
-      // This preserves thought signatures and other metadata exactly as received
-      contents.push({
-        role: 'model',
-        parts: candidate.content.parts
-      });
-
-      contents.push({
-        role: 'user',
-        parts: [{
-          functionResponse: {
-            name: functionCall.name,
-            response: toolResult
+      // Add assistant's tool call to messages
+      openaiMessages.push({
+        role: 'assistant',
+        content: choice.message.content || null,
+        tool_calls: [{
+          id: toolCall.id,
+          type: 'function',
+          function: {
+            name: funcName,
+            arguments: toolCall.function?.arguments || '{}'
           }
         }]
       });
 
-      // Call API again with tool result (with model fallback)
-      requestBody.contents = contents;
+      // Add tool response
+      openaiMessages.push({
+        role: 'tool',
+        tool_call_id: toolCall.id,
+        content: JSON.stringify(toolResult)
+      });
+
+      // Call API again with tool result
+      requestBody.messages = openaiMessages;
       let toolCallSuccess = false;
 
-      while (!toolCallSuccess && currentModelIndex < GEMINI_MODELS.length) {
-        currentModel = GEMINI_MODELS[currentModelIndex];
-        const toolUrl = getModelUrl(currentModel);
+      while (!toolCallSuccess && currentModelIndex < XAI_MODELS.length) {
+        currentModel = XAI_MODELS[currentModelIndex];
+        requestBody.model = currentModel;
 
-        response = await fetch(toolUrl, {
+        response = await fetch('https://api.x.ai/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
           },
           body: JSON.stringify(requestBody)
         });
@@ -2811,53 +2854,51 @@ Use this to understand time references like "yesterday", "next week", "this mont
         data = await response.json();
 
         if (!response.ok) {
-          const errorMsg = data.error?.message || '';
-          if (errorMsg.includes('quota') || errorMsg.includes('RESOURCE_EXHAUSTED') || response.status === 429) {
-            console.log(`[Tool] Model ${currentModel} quota exceeded, trying next...`);
+          const errorMsg = data.error?.message || data.error || '';
+          if (errorMsg.includes('quota') || errorMsg.includes('rate') || response.status === 429) {
+            console.log(`[Tool] Model ${currentModel} rate limited, trying next...`);
             currentModelIndex++;
             continue;
           }
           console.log(`[Tool] API error after tool call: ${errorMsg}`);
-          throw new Error(errorMsg || 'Gemini API request failed after tool call');
+          throw new Error(errorMsg || 'xAI API request failed after tool call');
         }
 
         toolCallSuccess = true;
       }
 
       if (!toolCallSuccess) {
-        throw new Error('All models quota exceeded during tool call');
+        throw new Error('All xAI models failed during tool call');
       }
 
-      candidate = data.candidates?.[0];
+      choice = data.choices?.[0];
 
       // Log post-tool-call response for debugging
-      const postToolText = findText(candidate?.content?.parts) || '';
-      console.log(`[Tool] Post-tool response: ${postToolText.length} chars, finish: ${candidate?.finishReason || 'none'}`);
+      const postToolText = getText(choice) || '';
+      console.log(`[Tool] Post-tool response: ${postToolText.length} chars, finish: ${choice?.finish_reason || 'none'}`);
       if (postToolText.length < 10) {
-        console.log(`[Tool] Warning: Short/empty response after tool call. Parts: ${JSON.stringify(candidate?.content?.parts?.map(p => Object.keys(p)))}`);
+        console.log(`[Tool] Warning: Short/empty response after tool call`);
       }
 
-      functionCall = findFunctionCall(candidate?.content?.parts);
+      toolCall = getToolCall(choice);
     }
 
-    // Extract final text response (use findText to handle multi-part responses)
-    // Then sanitize to remove any leaked internal tool call patterns
-    const rawText = findText(candidate?.content?.parts) || '';
+    // Extract final text response (xAI format)
+    const rawText = getText(choice) || '';
     let text = sanitizeResponse(rawText);
 
-    // Remove any duplicated text (Gemini sometimes echoes its own text)
+    // Remove any duplicated text
     text = deduplicateText(text);
 
     // Log response details for debugging empty responses
     console.log(`[Response] Raw text length: ${rawText.length}, Sanitized length: ${text.length}`);
     if (!text || text.trim().length < 5) {
       console.log(`[Response] Short/empty response. Raw: "${rawText.substring(0, 200)}"`);
-      console.log(`[Response] Candidate finish reason: ${candidate?.finishReason || 'none'}`);
-      console.log(`[Response] Parts count: ${candidate?.content?.parts?.length || 0}`);
+      console.log(`[Response] Finish reason: ${choice?.finish_reason || 'none'}`);
     }
 
     // === AUTO-RETRY LOGIC ===
-    // If Gemini returns empty or "unable to generate" response, silently retry with a nudge
+    // If model returns empty or "unable to generate" response, silently retry with a nudge
     const isFailedResponse = !text ||
                              text.includes('unable to generate') ||
                              text.includes('I apologize') && text.includes('unable') ||
@@ -2868,39 +2909,25 @@ Use this to understand time references like "yesterday", "next week", "this mont
 
       // Use different nudge based on whether tools were called
       if (toolCallCount > 0) {
-        // After tool calls, nudge the model to use the tool results
-        contents.push({
-          role: 'model',
-          parts: [{ text: 'Let me formulate a response based on what I found.' }]
-        });
-        contents.push({
-          role: 'user',
-          parts: [{ text: 'Yes, please share what you found.' }]
-        });
+        openaiMessages.push({ role: 'assistant', content: 'Let me formulate a response based on what I found.' });
+        openaiMessages.push({ role: 'user', content: 'Yes, please share what you found.' });
       } else {
-        // No tools called, general nudge
-        contents.push({
-          role: 'model',
-          parts: [{ text: 'Let me think about this more carefully.' }]
-        });
-        contents.push({
-          role: 'user',
-          parts: [{ text: 'Please continue with your thoughts.' }]
-        });
+        openaiMessages.push({ role: 'assistant', content: 'Let me think about this more carefully.' });
+        openaiMessages.push({ role: 'user', content: 'Please continue with your thoughts.' });
       }
 
       // Retry the API call (with model fallback)
-      requestBody.contents = contents;
+      requestBody.messages = openaiMessages;
       let retryResponse, retryData;
       let retrySuccess = false;
 
-      // Try current model first, then fallback
-      for (let i = currentModelIndex; i < GEMINI_MODELS.length && !retrySuccess; i++) {
-        const retryUrl = getModelUrl(GEMINI_MODELS[i]);
-        retryResponse = await fetch(retryUrl, {
+      for (let i = currentModelIndex; i < XAI_MODELS.length && !retrySuccess; i++) {
+        requestBody.model = XAI_MODELS[i];
+        retryResponse = await fetch('https://api.x.ai/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
           },
           body: JSON.stringify(requestBody)
         });
@@ -2909,17 +2936,17 @@ Use this to understand time references like "yesterday", "next week", "this mont
 
         if (retryResponse.ok) {
           retrySuccess = true;
-        } else if (retryData.error?.message?.includes('quota') || retryResponse.status === 429) {
-          console.log(`[Auto-Retry] Model ${GEMINI_MODELS[i]} quota exceeded, trying next...`);
+        } else if (retryData.error?.message?.includes('rate') || retryResponse.status === 429) {
+          console.log(`[Auto-Retry] Model ${XAI_MODELS[i]} rate limited, trying next...`);
           continue;
         } else {
-          break; // Non-quota error, stop trying
+          break;
         }
       }
 
       if (retrySuccess) {
-        const retryCandidate = retryData.candidates?.[0];
-        const retryText = sanitizeResponse(findText(retryCandidate?.content?.parts));
+        const retryChoice = retryData.choices?.[0];
+        const retryText = sanitizeResponse(retryChoice?.message?.content || '');
 
         if (retryText && retryText.trim().length > 5 && !retryText.includes('unable to generate')) {
           console.log('[Auto-Retry] Retry successful, using new response');
@@ -2928,7 +2955,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
           console.log('[Auto-Retry] Retry also failed, will use fallback');
         }
       } else {
-        console.log('[Auto-Retry] Retry request failed:', retryData.error?.message);
+        console.log('[Auto-Retry] Retry request failed:', retryData?.error);
       }
     }
 
