@@ -1307,13 +1307,19 @@ async function handleAnalyzeImage(args) {
       mimeType = 'image/jpeg'; // Default
     }
 
-    // Call Gemini vision API
+    // Call Gemini vision API with model fallback
     const apiKey = process.env.GEMINI_API_KEY;
     const prompt = question || 'Describe this image in detail. What do you see? Include any text, people, objects, and the overall scene.';
 
-    const visionResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
-      {
+    const VISION_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+    let visionResponse, visionData;
+    let visionSuccess = false;
+
+    for (const model of VISION_MODELS) {
+      const visionUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      console.log(`[Vision] Trying model: ${model}`);
+
+      visionResponse = await fetch(visionUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1333,19 +1339,35 @@ async function handleAnalyzeImage(args) {
             maxOutputTokens: 1024
           }
         })
-      }
-    );
+      });
 
-    if (!visionResponse.ok) {
-      const errorText = await visionResponse.text();
-      console.error('[Tool] Gemini vision API error:', errorText);
+      if (visionResponse.ok) {
+        visionData = await visionResponse.json();
+        visionSuccess = true;
+        console.log(`[Vision] Success with model: ${model}`);
+        break;
+      }
+
+      const errorData = await visionResponse.json().catch(() => ({}));
+      if (errorData.error?.message?.includes('quota') || visionResponse.status === 429) {
+        console.log(`[Vision] Model ${model} quota exceeded, trying next...`);
+        continue;
+      }
+
+      // Non-quota error
+      console.error('[Tool] Gemini vision API error:', errorData.error?.message);
       return {
         success: false,
         error: `Vision API error: ${visionResponse.status}`
       };
     }
 
-    const visionData = await visionResponse.json();
+    if (!visionSuccess) {
+      return {
+        success: false,
+        error: 'All vision models quota exceeded. Please try again later.'
+      };
+    }
     const analysis = visionData.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!analysis) {
@@ -2556,7 +2578,19 @@ Use this to understand time references like "yesterday", "next week", "this mont
       };
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+    // === MODEL FALLBACK CONFIGURATION ===
+    // Try models in order until one works (handles quota limits)
+    const GEMINI_MODELS = [
+      'gemini-3-flash-preview',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+    ];
+    let currentModelIndex = 0;
+    let currentModel = GEMINI_MODELS[0];
+
+    const getModelUrl = (model) =>
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     // === TOOL FILTERING BASED ON CONTEXT ===
     let filteredTools = tools;
@@ -2586,19 +2620,43 @@ Use this to understand time references like "yesterday", "next week", "this mont
       requestBody.systemInstruction = systemInstruction;
     }
 
-    // Initial API call
-    let response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody)
-    });
+    // Initial API call with model fallback
+    let response, data;
+    let apiCallSuccess = false;
 
-    let data = await response.json();
+    while (!apiCallSuccess && currentModelIndex < GEMINI_MODELS.length) {
+      currentModel = GEMINI_MODELS[currentModelIndex];
+      const url = getModelUrl(currentModel);
+      console.log(`[Chat] Trying model: ${currentModel}`);
 
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'Gemini API request failed');
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      data = await response.json();
+
+      if (!response.ok) {
+        const errorMsg = data.error?.message || '';
+        // Check if it's a quota error - try next model
+        if (errorMsg.includes('quota') || errorMsg.includes('RESOURCE_EXHAUSTED') || response.status === 429) {
+          console.log(`[Chat] Model ${currentModel} quota exceeded, trying next model...`);
+          currentModelIndex++;
+          continue;
+        }
+        // For other errors, throw
+        throw new Error(errorMsg || 'Gemini API request failed');
+      }
+
+      apiCallSuccess = true;
+      console.log(`[Chat] Successfully using model: ${currentModel}`);
+    }
+
+    if (!apiCallSuccess) {
+      throw new Error('All Gemini models quota exceeded. Please try again later.');
     }
 
     // Check if model wants to call a tool
@@ -2711,21 +2769,40 @@ Use this to understand time references like "yesterday", "next week", "this mont
         }]
       });
 
-      // Call API again with tool result
+      // Call API again with tool result (with model fallback)
       requestBody.contents = contents;
-      response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
+      let toolCallSuccess = false;
 
-      data = await response.json();
+      while (!toolCallSuccess && currentModelIndex < GEMINI_MODELS.length) {
+        currentModel = GEMINI_MODELS[currentModelIndex];
+        const toolUrl = getModelUrl(currentModel);
 
-      if (!response.ok) {
-        console.log(`[Tool] API error after tool call: ${data.error?.message}`);
-        throw new Error(data.error?.message || 'Gemini API request failed after tool call');
+        response = await fetch(toolUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        data = await response.json();
+
+        if (!response.ok) {
+          const errorMsg = data.error?.message || '';
+          if (errorMsg.includes('quota') || errorMsg.includes('RESOURCE_EXHAUSTED') || response.status === 429) {
+            console.log(`[Tool] Model ${currentModel} quota exceeded, trying next...`);
+            currentModelIndex++;
+            continue;
+          }
+          console.log(`[Tool] API error after tool call: ${errorMsg}`);
+          throw new Error(errorMsg || 'Gemini API request failed after tool call');
+        }
+
+        toolCallSuccess = true;
+      }
+
+      if (!toolCallSuccess) {
+        throw new Error('All models quota exceeded during tool call');
       }
 
       candidate = data.candidates?.[0];
@@ -2789,19 +2866,35 @@ Use this to understand time references like "yesterday", "next week", "this mont
         });
       }
 
-      // Retry the API call
+      // Retry the API call (with model fallback)
       requestBody.contents = contents;
-      const retryResponse = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
+      let retryResponse, retryData;
+      let retrySuccess = false;
 
-      const retryData = await retryResponse.json();
+      // Try current model first, then fallback
+      for (let i = currentModelIndex; i < GEMINI_MODELS.length && !retrySuccess; i++) {
+        const retryUrl = getModelUrl(GEMINI_MODELS[i]);
+        retryResponse = await fetch(retryUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        });
 
-      if (retryResponse.ok) {
+        retryData = await retryResponse.json();
+
+        if (retryResponse.ok) {
+          retrySuccess = true;
+        } else if (retryData.error?.message?.includes('quota') || retryResponse.status === 429) {
+          console.log(`[Auto-Retry] Model ${GEMINI_MODELS[i]} quota exceeded, trying next...`);
+          continue;
+        } else {
+          break; // Non-quota error, stop trying
+        }
+      }
+
+      if (retrySuccess) {
         const retryCandidate = retryData.candidates?.[0];
         const retryText = sanitizeResponse(findText(retryCandidate?.content?.parts));
 
