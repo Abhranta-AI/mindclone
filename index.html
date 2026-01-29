@@ -6866,6 +6866,7 @@
         let activityData = [];
         let activityListener = null; // Real-time listener unsubscribe function
         let selectedFile = null; // Track selected file for upload
+        let isSending = false; // Prevent duplicate message sends
 
         // Knowledge Base Workflow State with persistence
         let workflowState = loadWorkflowState() || {
@@ -10912,13 +10913,27 @@ Is there anything else you'd like to configure?`;
 
         // Send Message
         async function sendMessage() {
+            // Prevent duplicate sends
+            if (isSending) {
+                console.log('[Chat] Duplicate send blocked');
+                return;
+            }
+
             const message = chatInput.value.trim();
             if (!message && !selectedFile) return;
+
+            // Set flag and disable input IMMEDIATELY to prevent race conditions
+            isSending = true;
+            chatInput.disabled = true;
+            sendButton.disabled = true;
 
             // Get current user
             const currentUser = auth.currentUser;
             if (!currentUser) {
                 console.error('No user signed in');
+                isSending = false;
+                chatInput.disabled = false;
+                sendButton.disabled = false;
                 return;
             }
 
@@ -11022,6 +11037,10 @@ Is there anything else you'd like to configure?`;
                 console.log('[Workflow] Workflow is active, handling message in workflow');
                 // Handle workflow response
                 await handleWorkflowResponse(message);
+                // Re-enable input after workflow handling
+                isSending = false;
+                chatInput.disabled = false;
+                sendButton.disabled = false;
                 return; // ALWAYS block regular AI when workflow is active
             }
 
@@ -11029,6 +11048,10 @@ Is there anything else you'd like to configure?`;
             if (!workflowState.active && detectWorkflowTrigger(message)) {
                 console.log('[Workflow] Message triggers workflow, starting...');
                 await startKnowledgeBaseWorkflow();
+                // Re-enable input after workflow starts
+                isSending = false;
+                chatInput.disabled = false;
+                sendButton.disabled = false;
                 return; // Don't send to regular AI
             }
             // === END WORKFLOW HANDLING ===
@@ -11050,9 +11073,7 @@ Is there anything else you'd like to configure?`;
             // Show typing indicator
             showTypingIndicator();
 
-            // Disable input while processing
-            chatInput.disabled = true;
-            sendButton.disabled = true;
+            // Input already disabled at start of function to prevent race conditions
 
             try {
                 // Create AbortController for cancellation
@@ -11139,7 +11160,15 @@ Is there anything else you'd like to configure?`;
                 // Don't show error if user cancelled the request
                 if (error.name === 'AbortError') {
                     console.log('Request was cancelled by user');
+                    // Reset state even on abort (finally block will run anyway)
                     return;
+                }
+
+                // Get a more descriptive error message
+                let errorText = 'Sorry, I encountered an error connecting. This might be a temporary issue.';
+                if (error.message && error.message !== 'Failed to get response') {
+                    errorText = `Error: ${error.message}`;
+                    console.error('Detailed error:', error.message);
                 }
 
                 // Show error message with retry button
@@ -11150,7 +11179,7 @@ Is there anything else you'd like to configure?`;
                     <div class="message-content">
                         <div class="error-message">
                             <div class="error-message-text">
-                                Sorry, I encountered an error connecting. This might be a temporary issue.
+                                ${errorText}
                             </div>
                             <button class="retry-btn" onclick="retryLastMessage()">Retry</button>
                         </div>
@@ -11159,7 +11188,8 @@ Is there anything else you'd like to configure?`;
                 chatMessages.appendChild(errorDiv);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             } finally {
-                // Re-enable input
+                // Re-enable input and reset sending flag
+                isSending = false;
                 chatInput.disabled = false;
                 sendButton.disabled = false;
                 chatInput.focus();
@@ -11271,7 +11301,8 @@ Is there anything else you'd like to configure?`;
                 // Auto-send when speech is final
                 if (event.results[event.results.length - 1].isFinal) {
                     setTimeout(() => {
-                        if (chatInput.value.trim()) {
+                        // Only send if not already sending and input is enabled
+                        if (chatInput.value.trim() && !chatInput.disabled && !isSending) {
                             sendMessage();
                         }
                     }, 500);
