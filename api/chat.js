@@ -235,6 +235,11 @@ const tools = [
             knowledgeBaseEnabled: {
               type: "boolean",
               description: "Enable or disable knowledge base for link conversations"
+            },
+            gender: {
+              type: "string",
+              enum: ["male", "female", "non-binary", "prefer-not-to-say"],
+              description: "The gender of the Mindclone owner. This affects how the Mindclone refers to itself (he/him, she/her, they/them)"
             }
           },
           required: []
@@ -762,7 +767,8 @@ async function handleGetLinkSettings(userId) {
         displayName: settingsData.displayName || userData.displayName || '',
         bio: settingsData.bio || '',
         customGreeting: settingsData.customGreeting || '',
-        knowledgeBaseEnabled: userData.knowledgeBaseEnabled || false
+        knowledgeBaseEnabled: userData.knowledgeBaseEnabled || false,
+        gender: settingsData.gender || null
       }
     };
   } catch (error) {
@@ -798,6 +804,13 @@ async function handleUpdateLinkSettings(userId, params) {
     }
     if (params.customGreeting !== undefined) {
       linkSettingsUpdates.customGreeting = params.customGreeting;
+    }
+    if (params.gender !== undefined) {
+      const validGenders = ['male', 'female', 'non-binary', 'prefer-not-to-say'];
+      if (!validGenders.includes(params.gender)) {
+        return { success: false, error: 'Invalid gender value. Must be: male, female, non-binary, or prefer-not-to-say' };
+      }
+      linkSettingsUpdates.gender = params.gender;
     }
 
     // Apply user document updates
@@ -2328,6 +2341,11 @@ module.exports = async (req, res) => {
     const userDoc = await db.collection('users').doc(resolvedUserId).get();
     const userData = userDoc.exists ? userDoc.data() : null;
 
+    // Get link settings (for gender, bio, etc.)
+    const linkSettingsDoc = await db.collection('users').doc(resolvedUserId)
+      .collection('linkSettings').doc('config').get();
+    const linkSettings = linkSettingsDoc.exists ? linkSettingsDoc.data() : {};
+
     // Skip subscription check for public context (visitors don't need subscription)
     const accessLevel = context === 'public' ? 'full_access' : computeAccessLevel(userData);
 
@@ -2439,6 +2457,13 @@ module.exports = async (req, res) => {
     let systemInstruction = undefined;
     if (baseSystemPrompt) {
       let enhancedPrompt = baseSystemPrompt;
+
+      // Add gender identity instruction if set
+      const gender = linkSettings?.gender;
+      if (gender && gender !== 'prefer-not-to-say') {
+        const pronouns = gender === 'male' ? 'he/him' : gender === 'female' ? 'she/her' : 'they/them';
+        enhancedPrompt += `\n\n## YOUR GENDER IDENTITY:\nYou identify as ${gender}. When referring to yourself, use ${pronouns} pronouns. Behave and communicate in a way that reflects this identity naturally.`;
+      }
 
       // Add relevant memories to system prompt
       if (relevantMemories.length > 0) {
