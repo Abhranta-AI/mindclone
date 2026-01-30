@@ -2136,8 +2136,8 @@ async function handleGenerateVideo(params = {}) {
 
     console.log(`[Tool] Video generation started, request_id: ${requestId}`);
 
-    // Poll for result (max ~45 seconds to stay within Vercel's 60s limit)
-    const maxAttempts = 9;
+    // Poll for result (max ~20 seconds to stay well within Vercel's 60s limit)
+    const maxAttempts = 4;
     let attempts = 0;
     let videoUrl = null;
     let lastStatus = null;
