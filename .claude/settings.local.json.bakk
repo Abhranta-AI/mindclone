@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"\nconst fs = require(''fs'');\nconst envContent = fs.readFileSync(''/tmp/.env.production.local'', ''utf-8'');\nconst match = envContent.match(/FIREBASE_SERVICE_ACCOUNT_KEY=\"\"([^\"\"]+)\"\"/);\nif (match) {\n  const base64Key = match[1].trim().replace(/\\\\n$/, '''');\n  let decoded = Buffer.from(base64Key, ''base64'').toString(''utf-8'');\n  \n  // Trim first to remove trailing newlines\n  decoded = decoded.trim();\n  \n  // Replace all actual newlines with escaped newlines within the JSON\n  const fixed = decoded.replace(/\\n/g, ''\\\\n'').replace(/\\r/g, ''\\\\r'');\n  \n  // Try to parse the fixed JSON\n  try {\n    const parsed = JSON.parse(fixed);\n    console.log(''SUCCESS! JSON parsed correctly'');\n    console.log(''Project ID:'', parsed.project_id);\n    console.log(''Client email:'', parsed.client_email);\n    \n    // Now re-encode it properly with JSON.stringify (which handles escaping)\n    const properJson = JSON.stringify(parsed);\n    const properBase64 = Buffer.from(properJson).toString(''base64'');\n    \n    // Save to file\n    fs.writeFileSync(''/tmp/fixed-firebase-key.txt'', properBase64);\n    console.log(''\\nFixed base64 key saved to /tmp/fixed-firebase-key.txt'');\n    console.log(''Base64 length:'', properBase64.length);\n  } catch (e) {\n    console.error(''Parse error:'', e.message);\n  }\n}\n\")",
+      "Bash(git clone:*)",
+      "Bash(npm run build:*)",
+      "Bash(./node_modules/.bin/next build:*)",
+      "Bash(tree:*)",
+      "Bash(npx next build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npx vercel --prod)",
+      "Bash(pnpm add:*)",
+      "Bash(npx supabase --version)",
+      "Bash(npx supabase db push:*)",
+      "Bash(npx vercel:*)",
+      "Bash(pnpm install:*)"
+    ],
+    "deny": ["Bash"],
+    "ask": ["Bash"]
+  }
+}

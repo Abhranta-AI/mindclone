@@ -553,6 +553,24 @@ const tools = [
         }
       },
       {
+        name: "generate_video",
+        description: "Generate a short video (up to 8 seconds) using AI based on a text description. Use this when the user asks you to create, generate, or make a video, animation, clip, or motion content. Can also animate an existing image.",
+        parameters: {
+          type: "object",
+          properties: {
+            prompt: {
+              type: "string",
+              description: "Detailed description of the video to generate. Describe the scene, action, movement, style, and mood. Example: 'A golden retriever running through a sunny meadow with butterflies, slow motion, cinematic'"
+            },
+            image_url: {
+              type: "string",
+              description: "Optional URL of an image to animate. If provided, the video will be based on this image coming to life."
+            }
+          },
+          required: ["prompt"]
+        }
+      },
+      {
         name: "update_link_behavior",
         description: "Update how the public link should behave when talking to visitors. Use when the user says things like 'my link should focus on X', 'tell my link to always Y', 'my link should never discuss Z', or 'make my link ask about startups first'.",
         parameters: {
@@ -2052,6 +2070,107 @@ async function handleGenerateImage(params = {}) {
   }
 }
 
+// Handle generate_video tool - generate videos using xAI Grok Imagine Video
+async function handleGenerateVideo(params = {}) {
+  try {
+    const { prompt, image_url } = params;
+
+    if (!prompt) {
+      return { success: false, error: 'Video prompt is required' };
+    }
+
+    const apiKey = process.env.XAI_API_KEY;
+    if (!apiKey) {
+      return { success: false, error: 'Video generation is not configured' };
+    }
+
+    console.log(`[Tool] Generating video with prompt: "${prompt.substring(0, 50)}..."`);
+
+    // Build request body
+    const requestBody = {
+      model: 'grok-imagine-video',
+      prompt: prompt
+    };
+
+    // Add image URL if provided (for image-to-video)
+    if (image_url) {
+      requestBody.image_url = image_url;
+      console.log(`[Tool] Using image-to-video with: ${image_url}`);
+    }
+
+    // Start video generation
+    const startResponse = await fetch('https://api.x.ai/v1/videos/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!startResponse.ok) {
+      const errorData = await startResponse.json().catch(() => ({}));
+      console.error('[Tool] xAI video API error:', startResponse.status, errorData);
+      return { success: false, error: `Video generation failed: ${errorData.error || startResponse.status}` };
+    }
+
+    const startData = await startResponse.json();
+    const requestId = startData.request_id;
+
+    if (!requestId) {
+      return { success: false, error: 'No request ID returned from video API' };
+    }
+
+    console.log(`[Tool] Video generation started, request_id: ${requestId}`);
+
+    // Poll for result (max 2 minutes with 5 second intervals)
+    const maxAttempts = 24;
+    let attempts = 0;
+    let videoUrl = null;
+
+    while (attempts < maxAttempts && !videoUrl) {
+      await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds
+      attempts++;
+
+      console.log(`[Tool] Polling for video result (attempt ${attempts}/${maxAttempts})...`);
+
+      const pollResponse = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`
+        }
+      });
+
+      if (pollResponse.ok) {
+        const pollData = await pollResponse.json();
+        if (pollData.video?.url) {
+          videoUrl = pollData.video.url;
+          console.log(`[Tool] Video ready: ${videoUrl}`);
+        }
+      }
+    }
+
+    if (!videoUrl) {
+      return { success: false, error: 'Video generation timed out. Please try again.' };
+    }
+
+    return {
+      success: true,
+      url: videoUrl,
+      prompt: prompt,
+      instruction: 'Video generated successfully! Share the video URL with the user. You can say something like "Here\'s the video I created for you!" The video is 8 seconds long.',
+      displayAction: {
+        type: 'generated_video',
+        url: videoUrl,
+        prompt: prompt
+      }
+    };
+
+  } catch (error) {
+    console.error('[Tool] Error generating video:', error);
+    return { success: false, error: error?.message };
+  }
+}
+
 // Execute tool call
 async function executeTool(toolName, toolArgs, userId, context = 'private', visitorId = null) {
   console.log(`[Tool] Executing: ${toolName}`, toolArgs, `context: ${context}`);
@@ -2089,6 +2208,8 @@ async function executeTool(toolName, toolArgs, userId, context = 'private', visi
       return await handleGetBeliefs(userId, toolArgs);
     case 'generate_image':
       return await handleGenerateImage(toolArgs);
+    case 'generate_video':
+      return await handleGenerateVideo(toolArgs);
     case 'update_link_behavior':
       return await handleUpdateLinkBehavior(userId, toolArgs);
     case 'get_link_behavior':
