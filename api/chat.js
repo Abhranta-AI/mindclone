@@ -2084,7 +2084,16 @@ async function handleGenerateImage(params = {}) {
 }
 
 // Handle generate_video tool - generate videos using xAI Grok Imagine Video
+// NOTE: Video generation is temporarily disabled due to Vercel timeout issues
 async function handleGenerateVideo(params = {}) {
+  // Return a helpful message instead of attempting video generation
+  return {
+    success: false,
+    error: 'Video generation is temporarily unavailable. The feature requires longer processing time than our current infrastructure supports. We are working on enabling this feature soon. For now, you can use image generation instead.',
+    suggestion: 'Try asking me to create an image instead!'
+  };
+
+  /* DISABLED - Original code below
   try {
     const { prompt, image_url } = params;
 
@@ -2134,13 +2143,13 @@ async function handleGenerateVideo(params = {}) {
       return { success: false, error: 'No request ID returned from video API' };
     }
 
-    console.log(`[Tool] Video generation started, request_id: ${requestId}`);
+    console.log(`[Tool] Video generation started, request_id: ${requestId}, version: 2024-01-30-v3`);
 
     // Poll for the actual video URL (we can't guess it - xAI uses different video IDs)
-    // Poll 4 times at 5 second intervals = 20 seconds max
+    // Poll 4 times at 4 second intervals = 16 seconds max (reduced to avoid timeout)
     let videoUrl = null;
     for (let attempt = 1; attempt <= 4; attempt++) {
-      await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds
+      await new Promise(r => setTimeout(r, 4000)); // Wait 4 seconds
       console.log(`[Tool] Polling for video (attempt ${attempt}/4)...`);
 
       try {
@@ -2181,6 +2190,7 @@ async function handleGenerateVideo(params = {}) {
     console.error('[Tool] Error generating video:', error);
     return { success: false, error: error?.message };
   }
+  */ // END DISABLED VIDEO CODE
 }
 
 // Execute tool call
