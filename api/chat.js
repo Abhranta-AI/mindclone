@@ -2137,11 +2137,11 @@ async function handleGenerateVideo(params = {}) {
     console.log(`[Tool] Video generation started, request_id: ${requestId}`);
 
     // Poll for the actual video URL (we can't guess it - xAI uses different video IDs)
-    // Poll 2 times at 5 second intervals = 10 seconds max
+    // Poll 3 times at 5 second intervals = 15 seconds max
     let videoUrl = null;
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
       await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds
-      console.log(`[Tool] Polling for video (attempt ${attempt}/2)...`);
+      console.log(`[Tool] Polling for video (attempt ${attempt}/3)...`);
 
       try {
         const pollResponse = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
