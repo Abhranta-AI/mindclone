@@ -2123,10 +2123,11 @@ async function handleGenerateVideo(params = {}) {
 
     console.log(`[Tool] Video generation started, request_id: ${requestId}`);
 
-    // Poll for result (max 2 minutes with 5 second intervals)
-    const maxAttempts = 24;
+    // Poll for result (max ~45 seconds to stay within Vercel's 60s limit)
+    const maxAttempts = 9;
     let attempts = 0;
     let videoUrl = null;
+    let lastStatus = null;
 
     while (attempts < maxAttempts && !videoUrl) {
       await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds
@@ -2142,15 +2143,25 @@ async function handleGenerateVideo(params = {}) {
 
       if (pollResponse.ok) {
         const pollData = await pollResponse.json();
+        lastStatus = pollData.status || 'processing';
         if (pollData.video?.url) {
           videoUrl = pollData.video.url;
           console.log(`[Tool] Video ready: ${videoUrl}`);
+        } else if (pollData.error) {
+          return { success: false, error: `Video generation failed: ${pollData.error}` };
         }
       }
     }
 
     if (!videoUrl) {
-      return { success: false, error: 'Video generation timed out. Please try again.' };
+      // Video is still being generated - return request_id for future reference
+      return {
+        success: true,
+        pending: true,
+        request_id: requestId,
+        status: lastStatus,
+        instruction: `The video is still being generated (this can take 1-2 minutes). Tell the user: "Your video is being created! It takes about 1-2 minutes for videos to generate. Please ask me again in a minute and I\'ll check if it\'s ready." Remember the request_id: ${requestId}`
+      };
     }
 
     return {
