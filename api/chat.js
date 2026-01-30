@@ -2136,19 +2136,14 @@ async function handleGenerateVideo(params = {}) {
 
     console.log(`[Tool] Video generation started, request_id: ${requestId}`);
 
-    // Poll for result (3 attempts × 5 seconds = 15 seconds max)
-    // Videos typically complete in 10-20 seconds
-    const maxAttempts = 3;
-    let attempts = 0;
+    // Do ONE quick poll after 8 seconds - if not ready, return pending message
+    // This keeps total tool execution under 10 seconds to avoid Vercel timeout
+    await new Promise(r => setTimeout(r, 8000));
+
     let videoUrl = null;
-    let lastStatus = null;
+    console.log(`[Tool] Checking if video is ready...`);
 
-    while (attempts < maxAttempts && !videoUrl) {
-      await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds
-      attempts++;
-
-      console.log(`[Tool] Polling for video result (attempt ${attempts}/${maxAttempts})...`);
-
+    try {
       const pollResponse = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
         headers: {
           'Authorization': `Bearer ${apiKey}`
@@ -2157,34 +2152,24 @@ async function handleGenerateVideo(params = {}) {
 
       if (pollResponse.ok) {
         const pollData = await pollResponse.json();
-        lastStatus = pollData.status || 'processing';
         if (pollData.video?.url) {
-          // Verify the video is actually accessible before returning
-          try {
-            const verifyResponse = await fetch(pollData.video.url, { method: 'HEAD' });
-            if (verifyResponse.ok) {
-              videoUrl = pollData.video.url;
-              console.log(`[Tool] Video ready and verified: ${videoUrl}`);
-            } else {
-              console.log(`[Tool] Video URL returned but not yet accessible (${verifyResponse.status}), continuing to poll...`);
-            }
-          } catch (verifyError) {
-            console.log(`[Tool] Video URL verification failed, continuing to poll...`);
-          }
+          videoUrl = pollData.video.url;
+          console.log(`[Tool] Video ready: ${videoUrl}`);
         } else if (pollData.error) {
           return { success: false, error: `Video generation failed: ${pollData.error}` };
         }
       }
+    } catch (pollError) {
+      console.log(`[Tool] Poll error:`, pollError.message);
     }
 
     if (!videoUrl) {
-      // Video is still being generated - return request_id for future reference
+      // Video is still being generated - return pending message
       return {
         success: true,
         pending: true,
         request_id: requestId,
-        status: lastStatus,
-        instruction: `The video is still being generated (this can take 1-2 minutes). Tell the user: "Your video is being created! It takes about 1-2 minutes for videos to generate. Please ask me again in a minute and I\'ll check if it\'s ready." Remember the request_id: ${requestId}`
+        instruction: `The video is being generated. Tell the user: "Your video is being created! It typically takes 15-30 seconds. Ask me 'check my video' in a moment and I'll get it for you." Store this request_id for later: ${requestId}`
       };
     }
 
