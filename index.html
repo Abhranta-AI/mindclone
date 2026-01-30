@@ -4689,6 +4689,69 @@
             transform: scale(1.02);
         }
 
+        /* Video generation loader */
+        .video-loader-container {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 12px;
+            max-width: 400px;
+        }
+
+        .video-loader-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .video-loader-icon {
+            font-size: 20px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .video-loader-progress {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            height: 8px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .video-loader-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .video-loader-percent {
+            text-align: center;
+            color: #a0a0a0;
+            font-size: 12px;
+        }
+
+        .video-result {
+            margin-top: 12px;
+        }
+
+        .video-result video {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 12px;
+            display: block;
+        }
+
+        .video-error {
+            color: #ff6b6b;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
         .message.user .message-content p {
             margin: 0 0 8px 0;
         }
@@ -9712,6 +9775,24 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 const actualContent = document.createElement('div');
                 actualContent.innerHTML = marked.parse(content);
                 messageContent.appendChild(actualContent);
+
+                // Check for xAI video URL and show video loader
+                const videoUrlMatch = content.match(/https:\/\/vidgen\.x\.ai\/[^\s\)]+\.mp4/);
+                if (videoUrlMatch) {
+                    const videoUrl = videoUrlMatch[0];
+                    // Remove the raw URL from text (it will be replaced by loader)
+                    const links = actualContent.querySelectorAll('a');
+                    links.forEach(link => {
+                        if (link.href && link.href.includes('vidgen.x.ai')) {
+                            link.style.display = 'none';
+                        }
+                    });
+                    // Create video loader
+                    setTimeout(() => {
+                        createVideoLoader(videoUrl, messageContent);
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }, 100);
+                }
             } else {
                 const actualContent = document.createElement('div');
 
@@ -9935,6 +10016,101 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
         function removeTypingIndicator() {
             const typingDiv = document.getElementById('typingIndicator');
             if (typingDiv) typingDiv.remove();
+        }
+
+        // Video loader - shows progress while video generates
+        function createVideoLoader(videoUrl, containerElement) {
+            const loaderId = 'video-loader-' + Date.now();
+            const loaderHTML = `
+                <div class="video-loader-container" id="${loaderId}">
+                    <div class="video-loader-header">
+                        <span class="video-loader-icon">🎬</span>
+                        <span>Generating your video...</span>
+                    </div>
+                    <div class="video-loader-progress">
+                        <div class="video-loader-bar" id="${loaderId}-bar"></div>
+                    </div>
+                    <div class="video-loader-percent" id="${loaderId}-percent">0%</div>
+                </div>
+            `;
+
+            containerElement.insertAdjacentHTML('beforeend', loaderHTML);
+
+            let progress = 0;
+            const totalDuration = 18000; // 18 seconds
+            const interval = 100; // Update every 100ms
+            const increment = (interval / totalDuration) * 100;
+
+            const progressInterval = setInterval(() => {
+                progress += increment;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(progressInterval);
+                }
+
+                const bar = document.getElementById(`${loaderId}-bar`);
+                const percent = document.getElementById(`${loaderId}-percent`);
+                if (bar) bar.style.width = progress + '%';
+                if (percent) percent.textContent = Math.round(progress) + '%';
+
+                // At 100%, try to load the video
+                if (progress >= 100) {
+                    checkAndDisplayVideo(videoUrl, loaderId);
+                }
+            }, interval);
+
+            return loaderId;
+        }
+
+        // Check if video is ready and display it
+        async function checkAndDisplayVideo(videoUrl, loaderId) {
+            const loader = document.getElementById(loaderId);
+            if (!loader) return;
+
+            // Try to fetch the video with HEAD request
+            let attempts = 0;
+            const maxAttempts = 5;
+
+            const checkVideo = async () => {
+                attempts++;
+                try {
+                    const response = await fetch(videoUrl, { method: 'HEAD' });
+                    if (response.ok) {
+                        // Video is ready - replace loader with video
+                        loader.innerHTML = `
+                            <div class="video-result">
+                                <video controls autoplay muted loop>
+                                    <source src="${videoUrl}" type="video/mp4">
+                                    Your browser does not support video.
+                                </video>
+                                <div style="margin-top: 8px; font-size: 12px; color: #888;">
+                                    <a href="${videoUrl}" target="_blank" style="color: #667eea;">Download video</a>
+                                </div>
+                            </div>
+                        `;
+                        return true;
+                    }
+                } catch (e) {
+                    console.log('[Video] Check failed, attempt', attempts);
+                }
+
+                if (attempts < maxAttempts) {
+                    // Update loader to show still checking
+                    const percent = loader.querySelector('.video-loader-percent');
+                    if (percent) percent.textContent = 'Almost ready...';
+                    setTimeout(checkVideo, 2000);
+                } else {
+                    // Show manual link after max attempts
+                    loader.innerHTML = `
+                        <div class="video-result">
+                            <p style="color: #a0a0a0; font-size: 13px; margin-bottom: 10px;">Video may still be processing. Try the link:</p>
+                            <a href="${videoUrl}" target="_blank" style="color: #667eea; word-break: break-all;">${videoUrl}</a>
+                        </div>
+                    `;
+                }
+            };
+
+            await checkVideo();
         }
 
         // Waiting indicator state (for when Mindclone "promises" to come back)
