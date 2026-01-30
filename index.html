@@ -4691,11 +4691,12 @@
 
         /* Video generation loader */
         .video-loader-container {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: #2a2a2a;
             border-radius: 12px;
             padding: 20px;
             margin-top: 12px;
             max-width: 400px;
+            border: 1px solid #3a3a3a;
         }
 
         .video-loader-header {
@@ -4703,7 +4704,7 @@
             align-items: center;
             gap: 10px;
             margin-bottom: 15px;
-            color: #fff;
+            color: #ccc;
             font-size: 14px;
             font-weight: 500;
         }
@@ -4711,19 +4712,20 @@
         .video-loader-icon {
             font-size: 20px;
             animation: pulse 1.5s ease-in-out infinite;
+            filter: grayscale(100%);
         }
 
         .video-loader-progress {
-            background: rgba(255, 255, 255, 0.1);
+            background: #3a3a3a;
             border-radius: 8px;
-            height: 8px;
+            height: 6px;
             overflow: hidden;
             margin-bottom: 10px;
         }
 
         .video-loader-bar {
             height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(90deg, #888 0%, #aaa 100%);
             border-radius: 8px;
             transition: width 0.3s ease;
             width: 0%;
@@ -4731,16 +4733,17 @@
 
         .video-loader-percent {
             text-align: center;
-            color: #a0a0a0;
+            color: #888;
             font-size: 12px;
         }
 
         .video-result {
-            margin-top: 12px;
+            margin-top: 0;
         }
 
         .video-result video {
-            max-width: 100%;
+            width: 100%;
+            max-width: 400px;
             max-height: 400px;
             border-radius: 12px;
             display: block;
@@ -10076,18 +10079,19 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 try {
                     const response = await fetch(videoUrl, { method: 'HEAD' });
                     if (response.ok) {
-                        // Video is ready - replace loader with video
-                        loader.innerHTML = `
-                            <div class="video-result">
-                                <video controls autoplay muted loop>
+                        // Video is ready - replace loader with video player
+                        loader.outerHTML = `
+                            <div class="video-result" style="margin-top: 12px;">
+                                <video controls autoplay muted loop playsinline style="width: 100%; max-width: 400px; border-radius: 12px; display: block;">
                                     <source src="${videoUrl}" type="video/mp4">
                                     Your browser does not support video.
                                 </video>
-                                <div style="margin-top: 8px; font-size: 12px; color: #888;">
-                                    <a href="${videoUrl}" target="_blank" style="color: #667eea;">Download video</a>
+                                <div style="margin-top: 8px; font-size: 11px; color: #666;">
+                                    <a href="${videoUrl}" target="_blank" download style="color: #888; text-decoration: none;">⬇ Download</a>
                                 </div>
                             </div>
                         `;
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
                         return true;
                     }
                 } catch (e) {
@@ -10100,11 +10104,11 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                     if (percent) percent.textContent = 'Almost ready...';
                     setTimeout(checkVideo, 2000);
                 } else {
-                    // Show manual link after max attempts
+                    // Show retry option after max attempts
                     loader.innerHTML = `
-                        <div class="video-result">
-                            <p style="color: #a0a0a0; font-size: 13px; margin-bottom: 10px;">Video may still be processing. Try the link:</p>
-                            <a href="${videoUrl}" target="_blank" style="color: #667eea; word-break: break-all;">${videoUrl}</a>
+                        <div style="text-align: center; padding: 10px;">
+                            <p style="color: #888; font-size: 13px; margin-bottom: 12px;">Video still processing...</p>
+                            <a href="${videoUrl}" target="_blank" style="display: inline-block; padding: 8px 16px; background: #3a3a3a; color: #ccc; border-radius: 8px; text-decoration: none; font-size: 12px;">Open Video Link</a>
                         </div>
                     `;
                 }
