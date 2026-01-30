@@ -2136,15 +2136,15 @@ async function handleGenerateVideo(params = {}) {
 
     console.log(`[Tool] Video generation started, request_id: ${requestId}`);
 
-    // Quick poll for result (max ~8 seconds to stay well within Vercel timeout)
-    // Videos often complete in 5-15 seconds, so we do 2 quick checks
-    const maxAttempts = 2;
+    // Poll for result (3 attempts × 5 seconds = 15 seconds max)
+    // Videos typically complete in 10-20 seconds
+    const maxAttempts = 3;
     let attempts = 0;
     let videoUrl = null;
     let lastStatus = null;
 
     while (attempts < maxAttempts && !videoUrl) {
-      await new Promise(r => setTimeout(r, 4000)); // Wait 4 seconds
+      await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds
       attempts++;
 
       console.log(`[Tool] Polling for video result (attempt ${attempts}/${maxAttempts})...`);
@@ -2159,8 +2159,18 @@ async function handleGenerateVideo(params = {}) {
         const pollData = await pollResponse.json();
         lastStatus = pollData.status || 'processing';
         if (pollData.video?.url) {
-          videoUrl = pollData.video.url;
-          console.log(`[Tool] Video ready: ${videoUrl}`);
+          // Verify the video is actually accessible before returning
+          try {
+            const verifyResponse = await fetch(pollData.video.url, { method: 'HEAD' });
+            if (verifyResponse.ok) {
+              videoUrl = pollData.video.url;
+              console.log(`[Tool] Video ready and verified: ${videoUrl}`);
+            } else {
+              console.log(`[Tool] Video URL returned but not yet accessible (${verifyResponse.status}), continuing to poll...`);
+            }
+          } catch (verifyError) {
+            console.log(`[Tool] Video URL verification failed, continuing to poll...`);
+          }
         } else if (pollData.error) {
           return { success: false, error: `Video generation failed: ${pollData.error}` };
         }
