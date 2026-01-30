@@ -2136,53 +2136,16 @@ async function handleGenerateVideo(params = {}) {
 
     console.log(`[Tool] Video generation started, request_id: ${requestId}`);
 
-    // Wait 12 seconds then check - videos usually ready in 10-15 seconds
-    // This keeps total tool execution under 15 seconds
-    await new Promise(r => setTimeout(r, 12000));
+    // Return immediately with the check URL - don't wait at all
+    // The video will be ready in ~15 seconds, user can check the link directly
+    const checkUrl = `https://api.x.ai/v1/videos/${requestId}`;
 
-    let videoUrl = null;
-    console.log(`[Tool] Checking if video is ready...`);
-
-    try {
-      const pollResponse = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`
-        }
-      });
-
-      if (pollResponse.ok) {
-        const pollData = await pollResponse.json();
-        if (pollData.video?.url) {
-          videoUrl = pollData.video.url;
-          console.log(`[Tool] Video ready: ${videoUrl}`);
-        } else if (pollData.error) {
-          return { success: false, error: `Video generation failed: ${pollData.error}` };
-        }
-      }
-    } catch (pollError) {
-      console.log(`[Tool] Poll error:`, pollError.message);
-    }
-
-    if (!videoUrl) {
-      // Video is still being generated - return pending message
-      return {
-        success: true,
-        pending: true,
-        request_id: requestId,
-        instruction: `The video is being generated. Tell the user: "Your video is being created! It typically takes 15-30 seconds. Ask me 'check my video' in a moment and I'll get it for you." Store this request_id for later: ${requestId}`
-      };
-    }
-
+    // Return immediately - video will be ready in ~15 seconds
     return {
       success: true,
-      url: videoUrl,
-      prompt: prompt,
-      instruction: 'Video generated successfully! Share the video URL with the user. You can say something like "Here\'s the video I created for you!" The video is 8 seconds long.',
-      displayAction: {
-        type: 'generated_video',
-        url: videoUrl,
-        prompt: prompt
-      }
+      pending: true,
+      request_id: requestId,
+      instruction: `Video generation has started! Tell the user: "I've started creating your video. It takes about 15-20 seconds to generate. Here's your video link - it will be ready shortly: https://vidgen.x.ai/xai-vidgen-bucket/xai-video-${requestId}.mp4 - If it shows an error, just wait a few more seconds and refresh."`
     };
 
   } catch (error) {
