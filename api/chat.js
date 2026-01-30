@@ -2136,9 +2136,9 @@ async function handleGenerateVideo(params = {}) {
 
     console.log(`[Tool] Video generation started, request_id: ${requestId}`);
 
-    // Do ONE quick poll after 8 seconds - if not ready, return pending message
-    // This keeps total tool execution under 10 seconds to avoid Vercel timeout
-    await new Promise(r => setTimeout(r, 8000));
+    // Wait 12 seconds then check - videos usually ready in 10-15 seconds
+    // This keeps total tool execution under 15 seconds
+    await new Promise(r => setTimeout(r, 12000));
 
     let videoUrl = null;
     console.log(`[Tool] Checking if video is ready...`);
