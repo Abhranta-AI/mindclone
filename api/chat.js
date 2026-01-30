@@ -2136,16 +2136,45 @@ async function handleGenerateVideo(params = {}) {
 
     console.log(`[Tool] Video generation started, request_id: ${requestId}`);
 
-    // Return immediately with the check URL - don't wait at all
-    // The video will be ready in ~15 seconds, user can check the link directly
-    const checkUrl = `https://api.x.ai/v1/videos/${requestId}`;
+    // Poll for the actual video URL (we can't guess it - xAI uses different video IDs)
+    // Poll 2 times at 5 second intervals = 10 seconds max
+    let videoUrl = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds
+      console.log(`[Tool] Polling for video (attempt ${attempt}/2)...`);
 
-    // Return immediately - video will be ready in ~15 seconds
+      try {
+        const pollResponse = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+
+        if (pollResponse.ok) {
+          const pollData = await pollResponse.json();
+          if (pollData.video?.url) {
+            videoUrl = pollData.video.url;
+            console.log(`[Tool] Video ready: ${videoUrl}`);
+            break;
+          }
+        }
+      } catch (e) {
+        console.log(`[Tool] Poll error:`, e.message);
+      }
+    }
+
+    if (videoUrl) {
+      return {
+        success: true,
+        url: videoUrl,
+        instruction: `Video is ready! Share this URL with the user: ${videoUrl} - Tell them "Here's your video!" and they can click to watch it.`
+      };
+    }
+
+    // Video not ready yet - return pending with request_id
     return {
       success: true,
       pending: true,
       request_id: requestId,
-      instruction: `Video generation has started! Tell the user: "I've started creating your video. It takes about 15-20 seconds to generate. Here's your video link - it will be ready shortly: https://vidgen.x.ai/xai-vidgen-bucket/xai-video-${requestId}.mp4 - If it shows an error, just wait a few more seconds and refresh."`
+      instruction: `Video is still generating (takes 15-30 seconds). Tell the user: "Your video is being created! It takes about 20-30 seconds. Say 'check my video' in a moment and I'll get it for you."`
     };
 
   } catch (error) {
