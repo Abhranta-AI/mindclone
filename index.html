@@ -2219,14 +2219,15 @@
         }
 
         .panel-tab-content {
-            display: none !important;
+            display: none;
             flex-direction: column;
             flex: 1;
             overflow: hidden;
         }
 
-        .panel-tab-content.active {
-            display: flex !important;
+        /* Initial active state - JS will take over */
+        #activityTab {
+            display: flex;
             flex-direction: column;
             flex: 1;
         }
@@ -7750,21 +7751,18 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             panelTabs.forEach(tab => {
                 if (tab.dataset.tab === tabName) {
                     tab.classList.add('active');
-                    console.log('[Panel] Activated tab button:', tabName);
                 } else {
                     tab.classList.remove('active');
                 }
             });
 
-            // Update tab content
-            console.log('[Panel] Looking for tab content:', `${tabName}Tab`);
-            console.log('[Panel] Available tab contents:', Array.from(panelTabContents).map(c => c.id));
-
+            // Update tab content - use inline styles for reliable switching
             panelTabContents.forEach(content => {
                 if (content.id === `${tabName}Tab`) {
+                    content.style.display = 'flex';
                     content.classList.add('active');
-                    console.log('[Panel] Activated tab content:', content.id, 'Classes:', content.className);
                 } else {
+                    content.style.display = 'none';
                     content.classList.remove('active');
                 }
             });
