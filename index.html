@@ -2215,6 +2215,7 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            min-height: 200px;
         }
 
         .panel-tab-content {
@@ -2222,10 +2223,12 @@
             flex-direction: column;
             flex: 1;
             overflow: hidden;
+            min-height: 0;
         }
 
         .panel-tab-content.active {
             display: flex;
+            min-height: 200px;
         }
 
         .settings-scroll-container,
@@ -3592,6 +3595,7 @@
             padding: 40px 20px;
             text-align: center;
             color: #999;
+            min-height: 150px;
         }
 
         .activity-feed-empty .icon {
