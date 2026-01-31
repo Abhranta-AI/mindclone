@@ -6575,14 +6575,14 @@
 
             <!-- Tab Navigation -->
             <div class="panel-tabs">
-                <button class="panel-tab active" data-tab="settings">
-                    <span class="tab-icon">👤</span>
-                    <span class="tab-label">Profile</span>
-                </button>
-                <button class="panel-tab" data-tab="activity">
+                <button class="panel-tab active" data-tab="activity">
                     <span class="tab-icon">📊</span>
                     <span class="tab-label">Live</span>
                     <span class="tab-badge" id="activityBadge"></span>
+                </button>
+                <button class="panel-tab" data-tab="settings">
+                    <span class="tab-icon">👤</span>
+                    <span class="tab-label">Profile</span>
                 </button>
                 <button class="panel-tab" data-tab="analytics">
                     <span class="tab-icon">📈</span>
@@ -6593,7 +6593,7 @@
             <!-- Tab Content Container -->
             <div class="panel-content">
                 <!-- Activity Tab -->
-                <div class="panel-tab-content" id="activityTab">
+                <div class="panel-tab-content active" id="activityTab">
                     <div class="activity-feed">
                         <div class="activity-feed-header">
                             <a href="#" id="rightActivityFeedLink" class="activity-feed-link" target="_blank">
@@ -6615,7 +6615,7 @@
                 </div>
 
                 <!-- Settings Tab -->
-                <div class="panel-tab-content active" id="settingsTab">
+                <div class="panel-tab-content" id="settingsTab">
                     <div class="settings-scroll-container">
                         <!-- Alert Container -->
                         <div id="panelAlertContainer" class="panel-alert-container"></div>

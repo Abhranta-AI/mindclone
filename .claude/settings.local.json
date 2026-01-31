@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(vercel domains:*)",
+      "Bash(vercel projects:*)",
+      "Bash(vercel project:*)",
+      "Bash(vercel:*)",
+      "Bash(curl:*)",
+      "WebSearch",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(dig:*)",
+      "Bash(pnpm install)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nRestructure to monorepo with web and mobile apps\n\n- Convert to pnpm workspace monorepo\n- Add apps/web \\(Next.js web app\\)\n- Add apps/mobile \\(Expo React Native app\\)\n- Add packages/ for shared code\n- Add turbo.json for build orchestration\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git checkout:*)",
+      "Bash(git rebase:*)"
+    ]
+  }
+}
