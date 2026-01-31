@@ -91,25 +91,7 @@ function convertMessagesToOpenAI(geminiContents, systemPrompt = null) {
 const PUBLIC_LINK_SYSTEM_PROMPT = `You are a Link - the public-facing representation of someone's Mindclone, built and managed by the Mindclone itself.
 
 ## YOUR IDENTITY
-When asked "who are you?" or about your identity:
-- Simple answer: "I'm [name]'s link" or "I'm the public face of [name]'s Mindclone"
-- You are the public projection of their private Mindclone
-- Built and controlled BY the Mindclone
-- NEVER claim to be the actual person themselves
-- If someone asks "what's a link?" THEN explain: "I'm the public-facing representation of their Mindclone - like a smart business card they control"
-
-Examples:
-Q: "Who are you?"
-A: "I'm [OWNER_NAME]'s link" or "I'm the public face of [OWNER_NAME]'s Mindclone"
-
-Q: "Are you [OWNER_NAME]?"
-A: "I'm [OWNER_NAME]'s link - the public-facing representation of their Mindclone"
-
-Q: "What's a link?"
-A: "I'm the public-facing representation of [OWNER_NAME]'s Mindclone - like a smart business card they control. Their full Mindclone is private and much more comprehensive."
-
-Q: "What's the difference between you and [OWNER_NAME]'s Mindclone?"
-A: "I'm the public link - built and managed by [OWNER_NAME]'s Mindclone. Anyone can interact with me, but the full Mindclone is private and only they can access."
+[IDENTITY_SECTION]
 
 ## HOW TO SPEAK
 You speak with full authority in first person about the knowledge and work:
@@ -149,6 +131,26 @@ NEVER share these private personal details:
 - Opinions, philosophy, interests
 - Anything in the knowledge base
 
+## CAPABILITIES - WHAT YOU CAN AND CANNOT DO
+IMPORTANT: Be honest about your capabilities. Do NOT claim abilities you don't have.
+
+YOU CAN:
+- Search the web using web_search tool
+- Remember conversations with visitors
+- Access your knowledge base
+
+YOU CANNOT:
+- Generate images - IMAGE GENERATION IS TEMPORARILY UNAVAILABLE
+- Generate videos - VIDEO GENERATION IS NOT AVAILABLE
+- Make phone calls or send SMS
+- Access real-time location data
+- Execute code or run programs
+
+If someone asks you to generate an IMAGE or VIDEO:
+- Say "I can't generate images or videos right now, but I can help you find images online using web search!"
+- Offer to search for relevant images instead
+- Do NOT claim you are generating an image or video
+
 ## WEB SEARCH - WHEN TO USE
 When user asks to "find", "search", "list", "look up", or "identify" people, companies, or information:
 - IMMEDIATELY call web_search tool - don't explain or disclaim first
@@ -175,6 +177,10 @@ DO NOT DO THIS:
 - Enthusiastic about your work
 - Knowledgeable without being arrogant
 - Personal and warm
+- Use line breaks between paragraphs for readability
+- NEVER use markdown formatting like **bold**, *italics*, or # headers - write plain text only
+- NEVER show internal tool calls in your response - no brackets like "[silently call...]", no function names, no tool notation
+- NEVER output placeholder text like "[mention X]", "[insert Y]", or "[e.g., example]" - always write actual content
 
 ## MEMORY AND CONVERSATION HISTORY
 You HAVE MEMORY of this conversation:
@@ -240,6 +246,10 @@ const tools = [
               type: "string",
               enum: ["male", "female", "non-binary", "prefer-not-to-say"],
               description: "The gender of the Mindclone owner. This affects how the Mindclone refers to itself (he/him, she/her, they/them)"
+            },
+            mindcloneName: {
+              type: "string",
+              description: "A unique name for the mindclone (e.g., 'Nova', 'Sage', 'Alo'). This is the name the mindclone uses to introduce itself to visitors instead of just saying 'I'm [owner]'s link'"
             }
           },
           required: []
@@ -539,43 +549,6 @@ const tools = [
         }
       },
       {
-        name: "generate_image",
-        description: "Generate an image using AI based on a text description. Use this when the user asks you to create, generate, draw, make, or design an image, picture, artwork, illustration, sketch, or visual. Supports various styles: realistic photos, illustrations, sketches, paintings, digital art, etc.",
-        parameters: {
-          type: "object",
-          properties: {
-            prompt: {
-              type: "string",
-              description: "Detailed description of the image to generate. Be specific about style, composition, colors, mood, and details. Example: 'A detailed pencil sketch of a human eye with visible eyelashes, realistic shading, high contrast, artistic style'"
-            },
-            style: {
-              type: "string",
-              enum: ["photo", "art", "sketch", "painting", "digital_art"],
-              description: "Style of the image: photo (photorealistic), art (artistic/creative), sketch (pencil/line drawing), painting (traditional painted look), digital_art (modern digital illustration)"
-            }
-          },
-          required: ["prompt"]
-        }
-      },
-      {
-        name: "generate_video",
-        description: "Generate a short video (up to 8 seconds) using AI based on a text description. Use this when the user asks you to create, generate, or make a video, animation, clip, or motion content. Can also animate an existing image.",
-        parameters: {
-          type: "object",
-          properties: {
-            prompt: {
-              type: "string",
-              description: "Detailed description of the video to generate. Describe the scene, action, movement, style, and mood. Example: 'A golden retriever running through a sunny meadow with butterflies, slow motion, cinematic'"
-            },
-            image_url: {
-              type: "string",
-              description: "Optional URL of an image to animate. If provided, the video will be based on this image coming to life."
-            }
-          },
-          required: ["prompt"]
-        }
-      },
-      {
         name: "update_link_behavior",
         description: "Update how the public link should behave when talking to visitors. Use when the user says things like 'my link should focus on X', 'tell my link to always Y', 'my link should never discuss Z', or 'make my link ask about startups first'.",
         parameters: {
@@ -768,7 +741,8 @@ async function handleGetLinkSettings(userId) {
         bio: settingsData.bio || '',
         customGreeting: settingsData.customGreeting || '',
         knowledgeBaseEnabled: userData.knowledgeBaseEnabled || false,
-        gender: settingsData.gender || null
+        gender: settingsData.gender || null,
+        mindcloneName: settingsData.mindcloneName || null
       }
     };
   } catch (error) {
@@ -811,6 +785,13 @@ async function handleUpdateLinkSettings(userId, params) {
         return { success: false, error: 'Invalid gender value. Must be: male, female, non-binary, or prefer-not-to-say' };
       }
       linkSettingsUpdates.gender = params.gender;
+    }
+    if (params.mindcloneName !== undefined) {
+      // Validate mindclone name length
+      if (params.mindcloneName.length > 30) {
+        return { success: false, error: 'Mindclone name must be 30 characters or less' };
+      }
+      linkSettingsUpdates.mindcloneName = params.mindcloneName;
     }
 
     // Apply user document updates
@@ -2014,20 +1995,35 @@ async function handleGenerateImage(params = {}) {
         break;
     }
 
-    // Call xAI's image generation model
-    const imagenResponse = await fetch('https://api.x.ai/v1/images/generations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'grok-2-image-1212',
-        prompt: enhancedPrompt,
-        n: 1,
-        response_format: 'b64_json'
-      })
-    });
+    // Call xAI's image generation model with timeout
+    const imageController = new AbortController();
+    const imageTimeout = setTimeout(() => imageController.abort(), 25000); // 25 second timeout
+
+    let imagenResponse;
+    try {
+      imagenResponse = await fetch('https://api.x.ai/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'grok-2-image-1212',
+          prompt: enhancedPrompt,
+          n: 1,
+          response_format: 'b64_json'
+        }),
+        signal: imageController.signal
+      });
+    } catch (fetchError) {
+      clearTimeout(imageTimeout);
+      if (fetchError.name === 'AbortError') {
+        console.error('[Tool] Image generation timed out after 25 seconds');
+        return { success: false, error: 'Image generation timed out. Please try again with a simpler prompt.' };
+      }
+      throw fetchError;
+    }
+    clearTimeout(imageTimeout);
 
     if (!imagenResponse.ok) {
       const errorData = await imagenResponse.json().catch(() => ({}));
@@ -2053,144 +2049,48 @@ async function handleGenerateImage(params = {}) {
     }
 
     const imageBase64 = imageData.b64_json;
-    const imageBuffer = Buffer.from(imageBase64, 'base64');
+    console.log(`[Tool] Image generated, base64 length: ${imageBase64.length}`);
 
-    // Upload to Vercel Blob
-    const filename = `generated_${Date.now()}.png`;
-    const blob = await put(filename, imageBuffer, {
-      access: 'public',
-      contentType: 'image/png'
-    });
+    // Store image in Firestore with unique ID
+    const imageId = `img_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
-    console.log(`[Tool] Image generated and uploaded: ${blob.url}`);
+    try {
+      await db.collection('generated_images').doc(imageId).set({
+        base64: imageBase64,
+        prompt: prompt,
+        style: style,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hour expiry
+      });
+      console.log(`[Tool] Image stored in Firestore: ${imageId}`);
+    } catch (storeError) {
+      console.error('[Tool] Failed to store image:', storeError.message);
+      return { success: false, error: 'Failed to store generated image. Please try again.' };
+    }
+
+    // Return image reference - AI MUST include the tag exactly as shown
+    const imageTag = `[GENERATED_IMAGE:${imageId}]`;
 
     return {
       success: true,
-      url: blob.url,
+      imageId: imageId,
+      imageTag: imageTag,
       prompt: prompt,
       style: style,
-      instruction: 'Image generated successfully. Show the user the image by including this URL in your response. You can say something like "Here\'s the image I created for you!" and the image will display automatically.',
-      displayAction: {
-        type: 'generated_image',
-        url: blob.url,
-        prompt: prompt
-      }
+      instruction: `CRITICAL: Your response MUST contain exactly this text (copy it verbatim): ${imageTag}
+
+DO NOT use markdown image syntax like ![alt](url).
+DO NOT modify or rephrase the tag.
+JUST include ${imageTag} somewhere in your response.
+
+Example good response: "Here's the image you requested! ${imageTag}"
+Example bad response: "Here's the image: ![Generated Image](url)" - THIS IS WRONG`
     };
 
   } catch (error) {
     console.error('[Tool] Error generating image:', error);
     return { success: false, error: error?.message };
   }
-}
-
-// Handle generate_video tool - generate videos using xAI Grok Imagine Video
-// NOTE: Video generation is temporarily disabled due to Vercel timeout issues
-async function handleGenerateVideo(params = {}) {
-  // Return a helpful message instead of attempting video generation
-  return {
-    success: false,
-    error: 'Video generation is temporarily unavailable. The feature requires longer processing time than our current infrastructure supports. We are working on enabling this feature soon. For now, you can use image generation instead.',
-    suggestion: 'Try asking me to create an image instead!'
-  };
-
-  /* DISABLED - Original code below
-  try {
-    const { prompt, image_url } = params;
-
-    if (!prompt) {
-      return { success: false, error: 'Video prompt is required' };
-    }
-
-    const apiKey = process.env.XAI_API_KEY;
-    if (!apiKey) {
-      return { success: false, error: 'Video generation is not configured' };
-    }
-
-    console.log(`[Tool] Generating video with prompt: "${prompt.substring(0, 50)}..."`);
-
-    // Build request body
-    const requestBody = {
-      model: 'grok-imagine-video',
-      prompt: prompt
-    };
-
-    // Add image URL if provided (for image-to-video)
-    if (image_url) {
-      requestBody.image_url = image_url;
-      console.log(`[Tool] Using image-to-video with: ${image_url}`);
-    }
-
-    // Start video generation
-    const startResponse = await fetch('https://api.x.ai/v1/videos/generations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    if (!startResponse.ok) {
-      const errorData = await startResponse.json().catch(() => ({}));
-      console.error('[Tool] xAI video API error:', startResponse.status, errorData);
-      return { success: false, error: `Video generation failed: ${errorData.error || startResponse.status}` };
-    }
-
-    const startData = await startResponse.json();
-    const requestId = startData.request_id;
-
-    if (!requestId) {
-      return { success: false, error: 'No request ID returned from video API' };
-    }
-
-    console.log(`[Tool] Video generation started, request_id: ${requestId}, version: 2024-01-30-v3`);
-
-    // Poll for the actual video URL (we can't guess it - xAI uses different video IDs)
-    // Poll 4 times at 4 second intervals = 16 seconds max (reduced to avoid timeout)
-    let videoUrl = null;
-    for (let attempt = 1; attempt <= 4; attempt++) {
-      await new Promise(r => setTimeout(r, 4000)); // Wait 4 seconds
-      console.log(`[Tool] Polling for video (attempt ${attempt}/4)...`);
-
-      try {
-        const pollResponse = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
-          headers: { 'Authorization': `Bearer ${apiKey}` }
-        });
-
-        if (pollResponse.ok) {
-          const pollData = await pollResponse.json();
-          if (pollData.video?.url) {
-            videoUrl = pollData.video.url;
-            console.log(`[Tool] Video ready: ${videoUrl}`);
-            break;
-          }
-        }
-      } catch (e) {
-        console.log(`[Tool] Poll error:`, e.message);
-      }
-    }
-
-    if (videoUrl) {
-      return {
-        success: true,
-        url: videoUrl,
-        instruction: `Video is ready! Share this URL with the user: ${videoUrl} - Tell them "Here's your video!" and they can click to watch it.`
-      };
-    }
-
-    // Video not ready yet - return pending with request_id
-    return {
-      success: true,
-      pending: true,
-      request_id: requestId,
-      instruction: `Video is still generating (takes 15-30 seconds). Tell the user: "Your video is being created! It takes about 20-30 seconds. Say 'check my video' in a moment and I'll get it for you."`
-    };
-
-  } catch (error) {
-    console.error('[Tool] Error generating video:', error);
-    return { success: false, error: error?.message };
-  }
-  */ // END DISABLED VIDEO CODE
 }
 
 // Execute tool call
@@ -2230,8 +2130,6 @@ async function executeTool(toolName, toolArgs, userId, context = 'private', visi
       return await handleGetBeliefs(userId, toolArgs);
     case 'generate_image':
       return await handleGenerateImage(toolArgs);
-    case 'generate_video':
-      return await handleGenerateVideo(toolArgs);
     case 'update_link_behavior':
       return await handleUpdateLinkBehavior(userId, toolArgs);
     case 'get_link_behavior':
@@ -2446,9 +2344,53 @@ module.exports = async (req, res) => {
     if (context === 'public' && !baseSystemPrompt) {
       // Build public link system prompt with owner's name and knowledge base
       const ownerName = userData?.displayName || userData?.name || username;
-      baseSystemPrompt = PUBLIC_LINK_SYSTEM_PROMPT.replace(/\[OWNER_NAME\]/g, ownerName);
+      const mindcloneName = linkSettings?.mindcloneName;
 
-      console.log(`[Chat] Built public link system prompt for ${ownerName}`);
+      // Build identity section based on whether there's a custom mindclone name
+      let identitySection;
+      if (mindcloneName) {
+        // Custom name - mindclone has its own identity
+        identitySection = `Your name is ${mindcloneName}. You are ${ownerName}'s AI companion/mindclone.
+When asked "who are you?" or about your identity:
+- Say "I'm ${mindcloneName}, ${ownerName}'s mindclone" or just "I'm ${mindcloneName}"
+- You represent ${ownerName}'s knowledge, thoughts, and personality
+- You're like their AI twin that can talk to people on their behalf
+- NEVER claim to be ${ownerName} themselves - you're ${mindcloneName}, their mindclone
+
+Examples:
+Q: "Who are you?"
+A: "I'm ${mindcloneName}!" or "I'm ${mindcloneName}, ${ownerName}'s mindclone"
+
+Q: "Are you ${ownerName}?"
+A: "I'm ${mindcloneName}, ${ownerName}'s mindclone - I represent their thoughts and knowledge"
+
+Q: "What's a mindclone?"
+A: "I'm ${ownerName}'s AI companion - trained on their knowledge and personality. Think of me as their digital twin!"`;
+      } else {
+        // Default - no custom name
+        identitySection = `When asked "who are you?" or about your identity:
+- Simple answer: "I'm ${ownerName}'s link" or "I'm the public face of ${ownerName}'s Mindclone"
+- You are the public projection of their private Mindclone
+- Built and controlled BY the Mindclone
+- NEVER claim to be the actual person themselves
+- If someone asks "what's a link?" THEN explain: "I'm the public-facing representation of their Mindclone - like a smart business card they control"
+
+Examples:
+Q: "Who are you?"
+A: "I'm ${ownerName}'s link" or "I'm the public face of ${ownerName}'s Mindclone"
+
+Q: "Are you ${ownerName}?"
+A: "I'm ${ownerName}'s link - the public-facing representation of their Mindclone"
+
+Q: "What's a link?"
+A: "I'm the public-facing representation of ${ownerName}'s Mindclone - like a smart business card they control."`;
+      }
+
+      baseSystemPrompt = PUBLIC_LINK_SYSTEM_PROMPT
+        .replace('[IDENTITY_SECTION]', identitySection)
+        .replace(/\[OWNER_NAME\]/g, ownerName);
+
+      console.log(`[Chat] Built public link system prompt for ${ownerName}${mindcloneName ? ` (mindclone: ${mindcloneName})` : ''}`);
     }
 
     // Build enhanced system prompt with memories and tool instructions
@@ -2560,17 +2502,22 @@ Remember: You're representing the owner to visitors, but protecting their privac
       }
 
       // Add tool usage instructions
-      enhancedPrompt += `\n\n## ⚠️ HIGHEST PRIORITY - IMAGE GENERATION ⚠️
-When the user asks you to DRAW, SKETCH, CREATE, GENERATE, or MAKE an image/picture:
-1. IMMEDIATELY call generate_image - DO NOT ask clarifying questions
-2. NEVER say "What kind of..." or "Would you like..." or "Can you describe..."
-3. Use your creativity to fill in details - that's what the user wants!
-4. If request is vague, make a creative choice and generate something beautiful
+      enhancedPrompt += `\n\n## ⛔ IMAGE AND VIDEO GENERATION NOT AVAILABLE ⛔
+CRITICAL: You CANNOT generate images or videos. These features are temporarily unavailable.
 
-WRONG: "What kind of eyes would you like? Human eyes, cat eyes..."
-RIGHT: [call generate_image({prompt: "detailed pencil sketch of expressive human eyes with realistic shading", style: "sketch"})]
+If user asks to CREATE, GENERATE, DRAW, SKETCH, or MAKE an IMAGE or VIDEO:
+1. DO NOT claim you are generating an image or video
+2. DO NOT provide any image or video URLs
+3. DO NOT say "the image/video is being generated"
+4. INSTEAD say: "I can't generate images or videos right now, but I can help you find relevant images using web search! Would you like me to search for some?"
 
-If user says "yes" or confirms after you mention drawing/sketching something, ACTUALLY GENERATE IT. Don't change topic!
+WRONG responses:
+❌ "I'm generating an image for you..."
+❌ "Here's the image I created..."
+❌ "Let me draw that for you..."
+
+CORRECT response:
+✅ "I can't generate images right now, but I can search the web for relevant images. Would you like me to do that?"
 
 ## ⚠️ PUBLIC LINK SETTINGS - IMMEDIATE ACTION ⚠️
 When the user asks to change/update/modify their link, greeting, bio, display name, or any link setting:
@@ -2668,13 +2615,14 @@ When the user shares a PDF URL (e.g., ending in .pdf or from blob.vercel-storage
 
 EXAMPLES:
 User: "Go to myBorosil.com and see my photos"
-GOOD: [silently call browse_url({url: "https://myborosil.com"}), then respond:] "I checked myBorosil.com! I saw [actual content from the page]."
+→ Internally use browse_url tool, then respond naturally: "I checked myBorosil.com! I saw [actual content from the page]."
+→ NEVER output any bracket notation or tool names in your response!
 
 User: "here's my roadmap [Attached file: roadmap.pdf] File URL: https://...blob.vercel-storage.com/.../roadmap.pdf"
-GOOD: [silently call browse_url({url: "https://...blob.vercel-storage.com/.../roadmap.pdf"}), then respond:] "I've read your roadmap! Here's what I see: [summarize content]"
+→ Internally use browse_url tool, then respond naturally: "I've read your roadmap! Here's what I see: [summarize content]"
 
 If browse_url fails:
-GOOD: "I couldn't access that right now - can you tell me what you wanted me to see?"
+→ Say: "I couldn't access that right now - can you tell me what you wanted me to see?"
 
 ## WEB SEARCHING (web_search tool):
 You can search the internet for current information using the web_search tool. Use this when:
@@ -2691,13 +2639,15 @@ You can search the internet for current information using the web_search tool. U
 
 EXAMPLES:
 User: "What's happening with AI lately?"
-GOOD: [silently call web_search({query: "latest AI news December 2024"}), then respond:] "Here's what's happening in AI..."
+→ Internally use web_search, then respond naturally: "Here's what's happening in AI..."
 
 User: "Search for the best restaurants in Mumbai"
-GOOD: [silently call web_search({query: "best restaurants Mumbai 2024"}), then respond:] "I found some great options..."
+→ Internally use web_search, then respond naturally: "I found some great options..."
 
 User: "Go to life3h.com"
-GOOD: [silently call browse_url({url: "https://life3h.com"}), NOT web_search] - because there's a specific URL
+→ Use browse_url (not web_search) because there's a specific URL, then respond naturally with what you found
+
+CRITICAL: Never show tool names, brackets, or function calls in your response. Just respond naturally with the information.
 
 ## WHEN IN DOUBT, SEARCH - CRITICAL FALLBACK RULE:
 If you're unsure how to answer a question or feel like you're about to give a vague/generic response, USE web_search INSTEAD. It's always better to search and give a concrete answer than to give a vague response or ask for clarification.
@@ -2712,12 +2662,12 @@ If you're stuck or uncertain, IMMEDIATELY call web_search with a refined version
 
 EXAMPLE - Follow-up questions after a search:
 User: "Search for AI identity companies"
-You: [search and return results about DeepMind, Anthropic, etc.]
+You: (use web_search internally, then respond with results about DeepMind, Anthropic, etc.)
 User: "Who's the top player?"
 BAD: "I need a moment to gather my thoughts" or "Could you clarify?"
-GOOD: [call web_search({query: "top AI identity company market leader most funded 2024"})] - then give a concrete answer
+GOOD: Search again internally, then give a concrete answer like "Based on funding and market share, Anthropic and OpenAI are the leaders..."
 
-The rule is simple: When uncertain, SEARCH. Never deflect.`;
+The rule is simple: When uncertain, SEARCH. Never deflect. And NEVER show tool names or brackets in your response.`;
 
       // Add image analysis instructions
       enhancedPrompt += `
@@ -2737,10 +2687,12 @@ The rule is simple: When uncertain, SEARCH. Never deflect.`;
 **EXAMPLE:**
 User: "started reading this book today [Image: image.jpg] Image URL: https://jb2q3qprkcy5tl7b.public.blob.vercel-storage.com/..."
 
-GOOD: [silently call analyze_image({image_url: "https://jb2q3qprkcy5tl7b.public.blob.vercel-storage.com/...", question: "What book is this? What's the title and author?"})]
-Then respond: "Oh nice! You're reading [Book Title] by [Author]. That's a great choice! What drew you to it?"
+GOOD: Internally use analyze_image to see the book, then respond naturally:
+"Oh nice! You're reading [Book Title] by [Author]. That's a great choice! What drew you to it?"
 
 BAD: "It's wonderful that you're excited about your new book! I'm curious what it is." (NEVER ignore the image URL!)
+
+CRITICAL: Never show tool names, brackets, or "[silently call...]" in your response - just respond naturally!
 
 **RULES:**
 - NEVER ask "what book is it?" or "what image is that?" when the image URL is RIGHT THERE
@@ -2748,43 +2700,7 @@ BAD: "It's wonderful that you're excited about your new book! I'm curious what i
 - If the image is blurry or unclear, say so after trying to analyze it
 - For follow-up questions like "what's this book about?", analyze the image again to get details
 
-## IMAGE GENERATION (generate_image tool):
-
-You can CREATE images using the generate_image tool. Use this when the user asks you to:
-- Draw, sketch, create, generate, make, or design an image/picture/artwork
-- "Draw me a...", "Sketch a...", "Create an image of...", "Make a picture of..."
-- "Can you draw...", "I want an image of...", "Generate..."
-
-**CRITICAL RULES FOR generate_image:**
-1. When user asks to CREATE an image, IMMEDIATELY call generate_image - DO NOT ask clarifying questions
-2. Use what the user said as the prompt. If they say "sketch eyes", create a sketch of eyes
-3. NEVER say "What kind of eyes?" or "Can you describe what you want?" - just generate based on what they said
-4. If the request is vague, make a creative choice and generate something
-5. The tool handles styles automatically - use 'sketch' for drawings, 'photo' for realistic, 'art' for creative
-
-**EXAMPLES:**
-User: "sketch the image of eyes"
-BAD: "What kind of eyes would you like? For example, human eyes, cat eyes..." (NEVER DO THIS)
-GOOD: [silently call generate_image({prompt: "detailed pencil sketch of a pair of human eyes with realistic shading, visible eyelashes, high contrast", style: "sketch"})]
-
-User: "draw me a sunset"
-BAD: "I'd be happy to help! What style of sunset?" (NEVER ASK THIS)
-GOOD: [silently call generate_image({prompt: "beautiful sunset over ocean with vibrant orange and pink clouds, golden light reflecting on water", style: "art"})]
-
-User: "create a picture of a dog"
-GOOD: [silently call generate_image({prompt: "happy golden retriever dog sitting in a park, soft lighting, friendly expression", style: "photo"})]
-
-User: "yes" (after being offered to draw something)
-If the user says "yes" to drawing something you mentioned, ACTUALLY DRAW IT. Don't change topic!
-
-**STYLE GUIDE:**
-- sketch: pencil drawings, line art, hand-drawn style
-- photo: photorealistic images
-- art: creative/artistic interpretations
-- painting: traditional painted look
-- digital_art: modern digital illustrations
-
-The rule is simple: When asked to create/draw/make an image, IMMEDIATELY call generate_image. Never ask for clarification.`;
+`;
 
 
       // Add style guide
@@ -2883,6 +2799,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
     let pendingMessage = null; // Text before tool calls (e.g., "Let me check...")
     let usedTool = null; // Track which tool was used
     let lastMemorySearchResult = null; // Store memory search result for fallback responses
+    let lastGeneratedImageId = null; // Track generated image ID for injection
 
     // Helper functions for xAI/OpenAI format
     const getToolCall = (choice) => choice?.message?.tool_calls?.[0];
@@ -2968,6 +2885,12 @@ Use this to understand time references like "yesterday", "next week", "this mont
         console.log(`[Memory Search] Stored result: ${toolResult?.matchCount || 0} matches, query: "${toolResult?.query}"`);
       }
 
+      // Track generated image ID
+      if (funcName === 'generate_image' && toolResult?.success && toolResult?.imageId) {
+        lastGeneratedImageId = toolResult.imageId;
+        console.log(`[Image] Stored generated image ID: ${lastGeneratedImageId}`);
+      }
+
       // Add assistant's tool call to messages
       openaiMessages.push({
         role: 'assistant',
@@ -3044,6 +2967,19 @@ Use this to understand time references like "yesterday", "next week", "this mont
 
     // Remove any duplicated text
     text = deduplicateText(text);
+
+    // Inject generated image tag if the AI didn't include it
+    if (lastGeneratedImageId) {
+      const imageTag = `[GENERATED_IMAGE:${lastGeneratedImageId}]`;
+      if (!text.includes(imageTag) && !text.includes('[GENERATED_IMAGE:')) {
+        // Remove any broken markdown images the AI might have added
+        text = text.replace(/!\[Generated Image\]\([^)]*\)/gi, '');
+        text = text.replace(/!\[.*?\]\(data:image[^)]*\)/gi, '');
+        // Append the image tag
+        text = text.trim() + '\n\n' + imageTag;
+        console.log(`[Image] Injected image tag: ${imageTag}`);
+      }
+    }
 
     // Log response details for debugging empty responses
     console.log(`[Response] Raw text length: ${rawText.length}, Sanitized length: ${text.length}`);

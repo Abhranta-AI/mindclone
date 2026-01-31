@@ -2478,6 +2478,53 @@
             background: transparent;
         }
 
+        /* Mindclone Name Input Group */
+        .mindclone-name-input-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .mindclone-name-input-group .panel-input {
+            flex: 1;
+        }
+
+        .panel-button-small {
+            padding: 10px 16px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .panel-button-small:hover {
+            background: var(--accent-hover);
+        }
+
+        .panel-button-small:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .input-status {
+            font-size: 12px;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .input-status.success {
+            color: #22c55e;
+        }
+
+        .input-status.error {
+            color: var(--error);
+        }
+
         .username-delete-icon {
             padding: 8px;
             cursor: pointer;
@@ -6608,6 +6655,17 @@
                                 </label>
                             </div>
 
+                            <!-- Mindclone Name -->
+                            <div class="panel-form-group" id="panelMindcloneNameGroup" style="display: none;">
+                                <label class="panel-label">Mindclone Name</label>
+                                <span class="panel-hint">Give your mindclone a unique name (e.g., Nova, Sage, Echo)</span>
+                                <div class="mindclone-name-input-group">
+                                    <input type="text" id="panelMindcloneNameInput" class="panel-input" placeholder="e.g., Nova" maxlength="30" autocomplete="off">
+                                    <button id="panelSaveMindcloneNameBtn" class="panel-button-small">Save</button>
+                                </div>
+                                <span id="panelMindcloneNameStatus" class="input-status"></span>
+                            </div>
+
                             <!-- Copy Link (shown when claimed) -->
                             <div id="panelLinkPreviewSection" style="display: none;">
                                 <button id="panelCopyLinkBtn" class="copy-btn">Copy Link</button>
@@ -6876,6 +6934,10 @@
         const panelLinkEnabledToggle = document.getElementById('panelLinkEnabledToggle');
         const panelEnableLinkGroup = document.getElementById('panelEnableLinkGroup');
         const panelLinkPreviewSection = document.getElementById('panelLinkPreviewSection');
+        const panelMindcloneNameGroup = document.getElementById('panelMindcloneNameGroup');
+        const panelMindcloneNameInput = document.getElementById('panelMindcloneNameInput');
+        const panelSaveMindcloneNameBtn = document.getElementById('panelSaveMindcloneNameBtn');
+        const panelMindcloneNameStatus = document.getElementById('panelMindcloneNameStatus');
         const panelCopyLinkBtn = document.getElementById('panelCopyLinkBtn');
         const panelAlertContainer = document.getElementById('panelAlertContainer');
 
@@ -7638,6 +7700,47 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 }
             });
 
+            // Save mindclone name
+            panelSaveMindcloneNameBtn.addEventListener('click', async () => {
+                if (!auth.currentUser) return;
+
+                const mindcloneName = panelMindcloneNameInput.value.trim();
+
+                // Validate
+                if (mindcloneName.length > 30) {
+                    panelMindcloneNameStatus.textContent = 'Name too long (max 30 characters)';
+                    panelMindcloneNameStatus.className = 'input-status error';
+                    return;
+                }
+
+                try {
+                    panelSaveMindcloneNameBtn.disabled = true;
+                    panelSaveMindcloneNameBtn.textContent = 'Saving...';
+
+                    const linkSettingsRef = doc(db, 'users', auth.currentUser.uid, 'linkSettings', 'config');
+                    await setDoc(linkSettingsRef, {
+                        mindcloneName: mindcloneName || null,
+                        updatedAt: serverTimestamp()
+                    }, { merge: true });
+
+                    panelMindcloneNameStatus.textContent = mindcloneName ? `✓ Your mindclone is now "${mindcloneName}"!` : '✓ Name cleared';
+                    panelMindcloneNameStatus.className = 'input-status success';
+
+                    // Clear status after 3 seconds
+                    setTimeout(() => {
+                        panelMindcloneNameStatus.textContent = '';
+                        panelMindcloneNameStatus.className = 'input-status';
+                    }, 3000);
+                } catch (error) {
+                    console.error('Error saving mindclone name:', error);
+                    panelMindcloneNameStatus.textContent = 'Failed to save name';
+                    panelMindcloneNameStatus.className = 'input-status error';
+                } finally {
+                    panelSaveMindcloneNameBtn.disabled = false;
+                    panelSaveMindcloneNameBtn.textContent = 'Save';
+                }
+            });
+
             // Username availability checking
             panelUsernameInput.addEventListener('input', (e) => {
                 const username = e.target.value.trim().toLowerCase();
@@ -7854,6 +7957,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             panelReleaseUsernameBtn.classList.add('hidden');
             panelDeleteUsernameIcon.classList.remove('hidden'); // Show delete button
             panelEnableLinkGroup.style.display = 'block'; // Show enable toggle
+            panelMindcloneNameGroup.style.display = 'block'; // Show mindclone name input
             showPanelLinkPreview(username); // Show link preview
         }
 
@@ -7869,6 +7973,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             panelReleaseUsernameBtn.classList.add('hidden');
             panelDeleteUsernameIcon.classList.add('hidden'); // Hide delete button
             panelEnableLinkGroup.style.display = 'none'; // Hide enable toggle
+            panelMindcloneNameGroup.style.display = 'none'; // Hide mindclone name input
             panelLinkPreviewSection.style.display = 'none'; // Hide link preview
         }
 
@@ -7901,6 +8006,20 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                     }
 
                     panelLinkEnabledToggle.checked = userData.linkEnabled || false;
+
+                    // Load mindclone name from linkSettings
+                    try {
+                        const linkSettingsRef = doc(db, 'users', auth.currentUser.uid, 'linkSettings', 'config');
+                        const linkSettingsDoc = await getDoc(linkSettingsRef);
+                        if (linkSettingsDoc.exists()) {
+                            const linkSettings = linkSettingsDoc.data();
+                            if (linkSettings.mindcloneName) {
+                                panelMindcloneNameInput.value = linkSettings.mindcloneName;
+                            }
+                        }
+                    } catch (lsError) {
+                        console.error('[Panel] Error loading link settings:', lsError);
+                    }
                 }
 
                 // Load knowledge base (don't let this break settings loading)
