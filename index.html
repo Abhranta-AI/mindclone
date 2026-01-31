@@ -9779,21 +9779,8 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             chatMessages.innerHTML = '';
             console.log('[Chat] Cleared chat messages');
 
-            // INSTANT CACHE: Show cached messages immediately while loading from Firestore
-            const cachedMessages = getCachedMessages();
-            const hasCachedMessages = cachedMessages && cachedMessages.length > 0;
-            if (hasCachedMessages) {
-                console.log('[Cache] Displaying cached messages instantly');
-                cachedMessages.forEach(msg => {
-                    addMessage(msg.role === 'assistant' ? 'ai' : msg.role, msg.content, msg.timestamp);
-                });
-                console.log('[Cache] Displayed', cachedMessages.length, 'cached messages for instant load');
-            }
-
-            // Only show loading indicator if we have NO cached messages
-            if (!hasCachedMessages) {
-                showLoadingIndicator();
-            }
+            // Show loading indicator while fetching from Firestore
+            showLoadingIndicator();
 
             // Auto-remove loading indicator after 10 seconds as failsafe
             const loadingTimeout = setTimeout(() => {
@@ -9846,19 +9833,14 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
 
                     // Update cache with fresh Firestore messages for next PWA launch
                     cacheMessages(messages);
-                } else if (!hasCachedMessages) {
-                    // No history and no cache - show empty state
+                } else {
+                    // No history - show empty state
                     console.log('[Chat] No messages found, showing empty state');
                     showEmptyState();
                 }
-                // If we have cached messages but Firestore returned empty (network issue?),
-                // keep showing cached messages
             } catch (error) {
                 console.error('[Chat] Error loading conversation:', error);
-                // Only show empty state if we don't have cached messages
-                if (!hasCachedMessages) {
-                    showEmptyState();
-                }
+                showEmptyState();
             } finally {
                 removeLoadingIndicator();
                 console.log('[Chat] Finished loading conversation');
