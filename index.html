@@ -8450,6 +8450,12 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 loadPanelAnalytics();
             });
 
+            // Load analytics immediately if analytics tab is active
+            const analyticsTab = document.getElementById('analyticsTab');
+            if (analyticsTab && !analyticsTab.classList.contains('hidden')) {
+                loadPanelAnalytics();
+            }
+
             console.log('[Panel] Analytics initialized successfully');
         }
 

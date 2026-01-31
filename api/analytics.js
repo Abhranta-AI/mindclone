@@ -158,11 +158,25 @@ async function getTimeBasedStats(userId, days = 30) {
       const allVisitors = await db.collection('users').doc(userId)
         .collection('visitors')
         .get();
-      // Filter manually
+      // Filter manually with robust timestamp parsing
       visitorsSnapshot = {
         docs: allVisitors.docs.filter(doc => {
           const lastVisit = doc.data().lastVisit;
-          return lastVisit && lastVisit.toMillis() >= startTime;
+          if (!lastVisit) return false;
+          // Handle different timestamp formats
+          let timestamp;
+          if (lastVisit.toMillis) {
+            timestamp = lastVisit.toMillis();
+          } else if (lastVisit.seconds) {
+            timestamp = lastVisit.seconds * 1000;
+          } else if (lastVisit._seconds) {
+            timestamp = lastVisit._seconds * 1000;
+          } else if (typeof lastVisit === 'number') {
+            timestamp = lastVisit;
+          } else {
+            return false;
+          }
+          return timestamp >= startTime;
         }),
         size: 0
       };
@@ -193,10 +207,23 @@ async function getTimeBasedStats(userId, days = 30) {
           .collection('visitors').doc(visitorDoc.id)
           .collection('messages')
           .get();
-        // Filter manually
+        // Filter manually with robust timestamp parsing
         messageCount = allMessages.docs.filter(doc => {
-          const timestamp = doc.data().timestamp;
-          return timestamp && timestamp.toMillis() >= startTime;
+          const ts = doc.data().timestamp;
+          if (!ts) return false;
+          let timestamp;
+          if (ts.toMillis) {
+            timestamp = ts.toMillis();
+          } else if (ts.seconds) {
+            timestamp = ts.seconds * 1000;
+          } else if (ts._seconds) {
+            timestamp = ts._seconds * 1000;
+          } else if (typeof ts === 'number') {
+            timestamp = ts;
+          } else {
+            return false;
+          }
+          return timestamp >= startTime;
         }).length;
       }
 
