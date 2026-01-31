@@ -6713,11 +6713,11 @@
             </div>
 
             <!-- Tab Content Container -->
-            <div class="panel-content">
-                <!-- Activity Tab -->
-                <div class="panel-tab-content active" id="activityTab">
-                    <div class="activity-feed">
-                        <div class="activity-feed-header">
+            <div class="panel-content" style="flex: 1; display: flex; flex-direction: column;">
+                <!-- Activity Tab - Default visible -->
+                <div class="panel-tab-content active" id="activityTab" style="display: flex; flex-direction: column; flex: 1;">
+                    <div class="activity-feed" style="display: flex; flex-direction: column; flex: 1;">
+                        <div class="activity-feed-header" style="display: flex; flex-direction: column; padding: 16px;">
                             <a href="#" id="rightActivityFeedLink" class="activity-feed-link" target="_blank">
                                 <span class="icon">🔗</span> Live Link Activity
                                 <span class="arrow">→</span>
@@ -6728,7 +6728,7 @@
                             <!-- Activity items will be dynamically added here -->
                         </div>
                         <!-- Empty state (shown when no activity) -->
-                        <div id="rightActivityEmpty" class="activity-feed-empty">
+                        <div id="rightActivityEmpty" class="activity-feed-empty" style="display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px;">
                             <div class="icon">🔗</div>
                             <div class="message">No Link Activity Yet<br>Enable your link to see visitor conversations</div>
                             <button class="switch-to-settings-btn">Go to Settings</button>
