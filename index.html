@@ -9041,6 +9041,31 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
         }
 
         // Activity Feed Functions
+
+        // Helper to parse various timestamp formats into milliseconds
+        function parseTimestamp(timestamp) {
+            if (!timestamp) return null;
+            try {
+                if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+                    return timestamp.toDate().getTime();
+                } else if (timestamp.seconds !== undefined && timestamp.seconds !== null) {
+                    return timestamp.seconds * 1000;
+                } else if (timestamp._seconds !== undefined) {
+                    return timestamp._seconds * 1000;
+                } else if (timestamp instanceof Date) {
+                    return timestamp.getTime();
+                } else if (typeof timestamp === 'number') {
+                    return timestamp;
+                } else if (typeof timestamp === 'string') {
+                    const parsed = new Date(timestamp).getTime();
+                    return isNaN(parsed) ? null : parsed;
+                }
+            } catch (e) {
+                console.warn('[parseTimestamp] Error:', e);
+            }
+            return null;
+        }
+
         function formatTimeAgo(timestamp) {
             if (!timestamp) return 'just now';
 
@@ -9142,7 +9167,8 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
 
                     // Update count (right panel only)
                     const todayCount = activityData.filter(a => {
-                        const time = a.lastTimestamp?.seconds ? a.lastTimestamp.seconds * 1000 : Date.now();
+                        const time = parseTimestamp(a.lastTimestamp);
+                        if (!time) return false; // Don't count if no valid timestamp
                         return (Date.now() - time) < 86400000; // 24 hours
                     }).length;
                     if (rightActivityCount) rightActivityCount.textContent = `${todayCount} today`;
@@ -9409,8 +9435,8 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 const visitorId = item.dataset.visitorId;
                 const activity = activityData.find(a => a.visitorId === visitorId);
                 if (activity) {
-                    const time = activity.lastTimestamp?.seconds ? activity.lastTimestamp.seconds * 1000 : now;
-                    if ((now - time) < 86400000) { // 24 hours
+                    const time = parseTimestamp(activity.lastTimestamp);
+                    if (time && (now - time) < 86400000) { // 24 hours
                         todayCount++;
                     }
                 }
@@ -12299,8 +12325,8 @@ Is there anything else you'd like to configure?`;
             const now = Date.now();
             const oneDayAgo = now - (24 * 60 * 60 * 1000);
             const todayCount = activityData.filter(activity => {
-                const timestamp = activity.timestamp?.toMillis ? activity.timestamp.toMillis() : activity.timestamp;
-                return timestamp > oneDayAgo;
+                const timestamp = parseTimestamp(activity.lastTimestamp || activity.timestamp);
+                return timestamp && timestamp > oneDayAgo;
             }).length;
 
             // Update stats
@@ -12356,8 +12382,8 @@ Is there anything else you'd like to configure?`;
             const now = Date.now();
             const oneDayAgo = now - (24 * 60 * 60 * 1000);
             const todayCount = activityData.filter(activity => {
-                const timestamp = activity.timestamp?.toMillis ? activity.timestamp.toMillis() : activity.timestamp;
-                return timestamp > oneDayAgo;
+                const timestamp = parseTimestamp(activity.lastTimestamp || activity.timestamp);
+                return timestamp && timestamp > oneDayAgo;
             }).length;
 
             // Update right panel count
