@@ -1,10 +1,53 @@
 // Billing Status API - Get user's subscription status
+// Returns current subscription state, trial info, and pricing
+// Also auto-assigns temporary username to new users
 const { initializeFirebaseAdmin, admin } = require('../_firebase-admin');
-const { getSubscriptionSummary } = require('../_billing-helpers');
+const { getSubscriptionSummary, PRICING } = require('../_billing-helpers');
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
 const db = admin.firestore();
+
+// Word lists for random username generation (same as username.js)
+const ADJECTIVES = [
+  'curious', 'bright', 'clever', 'swift', 'bold', 'calm', 'eager', 'gentle',
+  'happy', 'keen', 'lively', 'merry', 'noble', 'proud', 'quick', 'sharp',
+  'smart', 'vivid', 'warm', 'wise', 'witty', 'zesty', 'agile', 'brave',
+  'cosmic', 'daring', 'epic', 'fierce', 'golden', 'humble', 'ionic', 'jolly'
+];
+
+const NOUNS = [
+  'panda', 'falcon', 'dolphin', 'phoenix', 'tiger', 'wolf', 'hawk', 'lion',
+  'eagle', 'fox', 'owl', 'bear', 'dragon', 'unicorn', 'raven', 'shark',
+  'cobra', 'jaguar', 'lynx', 'otter', 'panther', 'viper', 'badger', 'cipher'
+];
+
+// Generate a random temporary username
+function generateTempUsername() {
+  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+  const num = Math.floor(Math.random() * 100);
+  return `${adj}_${noun}_${num}`;
+}
+
+// Assign temp username to new user
+async function assignTempUsernameToUser(userId) {
+  for (let i = 0; i < 10; i++) {
+    const tempUsername = generateTempUsername();
+    const usernameDoc = await db.collection('usernames').doc(tempUsername).get();
+
+    if (!usernameDoc.exists) {
+      await db.collection('usernames').doc(tempUsername).set({
+        userId: userId,
+        claimedAt: admin.firestore.FieldValue.serverTimestamp(),
+        isTemporary: true
+      });
+      return tempUsername;
+    }
+  }
+  // Fallback
+  return `user_${userId.substring(0, 8)}`;
+}
 
 module.exports = async (req, res) => {
   // CORS headers
@@ -46,18 +89,24 @@ module.exports = async (req, res) => {
     let userData = userDoc.exists ? userDoc.data() : null;
 
     // AUTO-PROVISION TRIAL: If user doesn't exist yet (new signup), create with 7-day trial
-    // This allows users to complete registration (claim username) before paywall
+    // Also auto-assign a temporary username
     if (!userDoc.exists && userEmail) {
-      console.log(`[Billing Status] New user detected, auto-provisioning 7-day trial: ${userEmail}`);
+      console.log(`[Billing Status] New user detected, auto-provisioning ${PRICING.trialDays}-day trial: ${userEmail}`);
 
       const trialEnd = new Date();
-      trialEnd.setDate(trialEnd.getDate() + 7);
+      trialEnd.setDate(trialEnd.getDate() + PRICING.trialDays);
+
+      // Generate and assign temporary username
+      const tempUsername = await assignTempUsernameToUser(userId);
+      console.log(`[Billing Status] Assigned temp username: ${tempUsername}`);
 
       const newUserData = {
         email: userEmail,
+        username: tempUsername,
+        hasTemporaryUsername: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         billing: {
-          status: 'created',
+          subscriptionStatus: 'trialing',
           trialEnd: trialEnd,
           trialStarted: admin.firestore.FieldValue.serverTimestamp()
         }

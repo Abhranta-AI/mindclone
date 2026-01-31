@@ -1,18 +1,30 @@
-// Shared billing helper functions (Razorpay)
+// Shared billing helper functions (Stripe)
+// Pricing: $100/month with 7-day free trial
+
+/**
+ * Pricing configuration - single source of truth
+ */
+const PRICING = {
+  amount: 10000, // $100.00 in cents
+  currency: 'usd',
+  interval: 'month',
+  trialDays: 7,
+  productName: 'Mindclone Pro',
+  formatted: '$100/month'
+};
 
 /**
  * Compute user's access level based on subscription status
  * Returns: "full" or "read_only"
  *
- * Razorpay subscription statuses:
- * - created: Subscription created but not charged
- * - authenticated: Customer authenticated but not charged
+ * Stripe subscription statuses:
+ * - trialing: In trial period
  * - active: Active subscription
- * - pending: Payment pending
- * - halted: Subscription halted due to payment failure
- * - cancelled: Subscription cancelled
- * - completed: Subscription completed
- * - expired: Subscription expired
+ * - past_due: Payment failed, in grace period
+ * - canceled: Subscription cancelled
+ * - unpaid: Payment failed after retries
+ * - incomplete: Initial payment failed
+ * - incomplete_expired: Initial payment failed and expired
  */
 function computeAccessLevel(userData) {
   if (!userData) return 'read_only';
@@ -25,25 +37,25 @@ function computeAccessLevel(userData) {
   const billing = userData.billing || {};
   const status = billing.subscriptionStatus;
 
-  // Active subscriptions have full access
-  if (['active', 'authenticated'].includes(status)) {
+  // Active or trialing subscriptions have full access
+  if (['active', 'trialing'].includes(status)) {
     return 'full';
   }
 
-  // Check if in trial period
+  // Check if in trial period (fallback for users without subscription yet)
   const trialEnd = billing.trialEnd?.toDate?.() ||
                    (billing.trialEnd ? new Date(billing.trialEnd) : null);
   if (trialEnd && new Date() < trialEnd) {
     return 'full';
   }
 
-  // Pending/halted gets 3-day grace period
-  if (['pending', 'halted'].includes(status)) {
+  // Past due gets 7-day grace period
+  if (status === 'past_due') {
     const periodEnd = billing.currentPeriodEnd?.toDate?.() ||
                       (billing.currentPeriodEnd ? new Date(billing.currentPeriodEnd) : null);
     if (periodEnd) {
       const gracePeriodEnd = new Date(periodEnd);
-      gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 3);
+      gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 7);
       if (new Date() < gracePeriodEnd) {
         return 'full';
       }
@@ -104,7 +116,8 @@ function getSubscriptionSummary(userData) {
       trialHoursRemaining: null,
       currentPeriodEnd: null,
       cancelAtPeriodEnd: false,
-      accessLevel: 'read_only'
+      accessLevel: 'read_only',
+      pricing: PRICING
     };
   }
 
@@ -117,20 +130,28 @@ function getSubscriptionSummary(userData) {
   const periodEnd = billing.currentPeriodEnd?.toDate?.() ||
                     (billing.currentPeriodEnd ? new Date(billing.currentPeriodEnd) : null);
 
+  const trialEnd = billing.trialEnd?.toDate?.() ||
+                   (billing.trialEnd ? new Date(billing.trialEnd) : null);
+
   return {
     status: billing.subscriptionStatus || 'none',
     isGrandfathered: userData.isGrandfathered || false,
     trialDaysRemaining,
     trialHoursRemaining,
+    trialEnd: trialEnd ? trialEnd.toISOString() : null,
     currentPeriodEnd: periodEnd ? periodEnd.toISOString() : null,
     cancelAtPeriodEnd: billing.cancelAtPeriodEnd || false,
     accessLevel,
-    razorpaySubscriptionId: billing.razorpaySubscriptionId || null
+    stripeSubscriptionId: billing.stripeSubscriptionId || null,
+    stripeCustomerId: billing.stripeCustomerId || null,
+    pricing: PRICING
   };
 }
 
 module.exports = {
+  PRICING,
   computeAccessLevel,
   getTrialDaysRemaining,
+  getTrialHoursRemaining,
   getSubscriptionSummary
 };

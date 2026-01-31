@@ -24,8 +24,8 @@
       "dest": "/api/billing/create-portal.js"
     },
     {
-      "src": "^/api/razorpay-webhook$",
-      "dest": "/api/razorpay-webhook.js"
+      "src": "^/api/stripe-webhook$",
+      "dest": "/api/stripe-webhook.js"
     },
     {
       "src": "^/api/admin/grandfather-users$",
@@ -34,6 +34,10 @@
     {
       "src": "^/api/chat$",
       "dest": "/api/chat.js"
+    },
+    {
+      "src": "^/api/get-image$",
+      "dest": "/api/get-image.js"
     },
     {
       "src": "^/api/chat-public$",
@@ -50,6 +54,10 @@
     {
       "src": "^/api/username/release$",
       "dest": "/api/username.js?action=release"
+    },
+    {
+      "src": "^/api/username/assign-temp$",
+      "dest": "/api/username.js?action=assign-temp"
     },
     {
       "src": "^/api/username$",
