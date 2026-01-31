@@ -74,6 +74,13 @@ async function getVisitorStats(userId) {
 
     const publicMessages = publicMessagesSnapshot.size;
 
+    // Sort recent visitors by lastVisit (most recent first)
+    recentVisitors.sort((a, b) => {
+      const aTime = a.lastVisit?.seconds || a.lastVisit?._seconds || 0;
+      const bTime = b.lastVisit?.seconds || b.lastVisit?._seconds || 0;
+      return bTime - aTime; // Descending (most recent first)
+    });
+
     return {
       totalVisitors,
       totalMessages,
@@ -240,6 +247,13 @@ async function getTimeBasedStats(userId, days = 30) {
         });
       }
     }
+
+    // Sort recent visitors by lastVisit (most recent first)
+    recentVisitors.sort((a, b) => {
+      const aTime = a.lastVisit?.seconds || a.lastVisit?._seconds || 0;
+      const bTime = b.lastVisit?.seconds || b.lastVisit?._seconds || 0;
+      return bTime - aTime; // Descending (most recent first)
+    });
 
     // Return data with field names matching what frontend expects
     return {
