@@ -8528,10 +8528,8 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             item.className = 'recent-visitor-item';
             item.dataset.visitorId = visitor.visitorId;
 
-            const lastVisitTime = visitor.lastVisit?.seconds
-                ? new Date(visitor.lastVisit.seconds * 1000)
-                : new Date();
-            const timeAgo = formatTimeAgo(lastVisitTime);
+            const lastVisitMs = parseTimestamp(visitor.lastVisit);
+            const timeAgo = lastVisitMs ? formatTimeAgo(lastVisitMs) : 'Unknown';
             const visitorName = `visitor_${visitor.visitorId.substring(0, 6)}`;
 
             item.innerHTML = `
