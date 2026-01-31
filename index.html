@@ -9047,37 +9047,49 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             const now = Date.now();
             let time;
 
-            // Handle different timestamp formats
-            if (timestamp.toDate && typeof timestamp.toDate === 'function') {
-                // Firestore Timestamp object
-                time = timestamp.toDate().getTime();
-            } else if (timestamp.seconds) {
-                // Firestore timestamp with seconds property
-                time = timestamp.seconds * 1000;
-            } else if (timestamp instanceof Date) {
-                // JavaScript Date object
-                time = timestamp.getTime();
-            } else if (typeof timestamp === 'number') {
-                // Already a millisecond timestamp
-                time = timestamp;
-            } else if (typeof timestamp === 'string') {
-                // ISO string or other date string
-                time = new Date(timestamp).getTime();
-            } else {
+            try {
+                // Handle different timestamp formats
+                if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+                    // Firestore Timestamp object (from SDK)
+                    time = timestamp.toDate().getTime();
+                } else if (timestamp.seconds !== undefined && timestamp.seconds !== null) {
+                    // Firestore timestamp serialized as object with seconds property
+                    time = timestamp.seconds * 1000;
+                } else if (timestamp._seconds !== undefined) {
+                    // Alternative Firestore format
+                    time = timestamp._seconds * 1000;
+                } else if (timestamp instanceof Date) {
+                    // JavaScript Date object
+                    time = timestamp.getTime();
+                } else if (typeof timestamp === 'number') {
+                    // Already a millisecond timestamp
+                    time = timestamp;
+                } else if (typeof timestamp === 'string') {
+                    // ISO string or other date string
+                    time = new Date(timestamp).getTime();
+                } else if (typeof timestamp === 'object' && timestamp !== null) {
+                    // Try to extract any time-like property
+                    time = timestamp.time || timestamp.timestamp || timestamp.createdAt || null;
+                    if (time && typeof time === 'object') {
+                        time = time.seconds ? time.seconds * 1000 : null;
+                    }
+                }
+
+                // Check if time is valid
+                if (!time || isNaN(time)) return 'just now';
+
+                const diff = Math.floor((now - time) / 1000); // difference in seconds
+
+                // Handle negative or very small differences
+                if (diff < 0 || diff < 60) return 'just now';
+                if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+                if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+                if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
+                return `${Math.floor(diff / 2592000)}mo ago`;
+            } catch (e) {
+                console.warn('[formatTimeAgo] Error parsing timestamp:', timestamp, e);
                 return 'just now';
             }
-
-            // Check if time is valid
-            if (isNaN(time)) return 'just now';
-
-            const diff = Math.floor((now - time) / 1000); // difference in seconds
-
-            // Handle negative or very small differences
-            if (diff < 0 || diff < 60) return 'just now';
-            if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-            if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-            if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
-            return `${Math.floor(diff / 2592000)}mo ago`;
         }
 
         function truncateText(text, maxLength = 50) {
@@ -9241,11 +9253,18 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
 
                                 // Update or add activity item
                                 if (lastMessage) {
+                                    // Get timestamp from messages or fallback to lastVisit
+                                    let messageTimestamp = null;
+                                    if (!messagesSnapshot.empty) {
+                                        const latestMsg = messagesSnapshot.docs[0].data();
+                                        messageTimestamp = latestMsg.timestamp;
+                                    }
+
                                     const activityItem = {
                                         visitorId: visitorId,
                                         lastMessage: lastMessage,
                                         lastResponse: lastResponse,
-                                        lastTimestamp: visitorData.lastVisit,
+                                        lastTimestamp: messageTimestamp || visitorData.lastVisit || visitorData.updatedAt,
                                         isNew: change.type === 'modified' // Mark as new if modified (new message)
                                     };
 
@@ -9814,26 +9833,16 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                         addLoadMoreButton();
                     }
 
-                    // SMART SYNC: Only re-render if data differs from cache
-                    // Compare message counts and last message content
-                    const cacheMatches = hasCachedMessages &&
-                        cachedMessages.length === messages.length &&
-                        cachedMessages[cachedMessages.length - 1]?.content === messages[messages.length - 1]?.content;
+                    // ALWAYS re-render from Firestore to avoid duplicates
+                    // Clear and display fresh data from Firestore
+                    console.log('[Chat] Rendering messages from Firestore');
+                    chatMessages.innerHTML = '';
 
-                    if (cacheMatches) {
-                        // Cache is up to date - no need to re-render UI
-                        console.log('[Cache] Cache matches Firestore - no UI update needed');
-                    } else {
-                        // Cache differs - update UI with Firestore data
-                        console.log('[Cache] Cache differs from Firestore - updating UI');
-                        chatMessages.innerHTML = '';
-
-                        // Display all messages in UI with timestamps
-                        messages.forEach(msg => {
-                            addMessage(msg.role === 'assistant' ? 'ai' : msg.role, msg.content, msg.timestamp);
-                        });
-                        console.log('[Chat] Displayed', messages.length, 'messages in UI');
-                    }
+                    // Display all messages in UI with timestamps
+                    messages.forEach(msg => {
+                        addMessage(msg.role === 'assistant' ? 'ai' : msg.role, msg.content, msg.timestamp);
+                    });
+                    console.log('[Chat] Displayed', messages.length, 'messages in UI');
 
                     // Update cache with fresh Firestore messages for next PWA launch
                     cacheMessages(messages);
