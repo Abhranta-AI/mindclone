@@ -7325,6 +7325,21 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 // Reverse to get chronological order (oldest first)
                 messages.reverse();
 
+                // Deduplicate consecutive messages with same content
+                const deduped = [];
+                for (let i = 0; i < messages.length; i++) {
+                    const msg = messages[i];
+                    const prev = deduped[deduped.length - 1];
+                    // Skip if this message is identical to the previous one
+                    if (prev && prev.role === msg.role && prev.content === msg.content) {
+                        console.log('[Chat] Skipping duplicate message from Firestore:', msg.content.substring(0, 50));
+                        continue;
+                    }
+                    deduped.push(msg);
+                }
+                messages.length = 0;
+                messages.push(...deduped);
+
                 // Track oldest timestamp for pagination
                 if (messages.length > 0) {
                     const oldestMsg = messages[0];
@@ -8647,6 +8662,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 await signOut(auth);
                 conversationHistory = []; // Clear in-memory array
                 chatMessages.innerHTML = ''; // Clear UI
+                if (typeof recentMessages !== 'undefined') recentMessages.clear(); // Reset dedup
 
                 // Close dropdown if open
                 if (avatarDropdown && !avatarDropdown.classList.contains('hidden')) {
@@ -9890,6 +9906,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                     // Clear and display fresh data from Firestore
                     console.log('[Chat] Rendering messages from Firestore');
                     chatMessages.innerHTML = '';
+                    recentMessages.clear(); // Reset dedup map for fresh render
 
                     // Display all messages in UI with timestamps
                     messages.forEach(msg => {
@@ -9913,8 +9930,32 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             }
         }
 
+        // Track recently added messages to prevent duplicates
+        const recentMessages = new Map(); // content hash -> timestamp
+        const DUPLICATE_WINDOW_MS = 5000; // 5 second window to detect duplicates
+
         // Add Message to Chat
         function addMessage(type, content, timestamp = null, replyTo = null) {
+            // Deduplication check - prevent adding same message twice within 5 seconds
+            const contentHash = `${type}:${content.substring(0, 100)}`;
+            const now = Date.now();
+            const lastAdded = recentMessages.get(contentHash);
+
+            if (lastAdded && (now - lastAdded) < DUPLICATE_WINDOW_MS) {
+                console.log('[Chat] Duplicate message blocked:', contentHash.substring(0, 50));
+                return null; // Don't add duplicate
+            }
+            recentMessages.set(contentHash, now);
+
+            // Clean up old entries from the map periodically
+            if (recentMessages.size > 50) {
+                for (const [key, time] of recentMessages) {
+                    if (now - time > DUPLICATE_WINDOW_MS * 2) {
+                        recentMessages.delete(key);
+                    }
+                }
+            }
+
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
 
