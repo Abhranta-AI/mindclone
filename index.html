@@ -7701,6 +7701,33 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 }
             });
 
+            // Track saved mindclone name for change detection
+            let savedMindcloneName = '';
+
+            // Update status display helper
+            function updateMindcloneNameStatus(name, hasChanges = false) {
+                if (hasChanges) {
+                    panelMindcloneNameStatus.textContent = 'Unsaved changes';
+                    panelMindcloneNameStatus.className = 'input-status';
+                    panelSaveMindcloneNameBtn.disabled = false;
+                } else if (name) {
+                    panelMindcloneNameStatus.textContent = `✓ Saved as "${name}"`;
+                    panelMindcloneNameStatus.className = 'input-status success';
+                    panelSaveMindcloneNameBtn.disabled = true;
+                } else {
+                    panelMindcloneNameStatus.textContent = 'No name set';
+                    panelMindcloneNameStatus.className = 'input-status';
+                    panelSaveMindcloneNameBtn.disabled = true;
+                }
+            }
+
+            // Detect changes to mindclone name
+            panelMindcloneNameInput.addEventListener('input', () => {
+                const currentValue = panelMindcloneNameInput.value.trim();
+                const hasChanges = currentValue !== savedMindcloneName;
+                updateMindcloneNameStatus(savedMindcloneName, hasChanges);
+            });
+
             // Save mindclone name
             panelSaveMindcloneNameBtn.addEventListener('click', async () => {
                 if (!auth.currentUser) return;
@@ -7724,23 +7751,24 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                         updatedAt: serverTimestamp()
                     }, { merge: true });
 
-                    panelMindcloneNameStatus.textContent = mindcloneName ? `✓ Your mindclone is now "${mindcloneName}"!` : '✓ Name cleared';
-                    panelMindcloneNameStatus.className = 'input-status success';
-
-                    // Clear status after 3 seconds
-                    setTimeout(() => {
-                        panelMindcloneNameStatus.textContent = '';
-                        panelMindcloneNameStatus.className = 'input-status';
-                    }, 3000);
+                    // Update saved value and status
+                    savedMindcloneName = mindcloneName;
+                    updateMindcloneNameStatus(mindcloneName, false);
+                    panelSaveMindcloneNameBtn.textContent = 'Save';
                 } catch (error) {
                     console.error('Error saving mindclone name:', error);
                     panelMindcloneNameStatus.textContent = 'Failed to save name';
                     panelMindcloneNameStatus.className = 'input-status error';
-                } finally {
                     panelSaveMindcloneNameBtn.disabled = false;
                     panelSaveMindcloneNameBtn.textContent = 'Save';
                 }
             });
+
+            // Expose function to set saved name (called from loadPanelSettings)
+            window.setSavedMindcloneName = (name) => {
+                savedMindcloneName = name || '';
+                updateMindcloneNameStatus(savedMindcloneName, false);
+            };
 
             // Username availability checking
             panelUsernameInput.addEventListener('input', (e) => {
@@ -8014,8 +8042,16 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                         const linkSettingsDoc = await getDoc(linkSettingsRef);
                         if (linkSettingsDoc.exists()) {
                             const linkSettings = linkSettingsDoc.data();
-                            if (linkSettings.mindcloneName) {
-                                panelMindcloneNameInput.value = linkSettings.mindcloneName;
+                            const mindcloneName = linkSettings.mindcloneName || '';
+                            panelMindcloneNameInput.value = mindcloneName;
+                            // Update saved state and status display
+                            if (window.setSavedMindcloneName) {
+                                window.setSavedMindcloneName(mindcloneName);
+                            }
+                        } else {
+                            // No settings yet - show empty state
+                            if (window.setSavedMindcloneName) {
+                                window.setSavedMindcloneName('');
                             }
                         }
                     } catch (lsError) {
