@@ -7655,12 +7655,11 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             }
         }
 
-        // Restore last active tab on page load
+        // Always start with LIVE tab - it's the most useful default
         function restorePanelTab() {
-            const savedTab = localStorage.getItem('panelActiveTab');
-            if (savedTab && ['activity', 'settings', 'analytics'].includes(savedTab)) {
-                switchPanelTab(savedTab);
-            }
+            // Always default to LIVE (activity) tab on page load
+            // User can switch to other tabs if needed, but LIVE is most relevant
+            switchPanelTab('activity');
         }
 
         // Handle URL hash for deep linking
