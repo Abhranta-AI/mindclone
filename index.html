@@ -6715,9 +6715,9 @@
 
             <!-- Tab Content Container -->
             <div class="panel-content">
-                <!-- Activity Tab - Default visible -->
-                <div class="panel-tab-content active" id="activityTab">
-                    <div class="activity-feed">
+                <!-- Activity Tab - Default visible with inline style -->
+                <div class="panel-tab-content active" id="activityTab" style="display:flex;flex-direction:column;flex:1">
+                    <div class="activity-feed" style="display:flex;flex-direction:column;flex:1">
                         <div class="activity-feed-header">
                             <a href="#" id="rightActivityFeedLink" class="activity-feed-link" target="_blank">
                                 <span class="icon">🔗</span> Live Link Activity
@@ -6737,8 +6737,8 @@
                     </div>
                 </div>
 
-                <!-- Analytics Tab -->
-                <div class="panel-tab-content" id="analyticsTab">
+                <!-- Analytics Tab - Hidden by default -->
+                <div class="panel-tab-content" id="analyticsTab" style="display:none">
                     <div class="analytics-scroll-container">
                         <div class="panel-section">
                             <h3 class="panel-section-title">Visitor Analytics</h3>
