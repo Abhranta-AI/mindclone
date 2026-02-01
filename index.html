@@ -8948,6 +8948,15 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             }
             document.body.classList.add('right-panel-open');
             document.body.classList.remove('right-panel-collapsed');
+
+            // Ensure LIVE tab content is visible when panel opens
+            const activityTab = document.getElementById('activityTab');
+            if (activityTab) {
+                activityTab.style.display = 'flex';
+                activityTab.style.flexDirection = 'column';
+                activityTab.style.flex = '1';
+                activityTab.classList.add('active');
+            }
         }
 
         function closeRightPanel() {
