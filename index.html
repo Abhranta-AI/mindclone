@@ -6475,10 +6475,6 @@
                 </div>
                 <!-- Account Dropdown -->
                 <div class="panel-account-dropdown hidden" id="panelAccountDropdown">
-                    <button class="panel-dropdown-item" id="panelLinkBtn">
-                        <span>⚙️</span>
-                        <span>Settings</span>
-                    </button>
                     <button class="panel-dropdown-item" id="panelSignOutBtn">
                         <span>🚪</span>
                         <span>Sign Out</span>
@@ -9118,8 +9114,6 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             panelSignOutBtn.addEventListener('click', handleSignOut);
         }
 
-        // Panel Link Button - Opens Right Panel
-        const panelLinkBtn = document.getElementById('panelLinkBtn');
         const rightActivityPanel = document.querySelector('.right-activity-panel');
         // rightPanelToggle already declared at line 5301
 
@@ -9159,21 +9153,6 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             } else {
                 openRightPanel();
             }
-        }
-
-        if (panelLinkBtn) {
-            panelLinkBtn.addEventListener('click', () => {
-                // Close dropdown
-                if (panelAccountDropdown) {
-                    panelAccountDropdown.classList.add('hidden');
-                }
-                // Open settings overlay (not just right panel)
-                const settingsOverlay = document.getElementById('settingsOverlay');
-                if (settingsOverlay) {
-                    settingsOverlay.classList.remove('hidden');
-                    loadPanelSettings();
-                }
-            });
         }
 
         // Mobile Profile Dropdown handlers
