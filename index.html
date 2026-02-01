@@ -2095,6 +2095,24 @@
             padding: 12px 16px;
             background: var(--color-bg-primary);
             border-bottom: 1px solid var(--color-border-default);
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .right-panel-header:hover {
+            background: var(--color-bg-elevated);
+        }
+
+        .panel-header-arrow {
+            margin-left: auto;
+            font-size: 20px;
+            color: #666;
+            transition: transform 0.2s ease;
+        }
+
+        .right-panel-header:hover .panel-header-arrow {
+            transform: translateX(3px);
+            color: #999;
         }
 
         .right-panel-close {
@@ -6740,14 +6758,14 @@
 
         <!-- Right Activity Panel -->
         <div class="right-activity-panel">
-            <!-- Panel Header -->
-            <div class="right-panel-header">
+            <!-- Panel Header (clickable to open settings) -->
+            <div class="right-panel-header" id="rightPanelHeader" title="Click to open Link Settings">
                 <span class="panel-header-icon">🔗</span>
                 <div class="panel-header-text">
-                    <span class="panel-header-title">Share Link</span>
+                    <span class="panel-header-title" id="panelHeaderLink">mindclone.link/...</span>
                     <span class="panel-header-subtitle">Let anyone access your mindclone</span>
                 </div>
-                <button id="panelSettingsBtn" class="panel-settings-btn" title="Link Settings">⚙️</button>
+                <span class="panel-header-arrow">›</span>
             </div>
 
             <!-- Tab Navigation (Profile moved to header gear icon) -->
@@ -8308,6 +8326,11 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             panelLinkGoalGroup.style.display = 'block'; // Show link goal selector
             panelContactDetailsGroup.style.display = 'block'; // Show contact details
             showPanelLinkPreview(username); // Show link preview
+            // Update header link
+            const panelHeaderLink = document.getElementById('panelHeaderLink');
+            if (panelHeaderLink) {
+                panelHeaderLink.textContent = `mindclone.link/${username}`;
+            }
         }
 
         // Update UI for no username
@@ -8326,6 +8349,11 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             panelLinkGoalGroup.style.display = 'none'; // Hide link goal selector
             panelContactDetailsGroup.style.display = 'none'; // Hide contact details
             panelLinkPreviewSection.style.display = 'none'; // Hide link preview
+            // Update header link
+            const panelHeaderLink = document.getElementById('panelHeaderLink');
+            if (panelHeaderLink) {
+                panelHeaderLink.textContent = 'Set up your link →';
+            }
         }
 
         // Show link preview (just the copy button)
@@ -12661,10 +12689,10 @@ Is there anything else you'd like to configure?`;
             });
         }
 
-        // Panel settings gear button (in right panel header)
-        const panelSettingsBtn = document.getElementById('panelSettingsBtn');
-        if (panelSettingsBtn && settingsOverlay) {
-            panelSettingsBtn.addEventListener('click', () => {
+        // Right panel header (clickable to open settings)
+        const rightPanelHeader = document.getElementById('rightPanelHeader');
+        if (rightPanelHeader && settingsOverlay) {
+            rightPanelHeader.addEventListener('click', () => {
                 settingsOverlay.classList.remove('hidden');
                 loadPanelSettings(); // Load settings data
             });
