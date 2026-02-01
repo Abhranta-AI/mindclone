@@ -9167,10 +9167,12 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 if (panelAccountDropdown) {
                     panelAccountDropdown.classList.add('hidden');
                 }
-                // Open right panel
-                openRightPanel();
-                // Switch to settings tab
-                switchPanelTab('activity');
+                // Open settings overlay (not just right panel)
+                const settingsOverlay = document.getElementById('settingsOverlay');
+                if (settingsOverlay) {
+                    settingsOverlay.classList.remove('hidden');
+                    loadPanelSettings();
+                }
             });
         }
 
