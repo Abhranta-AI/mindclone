@@ -2440,10 +2440,10 @@
             background: #0d0d0d;
             border: 1px solid #333;
             border-radius: 8px;
-            color: white;
+            color: rgba(255, 255, 255, 0.7);
             font-size: 14px;
             outline: none;
-            transition: border-color 0.3s ease;
+            transition: border-color 0.3s ease, color 0.3s ease;
             font-family: inherit;
             box-sizing: border-box;
         }
@@ -2452,6 +2452,7 @@
         .panel-textarea:focus,
         .panel-select:focus {
             border-color: #555;
+            color: white;
         }
 
         .panel-textarea {
