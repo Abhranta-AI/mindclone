@@ -8026,12 +8026,8 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                                 updatedAt: serverTimestamp()
                             }, { merge: true });
 
-                            panelContactStatus.textContent = '✓ Saved';
+                            panelContactStatus.textContent = '✓ Email saved';
                             panelContactStatus.className = 'input-status success';
-
-                            setTimeout(() => {
-                                panelContactStatus.textContent = '';
-                            }, 2000);
                         } catch (error) {
                             console.error('Error saving contact email:', error);
                             panelContactStatus.textContent = 'Failed to save';
@@ -8059,12 +8055,8 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                                 updatedAt: serverTimestamp()
                             }, { merge: true });
 
-                            panelContactStatus.textContent = '✓ Saved';
+                            panelContactStatus.textContent = '✓ WhatsApp saved';
                             panelContactStatus.className = 'input-status success';
-
-                            setTimeout(() => {
-                                panelContactStatus.textContent = '';
-                            }, 2000);
                         } catch (error) {
                             console.error('Error saving contact WhatsApp:', error);
                             panelContactStatus.textContent = 'Failed to save';
@@ -8367,6 +8359,11 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                             }
                             if (panelContactWhatsApp) {
                                 panelContactWhatsApp.value = linkSettings.contactWhatsApp || '';
+                            }
+                            // Show saved status if contact info exists
+                            if (panelContactStatus && (linkSettings.contactEmail || linkSettings.contactWhatsApp)) {
+                                panelContactStatus.textContent = '✓ Contact info saved';
+                                panelContactStatus.className = 'input-status success';
                             }
                         } else {
                             // No settings yet - show empty state
