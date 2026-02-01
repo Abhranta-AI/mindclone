@@ -8925,9 +8925,6 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             }
 
             try {
-                // Show loading state
-                recentVisitorsList.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">Loading analytics...</div>';
-
                 const idToken = await auth.currentUser.getIdToken();
                 const period = analyticsPeriodFilter.value;
 
