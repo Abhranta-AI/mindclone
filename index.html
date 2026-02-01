@@ -2643,6 +2643,38 @@
             color: #22c55e;
         }
 
+        .panel-select {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+
+        .panel-select:hover {
+            border-color: var(--accent);
+        }
+
+        .panel-select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        .panel-select option {
+            background: var(--surface);
+            color: var(--text);
+            padding: 10px;
+        }
+
         .input-status.error {
             color: var(--error);
         }
@@ -6887,6 +6919,37 @@
                         <span id="panelMindcloneNameStatus" class="input-status"></span>
                     </div>
 
+                    <!-- Link Goal -->
+                    <div class="panel-form-group" id="panelLinkGoalGroup" style="display: none;">
+                        <label class="panel-label">Link Goal</label>
+                        <span class="panel-hint">What should your mindclone help you achieve?</span>
+                        <select id="panelLinkGoalSelect" class="panel-select">
+                            <option value="raise_funds">🚀 Raise investment (pitch to investors)</option>
+                            <option value="find_clients">💼 Find clients (pitch services)</option>
+                            <option value="get_hired">👔 Get hired (pitch myself)</option>
+                            <option value="build_audience">📢 Build audience (grow network)</option>
+                            <option value="networking">🤝 Just networking (smart business card)</option>
+                        </select>
+                        <span id="panelLinkGoalStatus" class="input-status"></span>
+                    </div>
+
+                    <!-- Contact Details (shown when claimed) -->
+                    <div class="panel-form-group" id="panelContactDetailsGroup" style="display: none;">
+                        <label class="panel-label">Your Contact Info</label>
+                        <span class="panel-hint">Shared with qualified leads (investors, clients, etc.)</span>
+                        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 16px;">📧</span>
+                                <input type="email" id="panelContactEmail" class="panel-input" placeholder="your@email.com" style="flex: 1;">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 16px;">📱</span>
+                                <input type="text" id="panelContactWhatsApp" class="panel-input" placeholder="+1 234 567 8900" style="flex: 1;">
+                            </div>
+                        </div>
+                        <span id="panelContactStatus" class="input-status"></span>
+                    </div>
+
                     <!-- Copy Link (shown when claimed) -->
                     <div id="panelLinkPreviewSection" style="display: none;">
                         <button id="panelCopyLinkBtn" class="copy-btn">Copy Link</button>
@@ -7066,6 +7129,13 @@
         const panelMindcloneNameInput = document.getElementById('panelMindcloneNameInput');
         const panelSaveMindcloneNameBtn = document.getElementById('panelSaveMindcloneNameBtn');
         const panelMindcloneNameStatus = document.getElementById('panelMindcloneNameStatus');
+        const panelLinkGoalGroup = document.getElementById('panelLinkGoalGroup');
+        const panelLinkGoalSelect = document.getElementById('panelLinkGoalSelect');
+        const panelLinkGoalStatus = document.getElementById('panelLinkGoalStatus');
+        const panelContactDetailsGroup = document.getElementById('panelContactDetailsGroup');
+        const panelContactEmail = document.getElementById('panelContactEmail');
+        const panelContactWhatsApp = document.getElementById('panelContactWhatsApp');
+        const panelContactStatus = document.getElementById('panelContactStatus');
         const panelCopyLinkBtn = document.getElementById('panelCopyLinkBtn');
         const panelAlertContainer = document.getElementById('panelAlertContainer');
 
@@ -7910,6 +7980,104 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 updateMindcloneNameStatus(savedMindcloneName, false);
             };
 
+            // Save link goal when changed
+            if (panelLinkGoalSelect) {
+                panelLinkGoalSelect.addEventListener('change', async () => {
+                    if (!auth.currentUser) return;
+
+                    const linkGoal = panelLinkGoalSelect.value;
+
+                    try {
+                        panelLinkGoalStatus.textContent = 'Saving...';
+                        panelLinkGoalStatus.className = 'input-status';
+
+                        const linkSettingsRef = doc(db, 'users', auth.currentUser.uid, 'linkSettings', 'config');
+                        await setDoc(linkSettingsRef, {
+                            linkGoal: linkGoal,
+                            updatedAt: serverTimestamp()
+                        }, { merge: true });
+
+                        panelLinkGoalStatus.textContent = '✓ Saved';
+                        panelLinkGoalStatus.className = 'input-status success';
+
+                        // Clear status after 2 seconds
+                        setTimeout(() => {
+                            panelLinkGoalStatus.textContent = '';
+                        }, 2000);
+                    } catch (error) {
+                        console.error('Error saving link goal:', error);
+                        panelLinkGoalStatus.textContent = 'Failed to save';
+                        panelLinkGoalStatus.className = 'input-status error';
+                    }
+                });
+            }
+
+            // Save contact email when changed (with debounce)
+            let contactEmailTimeout;
+            if (panelContactEmail) {
+                panelContactEmail.addEventListener('input', () => {
+                    clearTimeout(contactEmailTimeout);
+                    contactEmailTimeout = setTimeout(async () => {
+                        if (!auth.currentUser) return;
+
+                        try {
+                            panelContactStatus.textContent = 'Saving...';
+                            panelContactStatus.className = 'input-status';
+
+                            const linkSettingsRef = doc(db, 'users', auth.currentUser.uid, 'linkSettings', 'config');
+                            await setDoc(linkSettingsRef, {
+                                contactEmail: panelContactEmail.value.trim(),
+                                updatedAt: serverTimestamp()
+                            }, { merge: true });
+
+                            panelContactStatus.textContent = '✓ Saved';
+                            panelContactStatus.className = 'input-status success';
+
+                            setTimeout(() => {
+                                panelContactStatus.textContent = '';
+                            }, 2000);
+                        } catch (error) {
+                            console.error('Error saving contact email:', error);
+                            panelContactStatus.textContent = 'Failed to save';
+                            panelContactStatus.className = 'input-status error';
+                        }
+                    }, 500);
+                });
+            }
+
+            // Save contact WhatsApp when changed (with debounce)
+            let contactWhatsAppTimeout;
+            if (panelContactWhatsApp) {
+                panelContactWhatsApp.addEventListener('input', () => {
+                    clearTimeout(contactWhatsAppTimeout);
+                    contactWhatsAppTimeout = setTimeout(async () => {
+                        if (!auth.currentUser) return;
+
+                        try {
+                            panelContactStatus.textContent = 'Saving...';
+                            panelContactStatus.className = 'input-status';
+
+                            const linkSettingsRef = doc(db, 'users', auth.currentUser.uid, 'linkSettings', 'config');
+                            await setDoc(linkSettingsRef, {
+                                contactWhatsApp: panelContactWhatsApp.value.trim(),
+                                updatedAt: serverTimestamp()
+                            }, { merge: true });
+
+                            panelContactStatus.textContent = '✓ Saved';
+                            panelContactStatus.className = 'input-status success';
+
+                            setTimeout(() => {
+                                panelContactStatus.textContent = '';
+                            }, 2000);
+                        } catch (error) {
+                            console.error('Error saving contact WhatsApp:', error);
+                            panelContactStatus.textContent = 'Failed to save';
+                            panelContactStatus.className = 'input-status error';
+                        }
+                    }, 500);
+                });
+            }
+
             // Username availability checking
             panelUsernameInput.addEventListener('input', (e) => {
                 const username = e.target.value.trim().toLowerCase();
@@ -8127,6 +8295,8 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             panelDeleteUsernameIcon.classList.remove('hidden'); // Show delete button
             panelEnableLinkGroup.style.display = 'block'; // Show enable toggle
             panelMindcloneNameGroup.style.display = 'block'; // Show mindclone name input
+            panelLinkGoalGroup.style.display = 'block'; // Show link goal selector
+            panelContactDetailsGroup.style.display = 'block'; // Show contact details
             showPanelLinkPreview(username); // Show link preview
         }
 
@@ -8143,6 +8313,8 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             panelDeleteUsernameIcon.classList.add('hidden'); // Hide delete button
             panelEnableLinkGroup.style.display = 'none'; // Hide enable toggle
             panelMindcloneNameGroup.style.display = 'none'; // Hide mindclone name input
+            panelLinkGoalGroup.style.display = 'none'; // Hide link goal selector
+            panelContactDetailsGroup.style.display = 'none'; // Hide contact details
             panelLinkPreviewSection.style.display = 'none'; // Hide link preview
         }
 
@@ -8187,6 +8359,18 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                             // Update saved state and status display
                             if (window.setSavedMindcloneName) {
                                 window.setSavedMindcloneName(mindcloneName);
+                            }
+                            // Load link goal
+                            const linkGoal = linkSettings.linkGoal || 'raise_funds';
+                            if (panelLinkGoalSelect) {
+                                panelLinkGoalSelect.value = linkGoal;
+                            }
+                            // Load contact details
+                            if (panelContactEmail) {
+                                panelContactEmail.value = linkSettings.contactEmail || '';
+                            }
+                            if (panelContactWhatsApp) {
+                                panelContactWhatsApp.value = linkSettings.contactWhatsApp || '';
                             }
                         } else {
                             // No settings yet - show empty state
