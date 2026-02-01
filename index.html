@@ -6915,7 +6915,7 @@
                     <!-- Username -->
                     <div class="panel-form-group">
                         <label class="panel-label">Handle</label>
-                        <span class="panel-hint">Your unique URL (3-20 chars, lowercase, numbers, underscores)</span>
+                        <span class="panel-hint">3-20 chars: letters, numbers, underscores. Must start with a letter.</span>
                         <div class="username-input-group">
                             <span class="username-prefix">mindclone.link/</span>
                             <input type="text" id="panelUsernameInput" class="username-input" placeholder="yourusername" autocomplete="off">
@@ -8127,17 +8127,32 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                     try {
                         // Client-side validation
                         if (username.length < 3) {
-                            panelAvailabilityIndicator.textContent = '✗ Too short';
+                            panelAvailabilityIndicator.textContent = '✗ Min 3 characters';
                             panelAvailabilityIndicator.className = 'availability-indicator invalid';
                             return;
                         }
                         if (username.length > 20) {
-                            panelAvailabilityIndicator.textContent = '✗ Too long';
+                            panelAvailabilityIndicator.textContent = '✗ Max 20 characters';
+                            panelAvailabilityIndicator.className = 'availability-indicator invalid';
+                            return;
+                        }
+                        if (/^[0-9]/.test(username)) {
+                            panelAvailabilityIndicator.textContent = '✗ Must start with a letter';
+                            panelAvailabilityIndicator.className = 'availability-indicator invalid';
+                            return;
+                        }
+                        if (/^_/.test(username) || /_$/.test(username)) {
+                            panelAvailabilityIndicator.textContent = '✗ Cannot start or end with underscore';
+                            panelAvailabilityIndicator.className = 'availability-indicator invalid';
+                            return;
+                        }
+                        if (/__/.test(username)) {
+                            panelAvailabilityIndicator.textContent = '✗ No consecutive underscores';
                             panelAvailabilityIndicator.className = 'availability-indicator invalid';
                             return;
                         }
                         if (!/^[a-z][a-z0-9_]*$/.test(username)) {
-                            panelAvailabilityIndicator.textContent = '✗ Invalid format';
+                            panelAvailabilityIndicator.textContent = '✗ Only letters, numbers, underscores';
                             panelAvailabilityIndicator.className = 'availability-indicator invalid';
                             return;
                         }
