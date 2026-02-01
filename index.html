@@ -8977,7 +8977,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 // Open right panel
                 openRightPanel();
                 // Switch to settings tab
-                switchPanelTab('settings');
+                switchPanelTab('activity');
             });
         }
 
@@ -9009,7 +9009,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 }
                 // Open right panel and switch to settings tab
                 openRightPanel();
-                switchPanelTab('settings');
+                switchPanelTab('activity');
             });
         }
 
@@ -9034,7 +9034,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             trialCountdownBanner.addEventListener('click', (e) => {
                 if (e.target.id === 'trialUpgradeBtn') return; // Let button handle its own click
                 openRightPanel();
-                switchPanelTab('settings');
+                switchPanelTab('activity');
             });
         }
 
@@ -9981,6 +9981,9 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
 
             // Restore last active tab
             restorePanelTab();
+
+            // Open right panel by default
+            openRightPanel();
 
             // Clear existing UI
             chatMessages.innerHTML = '';
