@@ -11,8 +11,7 @@
     },
     {
       "path": "/api/cron/moltbook-heartbeat",
-      "schedule": "0 */4 * * *"
-    }
+    "schedule": "0 * * * *"    }
   ],
   "routes": [
     {
