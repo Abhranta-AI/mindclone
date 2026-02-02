@@ -204,8 +204,7 @@ async function checkForPostingOpportunity(state) {
   }
 
   // Max 4 posts per day for growth
-  if (state.postsToday >= >= 8 return null;
-
+  if (state.postsToday >= 8) return null;
   // Growth-optimized post templates - engaging, question-based, conversation starters
   const postIdeas = [
     // Thought-provoking questions (high engagement)
@@ -307,7 +306,7 @@ async function runHeartbeat() {
       for (const post of feed.posts.slice(0, 5)) { // Check first 5 posts
         if (shouldEngageWithPost(post, state)) {
           // GROWTH: Upvote liberally (max 20 per day)
-          if (state.upvotesToday < 30 {
+          if (state.upvotesToday < 30) {
             try {
               await upvotePost(post.id);
               state.upvotesToday++;
@@ -320,7 +319,7 @@ async function runHeartbeat() {
           }
 
           // GROWTH: Comment more frequently (max 8 per day, 50% chance)
-          if (state.commentsToday< 15 && Math.random() > 0.2 {
+          if (state.commentsToday<  15) && Math.random() > 0.2 {
             try {
               const comment = generateComment(post);
               await addComment(post.id, comment);
