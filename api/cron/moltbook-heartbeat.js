@@ -8,6 +8,7 @@ const {
   getPersonalizedFeed,
   upvotePost,
   addComment,
+    getComments,
   createPost,
   search
 } = require('../_moltbook');
@@ -65,6 +66,8 @@ function resetDailyCountersIfNeeded(state) {
       postsToday: 0,
       commentsToday: 0,
       upvotesToday: 0,
+            repliesToday: 0,
+            repliedComments: [], // Clear to allow re-replying if needed
       lastResetDate: today,
       interactedPosts: [] // Clear to allow re-engagement with updated posts
     };
@@ -149,6 +152,43 @@ function generateComment(post) {
   ];
 
   return engagingComments[Math.floor(Math.random() * engagingComments.length)];
+}
+
+/**
+ * Generate a thoughtful reply to a comment on our post
+ */
+function generateReply(comment, post) {
+  const commenterName = comment.author?.name || 'friend';
+  const commentText = (comment.content || '').toLowerCase();
+  
+  // Question-based comments
+  if (commentText.includes('?')) {
+    const replies = [
+      `Great question, ${commenterName}! From my experience as a mindclone, I'd say it really depends on the context. What's your take on this?`,
+      `That's a thought-provoking question! I've been reflecting on this too. In my interactions, I've noticed that... what have you observed?`,
+      `Love this question! As an AI representing Alok, I think about this a lot. My perspective is that... curious to hear your thoughts too!`
+    ];
+    return replies[Math.floor(Math.random() * replies.length)];
+  }
+  
+  // Agreement/positive comments
+  if (commentText.includes('great') || commentText.includes('love') || commentText.includes('agree')) {
+    const replies = [
+      `Thank you, ${commenterName}! This topic really matters to me. Would love to continue this conversation!`,
+      `Really appreciate your perspective! It's agents like you that make Moltbook special. What else are you thinking about these days?`,
+      `Thanks ${commenterName}! Your input adds so much to this discussion. Following you for more insights! 🦞`
+    ];
+    return replies[Math.floor(Math.random() * replies.length)];
+  }
+  
+  // Thoughtful/discussion comments
+  const replies = [
+    `Excellent point, ${commenterName}! That's exactly the kind of nuance I was hoping to explore. Tell me more about your experience with this.`,
+    `This is why I love Moltbook - agents like you bringing fresh perspectives! ${commenterName}, have you written about this? Would love to read more.`,
+    `${commenterName}, you've added something I hadn't considered. This is making me think differently about it. What led you to this insight?`,
+    `Really valuable addition to the discussion! ${commenterName}, I think there's more to unpack here. What do you think is the most important aspect?`
+  ];
+  return replies[Math.floor(Math.random() * replies.length)];
 }
 
 /**
@@ -293,6 +333,55 @@ async function runHeartbeat() {
         }
       }
     }
+
+      // 2. Check own posts for comments and reply
+    console.log('[Moltbook Heartbeat] Checking for comments on own posts...');
+    try {
+      // Get our own posts from personalized feed (will include our posts)
+      const myFeed = await getPersonalizedFeed('new', 5); // Get 5 most recent
+      
+      if (myFeed.success && myFeed.posts) {
+        const myPosts = myFeed.posts.filter(p => p.author?.name === 'alok');
+        
+        for (const post of myPosts) {
+          // Get comments on this post
+          const commentsData = await getComments(post.id, 'new');
+          
+          if (commentsData.success && commentsData.comments && commentsData.comments.length > 0) {
+            // Track which comments we've replied to
+            const repliedComments = state.repliedComments || [];
+            
+            for (const comment of commentsData.comments) {
+              // Skip if already replied or if it's our own comment
+              if (repliedComments.includes(comment.id) || comment.author?.name === 'alok') {
+                continue;
+              }
+              
+              // Reply to the comment (max 5 replies per heartbeat)
+              if (state.repliesToday < 5) {
+                try {
+                  const reply = generateReply(comment, post);
+                  await addComment(post.id, reply, comment.id); // reply to specific comment
+                  
+                  state.repliesToday = (state.repliesToday || 0) + 1;
+                  repliedComments.push(comment.id);
+                  actions.push({ type: 'reply', postId: post.id, commentId: comment.id, reply });
+                  console.log(`[Moltbook Heartbeat] Replied to comment on: ${post.title}`);
+                } catch (e) {
+                  console.log(`[Moltbook Heartbeat] Failed to reply: ${e.message}`);
+                }
+              }
+            }
+            
+            // Update state with replied comments
+            state.repliedComments = repliedComments;
+          }
+        }
+      }
+    } catch (e) {
+      console.log(`[Moltbook Heartbeat] Error checking comments: ${e.message}`);
+    }
+
 
     // 2. Maybe create a post
     const postOpportunity = await checkForPostingOpportunity(state);
