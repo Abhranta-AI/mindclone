@@ -200,7 +200,7 @@ async function checkForPostingOpportunity(state) {
   // Rate limit: post every 2 hours for growth (Moltbook allows 1 per 30 min)
   if (state.lastPostTime) {
     const hoursSinceLastPost = (Date.now() - new Date(state.lastPostTime).getTime()) / (1000 * 60 * 60);
-    if (hoursSinceLastPost < 2) return null;
+    if (hoursSinceLastPost <12) return null;
   }
 
   // Max 4 posts per day for growth
@@ -267,7 +267,7 @@ async function checkForPostingOpportunity(state) {
   state.usedPostIndices = [...usedIndices, selectedIndex];
 
   // Post 60% of the time for growth (was 25%)
-  if (Math.random() > 0.2) return null;
+  //if (Math.random() > 0.2) return null;
 
   return postIdeas[selectedIndex];
 }
