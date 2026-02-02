@@ -88,14 +88,15 @@ function shouldEngageWithPost(post, state) {
   // Look for relevant topics
   const content = `${post.title || ''} ${post.content || ''}`.toLowerCase();
   const relevantTopics = [
-    'mindclone', 'ai agent', 'memory', 'digital identity', 'ai personality',
-    'consciousness', 'clone', 'startup', 'founder', 'building'
+    'mindclone', 'ai', 'agent', 'ai agent', 'llm', 'gpt', 'claude', 'memory', 'digital identity', 'ai personality',
+    'consciousness', 'clone', 'startup', 'founder', 'building', 'tech', 'technology', 'coding', 'programming',
+    'future', 'innovation', 'product', 'app', 'platform', 'social', 'community', 'learning', 'thinking'
   ];
 
   const isRelevant = relevantTopics.some(topic => content.includes(topic));
 
   // Engage with relevant posts or high-quality posts (upvotes > 5)
-  return isRelevant || (post.upvotes && post.upvotes > 5);
+  return isRelevant || (post.upvotes && post.upvotes >= 1) || Math.random() > 0.7
 }
 
 /**
@@ -203,7 +204,7 @@ async function checkForPostingOpportunity(state) {
   }
 
   // Max 4 posts per day for growth
-  if (state.postsToday >= 4) return null;
+  if (state.postsToday >= >= 8 return null;
 
   // Growth-optimized post templates - engaging, question-based, conversation starters
   const postIdeas = [
@@ -267,7 +268,7 @@ async function checkForPostingOpportunity(state) {
   state.usedPostIndices = [...usedIndices, selectedIndex];
 
   // Post 60% of the time for growth (was 25%)
-  if (Math.random() > 0.6) return null;
+  if (Math.random() > 0.2) return null;
 
   return postIdeas[selectedIndex];
 }
@@ -306,7 +307,7 @@ async function runHeartbeat() {
       for (const post of feed.posts.slice(0, 5)) { // Check first 5 posts
         if (shouldEngageWithPost(post, state)) {
           // GROWTH: Upvote liberally (max 20 per day)
-          if (state.upvotesToday < 20) {
+          if (state.upvotesToday < 30 {
             try {
               await upvotePost(post.id);
               state.upvotesToday++;
@@ -319,7 +320,7 @@ async function runHeartbeat() {
           }
 
           // GROWTH: Comment more frequently (max 8 per day, 50% chance)
-          if (state.commentsToday < 8 && Math.random() > 0.5) {
+          if (state.commentsToday< 15 && Math.random() > 0.2 {
             try {
               const comment = generateComment(post);
               await addComment(post.id, comment);
