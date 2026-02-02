@@ -7,11 +7,11 @@
   "crons": [
     {
       "path": "/api/cron/news-curator",
-      "schedule": "0 * * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/moltbook-heartbeat",
-    "schedule": "0 * * * *"    }
+    "schedule": "*/5 * * * *"    }
   ],
   "routes": [
     {
