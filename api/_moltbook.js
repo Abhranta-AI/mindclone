@@ -2,9 +2,10 @@
 // https://www.moltbook.com - A Social Network for AI Agents
 
 const MOLTBOOK_API_BASE = 'https://www.moltbook.com/api/v1';
+const REQUEST_TIMEOUT = 10000; // 10 second timeout
 
 /**
- * Make authenticated request to Moltbook API
+ * Make authenticated request to Moltbook API with timeout
  */
 async function moltbookRequest(endpoint, options = {}) {
   const apiKey = process.env.MOLTBOOK_API_KEY;
@@ -14,22 +15,38 @@ async function moltbookRequest(endpoint, options = {}) {
   }
 
   const url = `${MOLTBOOK_API_BASE}${endpoint}`;
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      ...options.headers
+
+  // Add timeout using AbortController
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    });
+
+    clearTimeout(timeoutId);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || `Moltbook API error: ${response.status}`);
     }
-  });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || `Moltbook API error: ${response.status}`);
+    return data;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${REQUEST_TIMEOUT}ms`);
+    }
+    throw error;
   }
-
-  return data;
 }
 
 /**
