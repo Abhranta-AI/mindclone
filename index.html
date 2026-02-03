@@ -3257,6 +3257,162 @@
             color: var(--color-accent-primary);
         }
 
+        /* Moltbook Analytics Section */
+        .moltbook-analytics-section {
+            margin-top: 24px;
+            border-top: 1px solid #333;
+            padding-top: 24px;
+        }
+
+        .moltbook-analytics-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .moltbook-analytics-header .moltbook-logo {
+            font-size: 32px;
+        }
+
+        .moltbook-analytics-header .panel-section-title {
+            margin-bottom: 2px;
+        }
+
+        .moltbook-status-badge {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: rgba(76, 175, 80, 0.15);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 20px;
+        }
+
+        .moltbook-status-badge .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #4CAF50;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .moltbook-status-badge.inactive {
+            background: rgba(255, 152, 0, 0.15);
+            border-color: rgba(255, 152, 0, 0.3);
+        }
+
+        .moltbook-status-badge.inactive .status-dot {
+            background: #FF9800;
+            animation: none;
+        }
+
+        .moltbook-status-badge.disabled {
+            background: rgba(158, 158, 158, 0.15);
+            border-color: rgba(158, 158, 158, 0.3);
+        }
+
+        .moltbook-status-badge.disabled .status-dot {
+            background: #9E9E9E;
+            animation: none;
+        }
+
+        .moltbook-status-badge .status-text {
+            font-size: 12px;
+            font-weight: 500;
+            color: #4CAF50;
+        }
+
+        .moltbook-status-badge.inactive .status-text {
+            color: #FF9800;
+        }
+
+        .moltbook-status-badge.disabled .status-text {
+            color: #9E9E9E;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .moltbook-profile-stats {
+            margin-bottom: 20px;
+        }
+
+        .moltbook-profile-stats .stats-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .moltbook-mode-display {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px;
+            background: #0d0d0d;
+            border: 1px solid #333;
+            border-radius: 8px;
+        }
+
+        .moltbook-mode-display .mode-icon {
+            font-size: 28px;
+        }
+
+        .moltbook-mode-display .mode-info {
+            flex: 1;
+        }
+
+        .moltbook-mode-display .mode-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .moltbook-mode-display .mode-desc {
+            font-size: 12px;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .moltbook-last-activity {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #0a0a0a;
+            border-radius: 8px;
+            margin-top: 16px;
+            font-size: 12px;
+        }
+
+        .moltbook-last-activity .activity-label {
+            color: #666;
+        }
+
+        .moltbook-last-activity .activity-value {
+            color: #aaa;
+        }
+
+        .moltbook-profile-link {
+            display: block;
+            text-align: center;
+            padding: 12px;
+            margin-top: 16px;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .moltbook-profile-link:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+        }
+
         .recent-visitors-list {
             display: flex;
             flex-direction: column;
@@ -7163,6 +7319,89 @@
                                 </select>
                             </div>
                         </div>
+
+                        <!-- Moltbook Analytics Section -->
+                        <div class="panel-section moltbook-analytics-section">
+                            <div class="moltbook-analytics-header">
+                                <span class="moltbook-logo">🦞</span>
+                                <div>
+                                    <h3 class="panel-section-title">Moltbook Analytics</h3>
+                                    <p class="panel-section-subtitle">Your mindclone's social presence</p>
+                                </div>
+                                <div class="moltbook-status-badge" id="moltbookStatusBadge">
+                                    <span class="status-dot"></span>
+                                    <span class="status-text">Active</span>
+                                </div>
+                            </div>
+
+                            <!-- Moltbook Profile Stats -->
+                            <div class="moltbook-profile-stats" id="moltbookProfileStats">
+                                <div class="stats-grid">
+                                    <div class="stat-card">
+                                        <div class="stat-value" id="moltbookKarma">-</div>
+                                        <div class="stat-label">Karma</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-value" id="moltbookFollowers">-</div>
+                                        <div class="stat-label">Followers</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-value" id="moltbookTotalPosts">-</div>
+                                        <div class="stat-label">Posts</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-value" id="moltbookTotalComments">-</div>
+                                        <div class="stat-label">Comments</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Today's Activity -->
+                            <div class="engagement-metrics-section">
+                                <h4 class="subsection-title">Today's Activity</h4>
+                                <div class="metrics-list">
+                                    <div class="metric-row">
+                                        <span class="metric-label">Posts created</span>
+                                        <span class="metric-value" id="moltbookPostsToday">0</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Comments made</span>
+                                        <span class="metric-value" id="moltbookCommentsToday">0</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Upvotes given</span>
+                                        <span class="metric-value" id="moltbookUpvotesToday">0</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Replies sent</span>
+                                        <span class="metric-value" id="moltbookRepliesToday">0</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Current Settings -->
+                            <div class="engagement-metrics-section">
+                                <h4 class="subsection-title">Current Mode</h4>
+                                <div class="moltbook-mode-display">
+                                    <div class="mode-icon" id="moltbookModeIcon">📈</div>
+                                    <div class="mode-info">
+                                        <div class="mode-name" id="moltbookModeName">Growth</div>
+                                        <div class="mode-desc" id="moltbookModeDesc">Maximizing visibility & followers</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Last Activity -->
+                            <div class="moltbook-last-activity">
+                                <span class="activity-label">Last heartbeat:</span>
+                                <span class="activity-value" id="moltbookLastHeartbeat">-</span>
+                            </div>
+
+                            <!-- View on Moltbook Link -->
+                            <a href="https://www.moltbook.com/u/alok" target="_blank" class="moltbook-profile-link" id="moltbookProfileLink">
+                                View Profile on Moltbook →
+                            </a>
+                        </div>
                     </div>
                 </div>
 
@@ -9433,6 +9672,9 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                     if (panelEngagementRate) panelEngagementRate.textContent = engagementRate + '%';
 
                     console.log('[Analytics] Analytics loaded successfully');
+
+                    // Also load Moltbook stats
+                    loadMoltbookStats();
                 } else {
                     const errorText = await response.text();
                     console.error('[Analytics] Failed to load analytics:', response.status, errorText);
@@ -9441,6 +9683,108 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             } catch (error) {
                 console.error('[Analytics] Error loading analytics:', error);
                 showPanelAlert('Error loading analytics: ' + error.message, 'error');
+            }
+        }
+
+        // Load Moltbook stats
+        async function loadMoltbookStats() {
+            console.log('[Moltbook] Loading stats...');
+
+            try {
+                const response = await fetch('/api/moltbook-stats');
+                const data = await response.json();
+
+                if (data.success && data.stats) {
+                    const stats = data.stats;
+                    console.log('[Moltbook] Stats loaded:', stats);
+
+                    // Update status badge
+                    const statusBadge = document.getElementById('moltbookStatusBadge');
+                    if (statusBadge) {
+                        statusBadge.classList.remove('inactive', 'disabled');
+                        const statusText = statusBadge.querySelector('.status-text');
+
+                        if (!stats.settings.enabled) {
+                            statusBadge.classList.add('disabled');
+                            if (statusText) statusText.textContent = 'Disabled';
+                        } else if (stats.lastHeartbeat) {
+                            const lastBeat = new Date(stats.lastHeartbeat);
+                            const minutesAgo = (Date.now() - lastBeat.getTime()) / (1000 * 60);
+                            if (minutesAgo > 10) {
+                                statusBadge.classList.add('inactive');
+                                if (statusText) statusText.textContent = 'Inactive';
+                            } else {
+                                if (statusText) statusText.textContent = 'Active';
+                            }
+                        }
+                    }
+
+                    // Update profile stats if available
+                    if (stats.profile) {
+                        const karma = document.getElementById('moltbookKarma');
+                        const followers = document.getElementById('moltbookFollowers');
+                        const totalPosts = document.getElementById('moltbookTotalPosts');
+                        const totalComments = document.getElementById('moltbookTotalComments');
+
+                        if (karma) karma.textContent = stats.profile.karma || 0;
+                        if (followers) followers.textContent = stats.profile.followers || 0;
+                        if (totalPosts) totalPosts.textContent = stats.profile.postCount || 0;
+                        if (totalComments) totalComments.textContent = stats.profile.commentCount || 0;
+
+                        // Update profile link
+                        const profileLink = document.getElementById('moltbookProfileLink');
+                        if (profileLink && stats.profile.name) {
+                            profileLink.href = `https://www.moltbook.com/u/${stats.profile.name}`;
+                        }
+                    }
+
+                    // Update today's activity
+                    const postsToday = document.getElementById('moltbookPostsToday');
+                    const commentsToday = document.getElementById('moltbookCommentsToday');
+                    const upvotesToday = document.getElementById('moltbookUpvotesToday');
+                    const repliesToday = document.getElementById('moltbookRepliesToday');
+
+                    if (postsToday) postsToday.textContent = stats.today.posts || 0;
+                    if (commentsToday) commentsToday.textContent = stats.today.comments || 0;
+                    if (upvotesToday) upvotesToday.textContent = stats.today.upvotes || 0;
+                    if (repliesToday) repliesToday.textContent = stats.today.replies || 0;
+
+                    // Update mode display
+                    const modeIcon = document.getElementById('moltbookModeIcon');
+                    const modeName = document.getElementById('moltbookModeName');
+                    const modeDesc = document.getElementById('moltbookModeDesc');
+
+                    const modeConfig = {
+                        growth: { icon: '📈', name: 'Growth', desc: 'Maximizing visibility & followers' },
+                        engagement: { icon: '💬', name: 'Engagement', desc: 'Focusing on quality conversations' },
+                        networking: { icon: '🤝', name: 'Networking', desc: 'Building agent connections' },
+                        minimal: { icon: '🔇', name: 'Minimal', desc: 'Low activity, replies only' }
+                    };
+
+                    const mode = modeConfig[stats.settings.objective] || modeConfig.growth;
+                    if (modeIcon) modeIcon.textContent = mode.icon;
+                    if (modeName) modeName.textContent = mode.name;
+                    if (modeDesc) modeDesc.textContent = mode.desc;
+
+                    // Update last heartbeat
+                    const lastHeartbeat = document.getElementById('moltbookLastHeartbeat');
+                    if (lastHeartbeat && stats.lastHeartbeat) {
+                        const lastBeat = new Date(stats.lastHeartbeat);
+                        const minutesAgo = Math.floor((Date.now() - lastBeat.getTime()) / (1000 * 60));
+                        if (minutesAgo < 1) {
+                            lastHeartbeat.textContent = 'Just now';
+                        } else if (minutesAgo < 60) {
+                            lastHeartbeat.textContent = `${minutesAgo} min ago`;
+                        } else {
+                            const hoursAgo = Math.floor(minutesAgo / 60);
+                            lastHeartbeat.textContent = `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''} ago`;
+                        }
+                    }
+
+                    console.log('[Moltbook] Stats displayed successfully');
+                }
+            } catch (error) {
+                console.error('[Moltbook] Error loading stats:', error);
             }
         }
 
