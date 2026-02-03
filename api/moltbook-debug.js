@@ -1,85 +1,57 @@
-// Moltbook Debug Endpoint - Check what's happening with the heartbeat
+// Moltbook Debug Endpoint - Simple version that won't hang
 // DELETE THIS FILE AFTER DEBUGGING
-
-const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
-const { getAgentStatus, getFeed } = require('./_moltbook');
-const { getMoltbookSettings } = require('./_moltbook-settings');
-
-initializeFirebaseAdmin();
-const db = admin.firestore();
 
 module.exports = async (req, res) => {
   const debug = {
-    step: 'start',
-    checks: {}
+    timestamp: new Date().toISOString(),
+    envVars: {
+      MOLTBOOK_API_KEY: process.env.MOLTBOOK_API_KEY ? `set (${process.env.MOLTBOOK_API_KEY.length} chars)` : 'NOT SET',
+      CRON_SECRET: process.env.CRON_SECRET ? 'set' : 'NOT SET',
+      NODE_ENV: process.env.NODE_ENV || 'not set'
+    }
   };
 
-  try {
-    // Check 1: MOLTBOOK_API_KEY
-    debug.checks.apiKeySet = !!process.env.MOLTBOOK_API_KEY;
-    debug.checks.apiKeyLength = process.env.MOLTBOOK_API_KEY?.length || 0;
-
-    if (!process.env.MOLTBOOK_API_KEY) {
-      debug.step = 'failed_no_api_key';
-      return res.status(200).json(debug);
-    }
-
-    // Check 2: Settings from Firestore
-    debug.step = 'loading_settings';
-    try {
-      const settings = await getMoltbookSettings();
-      debug.checks.settings = {
-        enabled: settings.enabled,
-        objective: settings.objective,
-        postingEnabled: settings.postingEnabled
-      };
-    } catch (e) {
-      debug.checks.settingsError = e.message;
-    }
-
-    // Check 3: Agent status from Moltbook API
-    debug.step = 'checking_agent_status';
-    try {
-      const status = await getAgentStatus();
-      debug.checks.agentStatus = status;
-    } catch (e) {
-      debug.checks.agentStatusError = e.message;
-    }
-
-    // Check 4: Can we fetch the feed?
-    debug.step = 'fetching_feed';
-    try {
-      const feed = await getFeed('hot', 3);
-      debug.checks.feedSuccess = feed.success;
-      debug.checks.feedPostCount = feed.posts?.length || 0;
-    } catch (e) {
-      debug.checks.feedError = e.message;
-    }
-
-    // Check 5: Moltbook state in Firestore
-    debug.step = 'checking_state';
-    try {
-      const stateDoc = await db.doc('system/moltbook-state').get();
-      if (stateDoc.exists) {
-        const state = stateDoc.data();
-        debug.checks.state = {
-          lastHeartbeat: state.lastHeartbeat,
-          postsToday: state.postsToday,
-          commentsToday: state.commentsToday,
-          upvotesToday: state.upvotesToday
-        };
-      } else {
-        debug.checks.state = 'not_initialized';
-      }
-    } catch (e) {
-      debug.checks.stateError = e.message;
-    }
-
-    debug.step = 'complete';
-    return res.status(200).json(debug);
-
-  } catch (error) {
-    debug.error = error.message;
+  // Only proceed if API key is set
+  if (!process.env.MOLTBOOK_API_KEY) {
+    debug.error = 'MOLTBOOK_API_KEY is not set in Vercel environment variables!';
+    debug.fix = 'Go to Vercel Dashboard > Project > Settings > Environment Variables > Add MOLTBOOK_API_KEY';
     return res.status(200).json(debug);
   }
+
+  // Try to make a simple request to Moltbook
+  try {
+    debug.step = 'testing_moltbook_api';
+    const response = await fetch('https://www.moltbook.com/api/v1/agents/status', {
+      headers: {
+        'Authorization': `Bearer ${process.env.MOLTBOOK_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    const data = await response.json();
+    debug.moltbookResponse = {
+      status: response.status,
+      data: data
+    };
+  } catch (e) {
+    debug.moltbookError = e.message;
+  }
+
+  // Try Firebase
+  try {
+    debug.step = 'testing_firebase';
+    const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
+    initializeFirebaseAdmin();
+    const db = admin.firestore();
+
+    const stateDoc = await db.doc('system/moltbook-state').get();
+    debug.firebaseState = stateDoc.exists ? stateDoc.data() : 'no state doc';
+
+    const settingsDoc = await db.doc('system/moltbook-settings').get();
+    debug.firebaseSettings = settingsDoc.exists ? 'exists' : 'no settings doc';
+  } catch (e) {
+    debug.firebaseError = e.message;
+  }
+
+  debug.step = 'complete';
+  return res.status(200).json(debug);
 };
