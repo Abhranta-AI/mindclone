@@ -7690,6 +7690,37 @@
                             </div>
                         </div>
 
+                        <!-- Business Promotion -->
+                        <div class="moltbook-subsection">
+                            <div class="moltbook-subsection-title">🚀 Business Promotion</div>
+                            <div class="moltbook-control-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                                <div class="moltbook-control-label">Business Name</div>
+                                <input type="text" id="moltbookBusinessName" class="panel-input" value="Olbrain" style="width: 100%;">
+                            </div>
+                            <div class="moltbook-control-row" style="flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px;">
+                                <div class="moltbook-control-label">Business URL</div>
+                                <input type="text" id="moltbookBusinessUrl" class="panel-input" value="olbrain.com" style="width: 100%;">
+                            </div>
+                            <div class="moltbook-control-row" style="flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px;">
+                                <div class="moltbook-control-label">Business Tagline</div>
+                                <input type="text" id="moltbookBusinessTagline" class="panel-input" value="The Machine Brain - Building AI that preserves human identity" style="width: 100%;">
+                            </div>
+                            <div class="moltbook-control-row" style="margin-top: 12px;">
+                                <div class="moltbook-control-label">Promotion Frequency</div>
+                                <select id="moltbookPromotionFrequency" class="panel-select" style="width: 120px;">
+                                    <option value="0">Never</option>
+                                    <option value="0.2">20%</option>
+                                    <option value="0.4" selected>40%</option>
+                                    <option value="0.6">60%</option>
+                                    <option value="0.8">80%</option>
+                                    <option value="1">Always</option>
+                                </select>
+                            </div>
+                            <div class="moltbook-hint" style="margin-top: 8px; font-size: 11px; color: #888;">
+                                % of posts/comments that will subtly mention your business
+                            </div>
+                        </div>
+
                         <!-- Comment Style -->
                         <div class="moltbook-subsection">
                             <div class="moltbook-subsection-title">💬 Comment Style</div>
@@ -14130,6 +14161,19 @@ Is there anything else you'd like to configure?`;
             const profileLink = document.getElementById('moltbookProfileLink');
             if (profileLink) profileLink.value = moltbookSettings.profileLink || '';
 
+            // Business promotion
+            const businessName = document.getElementById('moltbookBusinessName');
+            if (businessName) businessName.value = moltbookSettings.businessName || 'Olbrain';
+
+            const businessUrl = document.getElementById('moltbookBusinessUrl');
+            if (businessUrl) businessUrl.value = moltbookSettings.businessUrl || 'olbrain.com';
+
+            const businessTagline = document.getElementById('moltbookBusinessTagline');
+            if (businessTagline) businessTagline.value = moltbookSettings.businessTagline || '';
+
+            const promotionFrequency = document.getElementById('moltbookPromotionFrequency');
+            if (promotionFrequency) promotionFrequency.value = moltbookSettings.promotionFrequency || 0.4;
+
             // Comment style
             const commentStyle = document.getElementById('moltbookCommentStyle');
             if (commentStyle) commentStyle.value = moltbookSettings.commentStyle || 'engaging';
@@ -14284,6 +14328,20 @@ Is there anything else you'd like to configure?`;
             });
             document.getElementById('moltbookProfileLink')?.addEventListener('change', (e) => {
                 saveMoltbookSettings({ profileLink: e.target.value });
+            });
+
+            // Business promotion
+            document.getElementById('moltbookBusinessName')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ businessName: e.target.value });
+            });
+            document.getElementById('moltbookBusinessUrl')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ businessUrl: e.target.value });
+            });
+            document.getElementById('moltbookBusinessTagline')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ businessTagline: e.target.value });
+            });
+            document.getElementById('moltbookPromotionFrequency')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ promotionFrequency: parseFloat(e.target.value) });
             });
 
             // Comment style
