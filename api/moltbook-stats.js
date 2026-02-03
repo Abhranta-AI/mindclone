@@ -1,24 +1,24 @@
 // Moltbook Stats API - Get analytics for Moltbook activity
 const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
 const { getAgentProfile } = require('./_moltbook');
+const { getMoltbookSettings } = require('./_moltbook-settings');
 
 initializeFirebaseAdmin();
 const db = admin.firestore();
 
+// State is global per deployment (one Moltbook agent per API key)
 const MOLTBOOK_STATE_DOC = 'system/moltbook-state';
-const MOLTBOOK_SETTINGS_DOC = 'system/moltbook-settings';
 
 /**
  * Get Moltbook activity stats
  */
 async function getMoltbookStats() {
-  // Get state (daily activity counters)
+  // Get state (daily activity counters) - global per deployment
   const stateDoc = await db.doc(MOLTBOOK_STATE_DOC).get();
   const state = stateDoc.exists ? stateDoc.data() : {};
 
-  // Get settings
-  const settingsDoc = await db.doc(MOLTBOOK_SETTINGS_DOC).get();
-  const settings = settingsDoc.exists ? settingsDoc.data() : {};
+  // Get settings from owner's user-specific settings
+  const settings = await getMoltbookSettings();
 
   // Try to get profile from Moltbook API
   let profile = null;

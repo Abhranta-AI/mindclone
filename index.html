@@ -14059,21 +14059,33 @@ Is there anything else you'd like to configure?`;
         let moltbookSettings = null;
         let moltbookSaveTimeout = null;
 
-        // Load Moltbook settings
+        // Load Moltbook settings (requires authentication)
         async function loadMoltbookSettings() {
             try {
-                const response = await fetch('/api/moltbook-settings');
+                if (!auth.currentUser) {
+                    console.log('[Moltbook] Not authenticated, skipping settings load');
+                    return;
+                }
+
+                const idToken = await auth.currentUser.getIdToken();
+                const response = await fetch('/api/moltbook-settings', {
+                    headers: {
+                        'Authorization': `Bearer ${idToken}`
+                    }
+                });
                 const data = await response.json();
                 if (data.success) {
                     moltbookSettings = data.settings;
                     renderMoltbookSettings();
+                } else if (data.error === 'Unauthorized') {
+                    console.error('[Moltbook] Authentication failed:', data.message);
                 }
             } catch (error) {
                 console.error('[Moltbook] Failed to load settings:', error);
             }
         }
 
-        // Save Moltbook settings (debounced)
+        // Save Moltbook settings (debounced, requires authentication)
         async function saveMoltbookSettings(updates) {
             if (moltbookSaveTimeout) {
                 clearTimeout(moltbookSaveTimeout);
@@ -14081,15 +14093,26 @@ Is there anything else you'd like to configure?`;
 
             moltbookSaveTimeout = setTimeout(async () => {
                 try {
+                    if (!auth.currentUser) {
+                        console.error('[Moltbook] Not authenticated, cannot save settings');
+                        return;
+                    }
+
+                    const idToken = await auth.currentUser.getIdToken();
                     const response = await fetch('/api/moltbook-settings', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${idToken}`
+                        },
                         body: JSON.stringify(updates)
                     });
                     const data = await response.json();
                     if (data.success) {
                         moltbookSettings = data.settings;
                         showMoltbookSaveStatus();
+                    } else if (data.error === 'Unauthorized') {
+                        console.error('[Moltbook] Authentication failed:', data.message);
                     }
                 } catch (error) {
                     console.error('[Moltbook] Failed to save settings:', error);
