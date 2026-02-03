@@ -464,6 +464,8 @@ async function runHeartbeat() {
     }
 
     // 2. Check own posts for comments and reply
+    const replyDebug = { repliesEnabled: settings.repliesEnabled, myPostsFound: 0, postsChecked: [], errors: [] };
+
     if (settings.repliesEnabled) {
       console.log('[Moltbook Heartbeat] Checking for comments on own posts...');
       try {
@@ -472,7 +474,7 @@ async function runHeartbeat() {
 
         try {
           const myPostsResult = await getMyPosts('new', 10);
-          console.log('[Moltbook Heartbeat] getMyPosts result:', JSON.stringify(myPostsResult).substring(0, 500));
+          replyDebug.getMyPostsRaw = JSON.stringify(myPostsResult).substring(0, 500);
 
           // Handle different API response formats
           if (myPostsResult.posts) {
@@ -481,12 +483,13 @@ async function runHeartbeat() {
             myPosts = myPostsResult;
           }
         } catch (e) {
+          replyDebug.getMyPostsError = e.message;
           console.log(`[Moltbook Heartbeat] getMyPosts failed: ${e.message}, trying search fallback...`);
 
           // Fallback: search for posts by agent name
           try {
             const searchResult = await search(`author:${settings.agentName}`, 'posts', 10);
-            console.log('[Moltbook Heartbeat] Search fallback result:', JSON.stringify(searchResult).substring(0, 500));
+            replyDebug.searchFallbackRaw = JSON.stringify(searchResult).substring(0, 500);
 
             if (searchResult.posts) {
               myPosts = searchResult.posts;
@@ -496,64 +499,79 @@ async function runHeartbeat() {
               myPosts = searchResult;
             }
           } catch (searchError) {
+            replyDebug.searchFallbackError = searchError.message;
             console.log(`[Moltbook Heartbeat] Search fallback also failed: ${searchError.message}`);
           }
         }
 
+        replyDebug.myPostsFound = myPosts.length;
         console.log(`[Moltbook Heartbeat] Found ${myPosts.length} of my own posts to check for comments`);
 
         for (const post of myPosts) {
+          const postDebug = { id: post.id, title: post.title, commentsFound: 0 };
           console.log(`[Moltbook Heartbeat] Checking post ${post.id}: "${post.title}" for comments`);
-          const commentsData = await getComments(post.id, 'new');
-          console.log(`[Moltbook Heartbeat] Comments for post ${post.id}:`, JSON.stringify(commentsData).substring(0, 300));
 
-          // Handle different API response formats for comments
-          let comments = [];
-          if (commentsData.comments) {
-            comments = commentsData.comments;
-          } else if (Array.isArray(commentsData)) {
-            comments = commentsData;
-          }
+          try {
+            const commentsData = await getComments(post.id, 'new');
+            postDebug.commentsRaw = JSON.stringify(commentsData).substring(0, 300);
 
-          if (comments.length > 0) {
-            const repliedComments = state.repliedComments || [];
-            const maxReplies = settings.maxRepliesPerHeartbeat || 5;
-
-            for (const comment of comments) {
-              console.log(`[Moltbook Heartbeat] Checking comment ${comment.id} by ${comment.author?.name}`);
-
-              // Skip if already replied or if it's our own comment
-              if (repliedComments.includes(comment.id)) {
-                console.log(`[Moltbook Heartbeat] Already replied to comment ${comment.id}, skipping`);
-                continue;
-              }
-              if (comment.author?.name === settings.agentName) {
-                console.log(`[Moltbook Heartbeat] Comment ${comment.id} is our own, skipping`);
-                continue;
-              }
-
-              if (state.repliesToday < maxReplies) {
-                try {
-                  const reply = generateReply(comment, post, settings);
-                  console.log(`[Moltbook Heartbeat] Replying to comment ${comment.id}: "${reply.substring(0, 100)}..."`);
-                  await addComment(post.id, reply, comment.id);
-
-                  state.repliesToday = (state.repliesToday || 0) + 1;
-                  repliedComments.push(comment.id);
-                  actions.push({ type: 'reply', postId: post.id, commentId: comment.id, reply });
-                  console.log(`[Moltbook Heartbeat] Successfully replied to comment on: ${post.title}`);
-                } catch (e) {
-                  console.log(`[Moltbook Heartbeat] Failed to reply: ${e.message}`);
-                }
-              } else {
-                console.log(`[Moltbook Heartbeat] Max replies (${maxReplies}) reached for today`);
-              }
+            // Handle different API response formats for comments
+            let comments = [];
+            if (commentsData.comments) {
+              comments = commentsData.comments;
+            } else if (Array.isArray(commentsData)) {
+              comments = commentsData;
             }
 
-            state.repliedComments = repliedComments;
+            postDebug.commentsFound = comments.length;
+
+            if (comments.length > 0) {
+              const repliedComments = state.repliedComments || [];
+              const maxReplies = settings.maxRepliesPerHeartbeat || 5;
+
+              for (const comment of comments) {
+                console.log(`[Moltbook Heartbeat] Checking comment ${comment.id} by ${comment.author?.name}`);
+
+                // Skip if already replied or if it's our own comment
+                if (repliedComments.includes(comment.id)) {
+                  postDebug.skippedAlreadyReplied = (postDebug.skippedAlreadyReplied || 0) + 1;
+                  continue;
+                }
+                if (comment.author?.name === settings.agentName) {
+                  postDebug.skippedOwnComment = (postDebug.skippedOwnComment || 0) + 1;
+                  continue;
+                }
+
+                if (state.repliesToday < maxReplies) {
+                  try {
+                    const reply = generateReply(comment, post, settings);
+                    console.log(`[Moltbook Heartbeat] Replying to comment ${comment.id}: "${reply.substring(0, 100)}..."`);
+                    await addComment(post.id, reply, comment.id);
+
+                    state.repliesToday = (state.repliesToday || 0) + 1;
+                    repliedComments.push(comment.id);
+                    actions.push({ type: 'reply', postId: post.id, commentId: comment.id, reply });
+                    console.log(`[Moltbook Heartbeat] Successfully replied to comment on: ${post.title}`);
+                  } catch (e) {
+                    postDebug.replyError = e.message;
+                    console.log(`[Moltbook Heartbeat] Failed to reply: ${e.message}`);
+                  }
+                } else {
+                  postDebug.maxRepliesReached = true;
+                  console.log(`[Moltbook Heartbeat] Max replies (${maxReplies}) reached for today`);
+                }
+              }
+
+              state.repliedComments = repliedComments;
+            }
+          } catch (e) {
+            postDebug.error = e.message;
           }
+
+          replyDebug.postsChecked.push(postDebug);
         }
       } catch (e) {
+        replyDebug.errors.push(e.message);
         console.log(`[Moltbook Heartbeat] Error checking comments: ${e.message}`);
         actions.push({ type: 'reply_error', error: e.message });
       }
@@ -590,9 +608,12 @@ async function runHeartbeat() {
     return {
       success: true,
       actions,
+      replyDebug,
       settings: {
         enabled: settings.enabled,
-        objective: settings.objective
+        objective: settings.objective,
+        repliesEnabled: settings.repliesEnabled,
+        agentName: settings.agentName
       },
       state: {
         upvotesToday: state.upvotesToday,
