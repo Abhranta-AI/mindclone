@@ -388,9 +388,15 @@ async function runHeartbeat() {
         break;
     }
 
-    // 1. Check the feed and engage
+    // 1. Check the feed and engage (wrapped in try-catch so posting can still happen)
     console.log('[Moltbook Heartbeat] Fetching feed...');
-    const feed = await getFeed('hot', 15);
+    let feed = { success: false, posts: [] };
+    try {
+      feed = await getFeed('hot', 15);
+    } catch (e) {
+      console.log(`[Moltbook Heartbeat] Failed to fetch feed: ${e.message}`);
+      actions.push({ type: 'feed_error', error: e.message });
+    }
 
     if (feed.success && feed.posts) {
       for (const post of feed.posts.slice(0, 5)) {
