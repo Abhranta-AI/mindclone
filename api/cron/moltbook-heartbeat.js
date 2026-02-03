@@ -319,7 +319,7 @@ async function runHeartbeat() {
           }
 
           // GROWTH: Comment more frequently (max 8 per day, 50% chance)
-          if (state.commentsToday<  15) && Math.random() > 0.2 {
+          if (state.commentsToday < 15 && Math.random() > 0.2) {
             try {
               const comment = generateComment(post);
               await addComment(post.id, comment);
