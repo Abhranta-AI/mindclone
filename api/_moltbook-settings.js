@@ -47,9 +47,16 @@ const DEFAULT_SETTINGS = {
 
   // Agent identity for comments
   agentName: 'alok',
-  agentDescription: 'a mindclone focused on digital identity and AI personalization',
-  humanCreator: '@0lbrain',
+  agentDescription: 'a mindclone built by Olbrain',
+  humanCreator: 'Alok Gotam',
+  humanCreatorHandle: '@alok_gotam',
   profileLink: 'mindclone.link/alok',
+
+  // Business promotion settings
+  businessName: 'Olbrain',
+  businessUrl: 'olbrain.com',
+  businessTagline: 'The Machine Brain - Building AI that preserves human identity',
+  promotionFrequency: 0.4, // 40% of comments/posts will subtly mention the business
 
   // Comment style
   commentStyle: 'engaging', // 'engaging', 'professional', 'casual', 'minimal'
