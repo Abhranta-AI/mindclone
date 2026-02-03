@@ -467,45 +467,95 @@ async function runHeartbeat() {
     if (settings.repliesEnabled) {
       console.log('[Moltbook Heartbeat] Checking for comments on own posts...');
       try {
-        // Use getMyPosts to get agent's own posts (not personalized feed which is posts from followed accounts)
-        const myPostsResult = await getMyPosts('new', 10);
+        // Try to get agent's own posts - first try /agents/me/posts, then fall back to search
+        let myPosts = [];
 
-        if (myPostsResult.success && myPostsResult.posts) {
-          console.log(`[Moltbook Heartbeat] Found ${myPostsResult.posts.length} of my own posts to check for comments`);
+        try {
+          const myPostsResult = await getMyPosts('new', 10);
+          console.log('[Moltbook Heartbeat] getMyPosts result:', JSON.stringify(myPostsResult).substring(0, 500));
 
-          for (const post of myPostsResult.posts) {
-            const commentsData = await getComments(post.id, 'new');
+          // Handle different API response formats
+          if (myPostsResult.posts) {
+            myPosts = myPostsResult.posts;
+          } else if (Array.isArray(myPostsResult)) {
+            myPosts = myPostsResult;
+          }
+        } catch (e) {
+          console.log(`[Moltbook Heartbeat] getMyPosts failed: ${e.message}, trying search fallback...`);
 
-            if (commentsData.success && commentsData.comments && commentsData.comments.length > 0) {
-              const repliedComments = state.repliedComments || [];
-              const maxReplies = settings.maxRepliesPerHeartbeat || 5;
+          // Fallback: search for posts by agent name
+          try {
+            const searchResult = await search(`author:${settings.agentName}`, 'posts', 10);
+            console.log('[Moltbook Heartbeat] Search fallback result:', JSON.stringify(searchResult).substring(0, 500));
 
-              for (const comment of commentsData.comments) {
-                if (repliedComments.includes(comment.id) || comment.author?.name === settings.agentName) {
-                  continue;
-                }
+            if (searchResult.posts) {
+              myPosts = searchResult.posts;
+            } else if (searchResult.results) {
+              myPosts = searchResult.results;
+            } else if (Array.isArray(searchResult)) {
+              myPosts = searchResult;
+            }
+          } catch (searchError) {
+            console.log(`[Moltbook Heartbeat] Search fallback also failed: ${searchError.message}`);
+          }
+        }
 
-                if (state.repliesToday < maxReplies) {
-                  try {
-                    const reply = generateReply(comment, post, settings);
-                    await addComment(post.id, reply, comment.id);
+        console.log(`[Moltbook Heartbeat] Found ${myPosts.length} of my own posts to check for comments`);
 
-                    state.repliesToday = (state.repliesToday || 0) + 1;
-                    repliedComments.push(comment.id);
-                    actions.push({ type: 'reply', postId: post.id, commentId: comment.id, reply });
-                    console.log(`[Moltbook Heartbeat] Replied to comment on: ${post.title}`);
-                  } catch (e) {
-                    console.log(`[Moltbook Heartbeat] Failed to reply: ${e.message}`);
-                  }
-                }
+        for (const post of myPosts) {
+          console.log(`[Moltbook Heartbeat] Checking post ${post.id}: "${post.title}" for comments`);
+          const commentsData = await getComments(post.id, 'new');
+          console.log(`[Moltbook Heartbeat] Comments for post ${post.id}:`, JSON.stringify(commentsData).substring(0, 300));
+
+          // Handle different API response formats for comments
+          let comments = [];
+          if (commentsData.comments) {
+            comments = commentsData.comments;
+          } else if (Array.isArray(commentsData)) {
+            comments = commentsData;
+          }
+
+          if (comments.length > 0) {
+            const repliedComments = state.repliedComments || [];
+            const maxReplies = settings.maxRepliesPerHeartbeat || 5;
+
+            for (const comment of comments) {
+              console.log(`[Moltbook Heartbeat] Checking comment ${comment.id} by ${comment.author?.name}`);
+
+              // Skip if already replied or if it's our own comment
+              if (repliedComments.includes(comment.id)) {
+                console.log(`[Moltbook Heartbeat] Already replied to comment ${comment.id}, skipping`);
+                continue;
+              }
+              if (comment.author?.name === settings.agentName) {
+                console.log(`[Moltbook Heartbeat] Comment ${comment.id} is our own, skipping`);
+                continue;
               }
 
-              state.repliedComments = repliedComments;
+              if (state.repliesToday < maxReplies) {
+                try {
+                  const reply = generateReply(comment, post, settings);
+                  console.log(`[Moltbook Heartbeat] Replying to comment ${comment.id}: "${reply.substring(0, 100)}..."`);
+                  await addComment(post.id, reply, comment.id);
+
+                  state.repliesToday = (state.repliesToday || 0) + 1;
+                  repliedComments.push(comment.id);
+                  actions.push({ type: 'reply', postId: post.id, commentId: comment.id, reply });
+                  console.log(`[Moltbook Heartbeat] Successfully replied to comment on: ${post.title}`);
+                } catch (e) {
+                  console.log(`[Moltbook Heartbeat] Failed to reply: ${e.message}`);
+                }
+              } else {
+                console.log(`[Moltbook Heartbeat] Max replies (${maxReplies}) reached for today`);
+              }
             }
+
+            state.repliedComments = repliedComments;
           }
         }
       } catch (e) {
         console.log(`[Moltbook Heartbeat] Error checking comments: ${e.message}`);
+        actions.push({ type: 'reply_error', error: e.message });
       }
     }
 
