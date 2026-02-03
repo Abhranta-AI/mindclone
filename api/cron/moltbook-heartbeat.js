@@ -13,7 +13,7 @@ const {
   createPost,
   search
 } = require('../_moltbook');
-const { getMoltbookSettings, DEFAULT_SETTINGS } = require('../moltbook-settings');
+const { getMoltbookSettings, DEFAULT_SETTINGS } = require('../_moltbook-settings');
 
 // Initialize Firebase
 initializeFirebaseAdmin();
