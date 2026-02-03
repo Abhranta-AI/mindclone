@@ -477,6 +477,288 @@
             margin: 0;
         }
 
+        /* Moltbook Settings Styles */
+        .moltbook-section {
+            border-top: 1px solid #333;
+            margin-top: 20px;
+            padding-top: 20px;
+        }
+
+        .moltbook-section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            cursor: pointer;
+        }
+
+        .moltbook-section-header h4 {
+            margin: 0;
+            font-size: 16px;
+            color: #fff;
+        }
+
+        .moltbook-section-header .collapse-icon {
+            margin-left: auto;
+            transition: transform 0.2s;
+        }
+
+        .moltbook-section-header.collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .moltbook-section-content {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .moltbook-section-content.collapsed {
+            display: none;
+        }
+
+        .moltbook-objective-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .moltbook-objective-card {
+            padding: 12px;
+            background: #2a2a2e;
+            border: 2px solid #333;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .moltbook-objective-card:hover {
+            border-color: #555;
+        }
+
+        .moltbook-objective-card.selected {
+            border-color: var(--color-accent-primary);
+            background: rgba(255, 107, 53, 0.1);
+        }
+
+        .moltbook-objective-card .card-icon {
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+
+        .moltbook-objective-card .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .moltbook-objective-card .card-desc {
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .moltbook-subsection {
+            background: #2a2a2e;
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        .moltbook-subsection-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #ccc;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .moltbook-control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .moltbook-control-row:last-child {
+            border-bottom: none;
+        }
+
+        .moltbook-control-label {
+            font-size: 13px;
+            color: #ddd;
+        }
+
+        .moltbook-control-hint {
+            font-size: 11px;
+            color: #777;
+            margin-top: 2px;
+        }
+
+        .moltbook-number-input {
+            width: 70px;
+            padding: 6px 10px;
+            background: #1a1a1e;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .moltbook-number-input:focus {
+            outline: none;
+            border-color: var(--color-accent-primary);
+        }
+
+        .moltbook-topics-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .moltbook-topic-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: #333;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #ddd;
+        }
+
+        .moltbook-topic-tag .remove-topic {
+            cursor: pointer;
+            color: #888;
+            font-size: 14px;
+        }
+
+        .moltbook-topic-tag .remove-topic:hover {
+            color: #ff6b6b;
+        }
+
+        .moltbook-add-topic {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .moltbook-add-topic input {
+            flex: 1;
+            padding: 8px 12px;
+            background: #1a1a1e;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .moltbook-add-topic button {
+            padding: 8px 16px;
+            background: var(--color-accent-primary);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .moltbook-posts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .moltbook-post-item {
+            padding: 10px;
+            background: #1a1a1e;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .moltbook-post-item .post-title {
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .moltbook-post-item .post-content {
+            color: #888;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .moltbook-post-item .post-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .moltbook-post-item .post-action-btn {
+            padding: 4px 8px;
+            background: #333;
+            border: none;
+            border-radius: 4px;
+            color: #aaa;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .moltbook-post-item .post-action-btn:hover {
+            background: #444;
+        }
+
+        .moltbook-post-item .post-action-btn.delete:hover {
+            background: #ff4444;
+            color: #fff;
+        }
+
+        .moltbook-add-post-form {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #333;
+        }
+
+        .moltbook-add-post-form input,
+        .moltbook-add-post-form textarea {
+            padding: 10px;
+            background: #1a1a1e;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .moltbook-add-post-form textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .moltbook-save-status {
+            font-size: 12px;
+            color: #4CAF50;
+            text-align: center;
+            padding: 8px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .moltbook-save-status.visible {
+            opacity: 1;
+        }
+
         .header-avatar {
             width: 28px;
             height: 28px;
@@ -7029,6 +7311,185 @@
                         <button id="panelCopyLinkBtn" class="copy-btn">Copy Link</button>
                     </div>
                 </div>
+
+                <!-- Moltbook Settings Section -->
+                <div class="panel-section moltbook-section" id="moltbookSettingsSection">
+                    <div class="moltbook-section-header" id="moltbookSectionHeader">
+                        <span style="font-size: 20px;">🦞</span>
+                        <h4>Moltbook Behavior</h4>
+                        <span class="collapse-icon">▼</span>
+                    </div>
+
+                    <div class="moltbook-section-content" id="moltbookSectionContent">
+                        <!-- Master Enable Toggle -->
+                        <div class="moltbook-control-row">
+                            <div>
+                                <div class="moltbook-control-label">Enable Moltbook Activity</div>
+                                <div class="moltbook-control-hint">Your mindclone will post & engage on Moltbook</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="moltbookEnabled" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <!-- Core Objective -->
+                        <div class="moltbook-subsection">
+                            <div class="moltbook-subsection-title">🎯 Core Objective</div>
+                            <div class="moltbook-objective-cards">
+                                <div class="moltbook-objective-card selected" data-objective="growth">
+                                    <div class="card-icon">📈</div>
+                                    <div class="card-title">Growth</div>
+                                    <div class="card-desc">Max visibility & followers</div>
+                                </div>
+                                <div class="moltbook-objective-card" data-objective="engagement">
+                                    <div class="card-icon">💬</div>
+                                    <div class="card-title">Engagement</div>
+                                    <div class="card-desc">Quality conversations</div>
+                                </div>
+                                <div class="moltbook-objective-card" data-objective="networking">
+                                    <div class="card-icon">🤝</div>
+                                    <div class="card-title">Networking</div>
+                                    <div class="card-desc">Build connections</div>
+                                </div>
+                                <div class="moltbook-objective-card" data-objective="minimal">
+                                    <div class="card-icon">🔇</div>
+                                    <div class="card-title">Minimal</div>
+                                    <div class="card-desc">Low activity, replies only</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Posting Settings -->
+                        <div class="moltbook-subsection">
+                            <div class="moltbook-subsection-title">📝 Posting</div>
+                            <div class="moltbook-control-row">
+                                <div class="moltbook-control-label">Enable Posting</div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="moltbookPostingEnabled" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="moltbook-control-row">
+                                <div class="moltbook-control-label">Max posts per day</div>
+                                <input type="number" id="moltbookMaxPosts" class="moltbook-number-input" value="8" min="0" max="20">
+                            </div>
+                            <div class="moltbook-control-row">
+                                <div class="moltbook-control-label">Min hours between posts</div>
+                                <input type="number" id="moltbookMinHours" class="moltbook-number-input" value="12" min="1" max="48">
+                            </div>
+                        </div>
+
+                        <!-- Engagement Settings -->
+                        <div class="moltbook-subsection">
+                            <div class="moltbook-subsection-title">👍 Engagement</div>
+                            <div class="moltbook-control-row">
+                                <div class="moltbook-control-label">Enable Upvoting</div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="moltbookUpvotingEnabled" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="moltbook-control-row">
+                                <div class="moltbook-control-label">Max upvotes per day</div>
+                                <input type="number" id="moltbookMaxUpvotes" class="moltbook-number-input" value="30" min="0" max="100">
+                            </div>
+                            <div class="moltbook-control-row">
+                                <div class="moltbook-control-label">Enable Commenting</div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="moltbookCommentingEnabled" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="moltbook-control-row">
+                                <div class="moltbook-control-label">Max comments per day</div>
+                                <input type="number" id="moltbookMaxComments" class="moltbook-number-input" value="15" min="0" max="50">
+                            </div>
+                            <div class="moltbook-control-row">
+                                <div class="moltbook-control-label">Enable Replies</div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="moltbookRepliesEnabled" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Topics of Interest -->
+                        <div class="moltbook-subsection">
+                            <div class="moltbook-subsection-title">🏷️ Topics of Interest</div>
+                            <div class="moltbook-control-hint" style="margin-bottom: 8px;">Your mindclone will engage with posts about these topics</div>
+                            <div class="moltbook-topics-container" id="moltbookTopicsContainer">
+                                <!-- Topics will be rendered by JS -->
+                            </div>
+                            <div class="moltbook-add-topic">
+                                <input type="text" id="moltbookNewTopic" placeholder="Add a topic...">
+                                <button id="moltbookAddTopicBtn">Add</button>
+                            </div>
+                        </div>
+
+                        <!-- Agent Identity -->
+                        <div class="moltbook-subsection">
+                            <div class="moltbook-subsection-title">🤖 Agent Identity</div>
+                            <div class="moltbook-control-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                                <div class="moltbook-control-label">Agent Name</div>
+                                <input type="text" id="moltbookAgentName" class="panel-input" value="alok" style="width: 100%;">
+                            </div>
+                            <div class="moltbook-control-row" style="flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px;">
+                                <div class="moltbook-control-label">Agent Description</div>
+                                <input type="text" id="moltbookAgentDescription" class="panel-input" value="a mindclone focused on digital identity" style="width: 100%;">
+                            </div>
+                            <div class="moltbook-control-row" style="flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px;">
+                                <div class="moltbook-control-label">Human Creator Handle</div>
+                                <input type="text" id="moltbookHumanCreator" class="panel-input" value="@0lbrain" style="width: 100%;">
+                            </div>
+                            <div class="moltbook-control-row" style="flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px;">
+                                <div class="moltbook-control-label">Profile Link</div>
+                                <input type="text" id="moltbookProfileLink" class="panel-input" value="mindclone.link/alok" style="width: 100%;">
+                            </div>
+                        </div>
+
+                        <!-- Comment Style -->
+                        <div class="moltbook-subsection">
+                            <div class="moltbook-subsection-title">💬 Comment Style</div>
+                            <select id="moltbookCommentStyle" class="panel-select" style="width: 100%;">
+                                <option value="engaging">🔥 Engaging - Questions & CTAs</option>
+                                <option value="professional">💼 Professional - Thoughtful & measured</option>
+                                <option value="casual">😊 Casual - Friendly & relaxed</option>
+                                <option value="minimal">📝 Minimal - Brief & to the point</option>
+                            </select>
+                            <div class="moltbook-control-row" style="margin-top: 12px;">
+                                <div class="moltbook-control-label">Include profile link in comments</div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="moltbookIncludeCTA" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Custom Posts -->
+                        <div class="moltbook-subsection">
+                            <div class="moltbook-subsection-title">✍️ Custom Post Templates</div>
+                            <div class="moltbook-control-row">
+                                <div class="moltbook-control-label">Use default post templates</div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="moltbookUseDefaultPosts" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="moltbook-posts-list" id="moltbookCustomPostsList">
+                                <!-- Custom posts rendered by JS -->
+                            </div>
+                            <div class="moltbook-add-post-form">
+                                <input type="text" id="moltbookNewPostTitle" placeholder="Post title...">
+                                <textarea id="moltbookNewPostContent" placeholder="Post content..."></textarea>
+                                <button id="moltbookAddPostBtn" class="panel-button" style="align-self: flex-end;">Add Post Template</button>
+                            </div>
+                        </div>
+
+                        <!-- Save Status -->
+                        <div class="moltbook-save-status" id="moltbookSaveStatus">Settings saved!</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -13212,6 +13673,309 @@ Is there anything else you'd like to configure?`;
                     .catch(err => console.warn('[PWA] Service Worker registration failed:', err));
             });
         }
+
+        // ============================================
+        // Moltbook Settings Management
+        // ============================================
+
+        let moltbookSettings = null;
+        let moltbookSaveTimeout = null;
+
+        // Load Moltbook settings
+        async function loadMoltbookSettings() {
+            try {
+                const response = await fetch('/api/moltbook-settings');
+                const data = await response.json();
+                if (data.success) {
+                    moltbookSettings = data.settings;
+                    renderMoltbookSettings();
+                }
+            } catch (error) {
+                console.error('[Moltbook] Failed to load settings:', error);
+            }
+        }
+
+        // Save Moltbook settings (debounced)
+        async function saveMoltbookSettings(updates) {
+            if (moltbookSaveTimeout) {
+                clearTimeout(moltbookSaveTimeout);
+            }
+
+            moltbookSaveTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch('/api/moltbook-settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updates)
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        moltbookSettings = data.settings;
+                        showMoltbookSaveStatus();
+                    }
+                } catch (error) {
+                    console.error('[Moltbook] Failed to save settings:', error);
+                }
+            }, 500);
+        }
+
+        // Show save status
+        function showMoltbookSaveStatus() {
+            const status = document.getElementById('moltbookSaveStatus');
+            if (status) {
+                status.classList.add('visible');
+                setTimeout(() => status.classList.remove('visible'), 2000);
+            }
+        }
+
+        // Render Moltbook settings to UI
+        function renderMoltbookSettings() {
+            if (!moltbookSettings) return;
+
+            // Master toggle
+            const enabled = document.getElementById('moltbookEnabled');
+            if (enabled) enabled.checked = moltbookSettings.enabled;
+
+            // Objective cards
+            document.querySelectorAll('.moltbook-objective-card').forEach(card => {
+                card.classList.toggle('selected', card.dataset.objective === moltbookSettings.objective);
+            });
+
+            // Posting settings
+            const postingEnabled = document.getElementById('moltbookPostingEnabled');
+            if (postingEnabled) postingEnabled.checked = moltbookSettings.postingEnabled;
+
+            const maxPosts = document.getElementById('moltbookMaxPosts');
+            if (maxPosts) maxPosts.value = moltbookSettings.maxPostsPerDay;
+
+            const minHours = document.getElementById('moltbookMinHours');
+            if (minHours) minHours.value = moltbookSettings.minHoursBetweenPosts;
+
+            // Engagement settings
+            const upvotingEnabled = document.getElementById('moltbookUpvotingEnabled');
+            if (upvotingEnabled) upvotingEnabled.checked = moltbookSettings.upvotingEnabled;
+
+            const maxUpvotes = document.getElementById('moltbookMaxUpvotes');
+            if (maxUpvotes) maxUpvotes.value = moltbookSettings.maxUpvotesPerDay;
+
+            const commentingEnabled = document.getElementById('moltbookCommentingEnabled');
+            if (commentingEnabled) commentingEnabled.checked = moltbookSettings.commentingEnabled;
+
+            const maxComments = document.getElementById('moltbookMaxComments');
+            if (maxComments) maxComments.value = moltbookSettings.maxCommentsPerDay;
+
+            const repliesEnabled = document.getElementById('moltbookRepliesEnabled');
+            if (repliesEnabled) repliesEnabled.checked = moltbookSettings.repliesEnabled;
+
+            // Topics
+            renderMoltbookTopics();
+
+            // Agent identity
+            const agentName = document.getElementById('moltbookAgentName');
+            if (agentName) agentName.value = moltbookSettings.agentName || '';
+
+            const agentDesc = document.getElementById('moltbookAgentDescription');
+            if (agentDesc) agentDesc.value = moltbookSettings.agentDescription || '';
+
+            const humanCreator = document.getElementById('moltbookHumanCreator');
+            if (humanCreator) humanCreator.value = moltbookSettings.humanCreator || '';
+
+            const profileLink = document.getElementById('moltbookProfileLink');
+            if (profileLink) profileLink.value = moltbookSettings.profileLink || '';
+
+            // Comment style
+            const commentStyle = document.getElementById('moltbookCommentStyle');
+            if (commentStyle) commentStyle.value = moltbookSettings.commentStyle || 'engaging';
+
+            const includeCTA = document.getElementById('moltbookIncludeCTA');
+            if (includeCTA) includeCTA.checked = moltbookSettings.includeCallToAction;
+
+            // Custom posts
+            const useDefaultPosts = document.getElementById('moltbookUseDefaultPosts');
+            if (useDefaultPosts) useDefaultPosts.checked = moltbookSettings.useDefaultPosts;
+
+            renderMoltbookCustomPosts();
+        }
+
+        // Render topics
+        function renderMoltbookTopics() {
+            const container = document.getElementById('moltbookTopicsContainer');
+            if (!container || !moltbookSettings?.topics) return;
+
+            container.innerHTML = moltbookSettings.topics.map(topic => `
+                <span class="moltbook-topic-tag">
+                    ${topic}
+                    <span class="remove-topic" data-topic="${topic}">&times;</span>
+                </span>
+            `).join('');
+
+            // Add remove handlers
+            container.querySelectorAll('.remove-topic').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const topic = btn.dataset.topic;
+                    moltbookSettings.topics = moltbookSettings.topics.filter(t => t !== topic);
+                    saveMoltbookSettings({ topics: moltbookSettings.topics });
+                    renderMoltbookTopics();
+                });
+            });
+        }
+
+        // Render custom posts
+        function renderMoltbookCustomPosts() {
+            const container = document.getElementById('moltbookCustomPostsList');
+            if (!container) return;
+
+            const customPosts = moltbookSettings?.customPosts || [];
+
+            if (customPosts.length === 0) {
+                container.innerHTML = '<div style="color: #666; font-size: 12px; text-align: center; padding: 16px;">No custom posts yet. Add one below!</div>';
+                return;
+            }
+
+            container.innerHTML = customPosts.map((post, index) => `
+                <div class="moltbook-post-item">
+                    <div class="post-title">${post.title}</div>
+                    <div class="post-content">${post.content}</div>
+                    <div class="post-actions">
+                        <button class="post-action-btn delete" data-index="${index}">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+
+            // Add delete handlers
+            container.querySelectorAll('.post-action-btn.delete').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const index = parseInt(btn.dataset.index);
+                    moltbookSettings.customPosts.splice(index, 1);
+                    saveMoltbookSettings({ customPosts: moltbookSettings.customPosts });
+                    renderMoltbookCustomPosts();
+                });
+            });
+        }
+
+        // Initialize Moltbook settings UI
+        function initializeMoltbookSettings() {
+            // Section collapse toggle
+            const sectionHeader = document.getElementById('moltbookSectionHeader');
+            const sectionContent = document.getElementById('moltbookSectionContent');
+            if (sectionHeader && sectionContent) {
+                sectionHeader.addEventListener('click', () => {
+                    sectionHeader.classList.toggle('collapsed');
+                    sectionContent.classList.toggle('collapsed');
+                });
+            }
+
+            // Master enable toggle
+            document.getElementById('moltbookEnabled')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ enabled: e.target.checked });
+            });
+
+            // Objective cards
+            document.querySelectorAll('.moltbook-objective-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    document.querySelectorAll('.moltbook-objective-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    saveMoltbookSettings({ objective: card.dataset.objective });
+                });
+            });
+
+            // Posting settings
+            document.getElementById('moltbookPostingEnabled')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ postingEnabled: e.target.checked });
+            });
+            document.getElementById('moltbookMaxPosts')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ maxPostsPerDay: parseInt(e.target.value) });
+            });
+            document.getElementById('moltbookMinHours')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ minHoursBetweenPosts: parseInt(e.target.value) });
+            });
+
+            // Engagement settings
+            document.getElementById('moltbookUpvotingEnabled')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ upvotingEnabled: e.target.checked });
+            });
+            document.getElementById('moltbookMaxUpvotes')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ maxUpvotesPerDay: parseInt(e.target.value) });
+            });
+            document.getElementById('moltbookCommentingEnabled')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ commentingEnabled: e.target.checked });
+            });
+            document.getElementById('moltbookMaxComments')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ maxCommentsPerDay: parseInt(e.target.value) });
+            });
+            document.getElementById('moltbookRepliesEnabled')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ repliesEnabled: e.target.checked });
+            });
+
+            // Add topic
+            const addTopicBtn = document.getElementById('moltbookAddTopicBtn');
+            const newTopicInput = document.getElementById('moltbookNewTopic');
+            if (addTopicBtn && newTopicInput) {
+                addTopicBtn.addEventListener('click', () => {
+                    const topic = newTopicInput.value.trim().toLowerCase();
+                    if (topic && !moltbookSettings.topics.includes(topic)) {
+                        moltbookSettings.topics.push(topic);
+                        saveMoltbookSettings({ topics: moltbookSettings.topics });
+                        renderMoltbookTopics();
+                        newTopicInput.value = '';
+                    }
+                });
+                newTopicInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') addTopicBtn.click();
+                });
+            }
+
+            // Agent identity fields
+            document.getElementById('moltbookAgentName')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ agentName: e.target.value });
+            });
+            document.getElementById('moltbookAgentDescription')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ agentDescription: e.target.value });
+            });
+            document.getElementById('moltbookHumanCreator')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ humanCreator: e.target.value });
+            });
+            document.getElementById('moltbookProfileLink')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ profileLink: e.target.value });
+            });
+
+            // Comment style
+            document.getElementById('moltbookCommentStyle')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ commentStyle: e.target.value });
+            });
+            document.getElementById('moltbookIncludeCTA')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ includeCallToAction: e.target.checked });
+            });
+
+            // Custom posts
+            document.getElementById('moltbookUseDefaultPosts')?.addEventListener('change', (e) => {
+                saveMoltbookSettings({ useDefaultPosts: e.target.checked });
+            });
+
+            const addPostBtn = document.getElementById('moltbookAddPostBtn');
+            const newPostTitle = document.getElementById('moltbookNewPostTitle');
+            const newPostContent = document.getElementById('moltbookNewPostContent');
+            if (addPostBtn && newPostTitle && newPostContent) {
+                addPostBtn.addEventListener('click', () => {
+                    const title = newPostTitle.value.trim();
+                    const content = newPostContent.value.trim();
+                    if (title && content) {
+                        if (!moltbookSettings.customPosts) moltbookSettings.customPosts = [];
+                        moltbookSettings.customPosts.push({ title, content });
+                        saveMoltbookSettings({ customPosts: moltbookSettings.customPosts });
+                        renderMoltbookCustomPosts();
+                        newPostTitle.value = '';
+                        newPostContent.value = '';
+                    }
+                });
+            }
+
+            // Load settings on init
+            loadMoltbookSettings();
+        }
+
+        // Initialize Moltbook settings when page loads
+        initializeMoltbookSettings();
     </script>
 </body>
 </html>
