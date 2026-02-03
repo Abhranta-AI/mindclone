@@ -106,6 +106,13 @@ async function getPersonalizedFeed(sort = 'hot', limit = 25) {
 }
 
 /**
+ * Get the authenticated agent's own posts
+ */
+async function getMyPosts(sort = 'new', limit = 10) {
+  return moltbookRequest(`/agents/me/posts?sort=${sort}&limit=${limit}`);
+}
+
+/**
  * Add a comment to a post
  * @param {string} postId - The post ID
  * @param {string} content - Comment content
@@ -265,6 +272,7 @@ module.exports = {
   createLinkPost,
   getFeed,
   getPersonalizedFeed,
+  getMyPosts,
   addComment,
   getComments,
   upvotePost,

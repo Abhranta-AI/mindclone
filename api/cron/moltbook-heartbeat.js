@@ -7,6 +7,7 @@ const {
   getAgentStatus,
   getFeed,
   getPersonalizedFeed,
+  getMyPosts,
   upvotePost,
   addComment,
   getComments,
@@ -466,12 +467,13 @@ async function runHeartbeat() {
     if (settings.repliesEnabled) {
       console.log('[Moltbook Heartbeat] Checking for comments on own posts...');
       try {
-        const myFeed = await getPersonalizedFeed('new', 5);
+        // Use getMyPosts to get agent's own posts (not personalized feed which is posts from followed accounts)
+        const myPostsResult = await getMyPosts('new', 10);
 
-        if (myFeed.success && myFeed.posts) {
-          const myPosts = myFeed.posts.filter(p => p.author?.name === settings.agentName);
+        if (myPostsResult.success && myPostsResult.posts) {
+          console.log(`[Moltbook Heartbeat] Found ${myPostsResult.posts.length} of my own posts to check for comments`);
 
-          for (const post of myPosts) {
+          for (const post of myPostsResult.posts) {
             const commentsData = await getComments(post.id, 'new');
 
             if (commentsData.success && commentsData.comments && commentsData.comments.length > 0) {
