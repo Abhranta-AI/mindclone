@@ -1,12 +1,11 @@
 // Moltbook Settings Module - Shared settings logic
 // Used by both the API endpoint and the heartbeat cron
+// Settings are now user-specific, stored under users/{userId}/settings/moltbook
 
 const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
 
 initializeFirebaseAdmin();
 const db = admin.firestore();
-
-const MOLTBOOK_SETTINGS_DOC = 'system/moltbook-settings';
 
 // Default settings
 const DEFAULT_SETTINGS = {
@@ -67,10 +66,16 @@ const DEFAULT_SETTINGS = {
 };
 
 /**
- * Get current Moltbook settings
+ * Get Moltbook settings for a specific user
+ * @param {string} userId - The user's Firebase UID
  */
-async function getMoltbookSettings() {
-  const doc = await db.doc(MOLTBOOK_SETTINGS_DOC).get();
+async function getMoltbookSettingsByUserId(userId) {
+  if (!userId) {
+    console.warn('[Moltbook Settings] No userId provided, using defaults');
+    return DEFAULT_SETTINGS;
+  }
+
+  const doc = await db.collection('users').doc(userId).collection('settings').doc('moltbook').get();
   if (doc.exists) {
     return { ...DEFAULT_SETTINGS, ...doc.data() };
   }
@@ -78,23 +83,61 @@ async function getMoltbookSettings() {
 }
 
 /**
- * Update Moltbook settings
+ * Get Moltbook settings for the deployment owner
+ * Uses MINDCLONE_OWNER_UID environment variable to determine the owner
+ * Falls back to defaults if not set
  */
-async function updateMoltbookSettings(updates) {
-  const currentSettings = await getMoltbookSettings();
+async function getMoltbookSettings() {
+  const ownerUid = process.env.MINDCLONE_OWNER_UID;
+
+  if (!ownerUid) {
+    console.warn('[Moltbook Settings] MINDCLONE_OWNER_UID not set, using default settings');
+    return DEFAULT_SETTINGS;
+  }
+
+  return getMoltbookSettingsByUserId(ownerUid);
+}
+
+/**
+ * Update Moltbook settings for a specific user
+ * @param {string} userId - The user's Firebase UID
+ * @param {object} updates - Settings to update
+ */
+async function updateMoltbookSettingsByUserId(userId, updates) {
+  if (!userId) {
+    throw new Error('userId is required to update settings');
+  }
+
+  const currentSettings = await getMoltbookSettingsByUserId(userId);
   const newSettings = {
     ...currentSettings,
     ...updates,
     updatedAt: new Date().toISOString()
   };
 
-  await db.doc(MOLTBOOK_SETTINGS_DOC).set(newSettings);
+  await db.collection('users').doc(userId).collection('settings').doc('moltbook').set(newSettings);
   return newSettings;
+}
+
+/**
+ * Update Moltbook settings (for backwards compatibility with cron)
+ * Uses MINDCLONE_OWNER_UID environment variable
+ */
+async function updateMoltbookSettings(updates) {
+  const ownerUid = process.env.MINDCLONE_OWNER_UID;
+
+  if (!ownerUid) {
+    console.warn('[Moltbook Settings] MINDCLONE_OWNER_UID not set, cannot update settings');
+    throw new Error('MINDCLONE_OWNER_UID environment variable not configured');
+  }
+
+  return updateMoltbookSettingsByUserId(ownerUid, updates);
 }
 
 module.exports = {
   DEFAULT_SETTINGS,
   getMoltbookSettings,
+  getMoltbookSettingsByUserId,
   updateMoltbookSettings,
-  MOLTBOOK_SETTINGS_DOC
+  updateMoltbookSettingsByUserId
 };

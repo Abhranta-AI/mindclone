@@ -1,5 +1,51 @@
 // Moltbook Settings API - Configure mindclone's behavior on Moltbook
-const { getMoltbookSettings, updateMoltbookSettings } = require('./_moltbook-settings');
+// Now user-specific: each user has their own settings
+
+const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
+const { DEFAULT_SETTINGS } = require('./_moltbook-settings');
+
+initializeFirebaseAdmin();
+const db = admin.firestore();
+
+/**
+ * Verify Firebase auth token and get user ID
+ */
+async function verifyAuth(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new Error('No authorization token provided');
+  }
+
+  const idToken = authHeader.split('Bearer ')[1];
+  const decodedToken = await admin.auth().verifyIdToken(idToken);
+  return decodedToken.uid;
+}
+
+/**
+ * Get user-specific Moltbook settings
+ */
+async function getUserMoltbookSettings(userId) {
+  const doc = await db.collection('users').doc(userId).collection('settings').doc('moltbook').get();
+  if (doc.exists) {
+    return { ...DEFAULT_SETTINGS, ...doc.data() };
+  }
+  return DEFAULT_SETTINGS;
+}
+
+/**
+ * Update user-specific Moltbook settings
+ */
+async function updateUserMoltbookSettings(userId, updates) {
+  const currentSettings = await getUserMoltbookSettings(userId);
+  const newSettings = {
+    ...currentSettings,
+    ...updates,
+    updatedAt: new Date().toISOString()
+  };
+
+  await db.collection('users').doc(userId).collection('settings').doc('moltbook').set(newSettings);
+  return newSettings;
+}
 
 // API handler
 module.exports = async (req, res) => {
@@ -13,8 +59,11 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // Verify authentication
+    const userId = await verifyAuth(req);
+
     if (req.method === 'GET') {
-      const settings = await getMoltbookSettings();
+      const settings = await getUserMoltbookSettings(userId);
       return res.status(200).json({ success: true, settings });
     }
 
@@ -28,7 +77,8 @@ module.exports = async (req, res) => {
         'commentingEnabled', 'maxCommentsPerDay', 'commentProbability',
         'repliesEnabled', 'maxRepliesPerHeartbeat', 'topics', 'customPosts',
         'useDefaultPosts', 'agentName', 'agentDescription', 'humanCreator',
-        'profileLink', 'commentStyle', 'includeCallToAction'
+        'humanCreatorHandle', 'profileLink', 'commentStyle', 'includeCallToAction',
+        'businessName', 'businessUrl', 'businessTagline', 'promotionFrequency'
       ];
 
       const filteredUpdates = {};
@@ -38,7 +88,7 @@ module.exports = async (req, res) => {
         }
       }
 
-      const newSettings = await updateMoltbookSettings(filteredUpdates);
+      const newSettings = await updateUserMoltbookSettings(userId, filteredUpdates);
       return res.status(200).json({ success: true, settings: newSettings });
     }
 
@@ -46,6 +96,11 @@ module.exports = async (req, res) => {
 
   } catch (error) {
     console.error('[Moltbook Settings] Error:', error);
+
+    if (error.message.includes('authorization') || error.message.includes('token')) {
+      return res.status(401).json({ error: 'Unauthorized', message: error.message });
+    }
+
     return res.status(500).json({ error: error.message });
   }
 };
