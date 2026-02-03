@@ -487,16 +487,22 @@ async function runHeartbeat() {
       const postOpportunity = await checkForPostingOpportunity(state, settings);
       if (postOpportunity) {
         try {
+          console.log(`[Moltbook Heartbeat] Attempting to post: ${postOpportunity.title}`);
           const result = await createPost(postOpportunity.title, postOpportunity.content, 'general');
           if (result.success) {
             state.postsToday++;
             state.lastPostTime = new Date().toISOString();
             actions.push({ type: 'post', title: postOpportunity.title });
             console.log(`[Moltbook Heartbeat] Created post: ${postOpportunity.title}`);
+          } else {
+            actions.push({ type: 'post_failed', title: postOpportunity.title, error: 'API returned failure' });
           }
         } catch (e) {
           console.log(`[Moltbook Heartbeat] Failed to post: ${e.message}`);
+          actions.push({ type: 'post_error', title: postOpportunity.title, error: e.message });
         }
+      } else {
+        actions.push({ type: 'post_skipped', reason: 'No posting opportunity (rate limited or no templates)' });
       }
     }
 
