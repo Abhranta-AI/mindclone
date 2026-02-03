@@ -521,11 +521,14 @@ module.exports = async (req, res) => {
   const authHeader = req.headers.authorization;
   const cronSecret = process.env.CRON_SECRET;
 
-  // Allow cron requests from Vercel
-  if (req.headers['x-vercel-cron'] !== 'true' && authHeader !== `Bearer ${cronSecret}`) {
-    // Still allow for testing in development
+  // Allow cron requests from Vercel, or with secret, or with ?test=true for debugging
+  const isVercelCron = req.headers['x-vercel-cron'] === 'true';
+  const hasSecret = authHeader === `Bearer ${cronSecret}`;
+  const isTestMode = req.query.test === 'true';
+
+  if (!isVercelCron && !hasSecret && !isTestMode) {
     if (process.env.NODE_ENV === 'production') {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: 'Unauthorized', hint: 'Add ?test=true to test manually' });
     }
   }
 
