@@ -11638,13 +11638,6 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             conversationModalContent.classList.remove('has-display');
         }
 
-        // Helper to escape HTML
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
         // Modal close handlers
         conversationModalClose.addEventListener('click', closeConversationModal);
 
