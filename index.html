@@ -983,6 +983,260 @@
             color: white;
         }
 
+        /* Training Modals (Q&A, Teachings, Facts) */
+        .training-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .training-modal.hidden {
+            display: none;
+        }
+
+        .training-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+        }
+
+        .training-modal-content {
+            position: relative;
+            z-index: 1;
+            background: var(--card-bg, #1a1a1e);
+            border: 1px solid var(--color-border-default, #333);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 520px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+            animation: modalSlideUp 0.3s ease;
+        }
+
+        .training-modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--color-border-default, #333);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .training-modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .training-modal-body {
+            padding: 24px;
+        }
+
+        .modal-hint {
+            color: #888;
+            font-size: 13px;
+            margin: 0 0 20px 0;
+            line-height: 1.5;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #ccc;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .training-input,
+        .training-textarea,
+        .training-select {
+            width: 100%;
+            padding: 12px 14px;
+            background: #0d0d0f;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s ease;
+        }
+
+        .training-input:focus,
+        .training-textarea:focus,
+        .training-select:focus {
+            outline: none;
+            border-color: var(--color-accent-primary, #a78bfa);
+        }
+
+        .training-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .training-select {
+            cursor: pointer;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            color: #ccc;
+            font-size: 13px;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--color-accent-primary, #a78bfa);
+        }
+
+        .training-modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--color-border-default, #333);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .btn-secondary {
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: #ccc;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #29282e;
+            border-color: #555;
+        }
+
+        .btn-primary {
+            padding: 10px 20px;
+            background: var(--color-accent-primary, #a78bfa);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            background: #9171e8;
+        }
+
+        /* Section hint in left panel */
+        .section-hint {
+            color: #666;
+            font-size: 11px;
+            margin: 0 0 12px 0;
+            padding: 0 4px;
+            line-height: 1.4;
+        }
+
+        /* Q&A, Teaching, Fact list items */
+        .qa-list,
+        .teachings-list,
+        .facts-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+        }
+
+        .training-item {
+            background: #1a1a1e;
+            border: 1px solid #2a2a2e;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            position: relative;
+        }
+
+        .training-item:hover {
+            border-color: #3a3a3e;
+        }
+
+        .training-item-title {
+            font-size: 13px;
+            color: white;
+            font-weight: 500;
+            margin-bottom: 4px;
+            padding-right: 24px;
+        }
+
+        .training-item-preview {
+            font-size: 11px;
+            color: #888;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .training-item-delete {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+            border-radius: 4px;
+            opacity: 0;
+            transition: all 0.2s ease;
+        }
+
+        .training-item:hover .training-item-delete {
+            opacity: 1;
+        }
+
+        .training-item-delete:hover {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+        }
+
+        .training-item-category {
+            display: inline-block;
+            font-size: 10px;
+            color: var(--color-accent-primary, #a78bfa);
+            background: rgba(167, 139, 250, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+
+        .empty-state-small {
+            color: #555;
+            font-size: 12px;
+            text-align: center;
+            padding: 12px;
+            font-style: italic;
+        }
+
         /* Feedback Modal */
         .feedback-modal {
             position: fixed;
@@ -6914,6 +7168,101 @@
         </div>
     </div>
 
+    <!-- Q&A Training Modal -->
+    <div id="qaModal" class="training-modal hidden">
+        <div class="training-modal-overlay"></div>
+        <div class="training-modal-content">
+            <div class="training-modal-header">
+                <h2>💬 Add Q&A Training</h2>
+                <button id="qaModalClose" class="modal-close-btn">×</button>
+            </div>
+            <div class="training-modal-body">
+                <p class="modal-hint">Teach your mindclone how to answer specific questions. When someone asks this question (or similar), your mindclone will respond with your answer.</p>
+                <div class="form-group">
+                    <label>Question</label>
+                    <input type="text" id="qaQuestion" class="training-input" placeholder="e.g., What is your morning routine?">
+                </div>
+                <div class="form-group">
+                    <label>Answer (as you would say it)</label>
+                    <textarea id="qaAnswer" class="training-textarea" rows="4" placeholder="e.g., I wake up at 5:30 AM, meditate for 20 minutes, then exercise..."></textarea>
+                </div>
+            </div>
+            <div class="training-modal-footer">
+                <button id="qaModalCancel" class="btn-secondary">Cancel</button>
+                <button id="qaModalSave" class="btn-primary">Save Q&A</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teachings Modal -->
+    <div id="teachingModal" class="training-modal hidden">
+        <div class="training-modal-overlay"></div>
+        <div class="training-modal-content">
+            <div class="training-modal-header">
+                <h2>🎯 Add Teaching or Framework</h2>
+                <button id="teachingModalClose" class="modal-close-btn">×</button>
+            </div>
+            <div class="training-modal-body">
+                <p class="modal-hint">Share your philosophies, frameworks, or key ideas. Your mindclone will naturally weave these into conversations.</p>
+                <div class="form-group">
+                    <label>Name of Teaching/Framework</label>
+                    <input type="text" id="teachingName" class="training-input" placeholder="e.g., Life 3H Framework">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="teachingDescription" class="training-textarea" rows="5" placeholder="Explain your framework or philosophy in detail..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>When to share this (optional)</label>
+                    <input type="text" id="teachingContext" class="training-input" placeholder="e.g., When someone asks about life balance, happiness, or purpose">
+                </div>
+            </div>
+            <div class="training-modal-footer">
+                <button id="teachingModalCancel" class="btn-secondary">Cancel</button>
+                <button id="teachingModalSave" class="btn-primary">Save Teaching</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Personal Facts Modal -->
+    <div id="factModal" class="training-modal hidden">
+        <div class="training-modal-overlay"></div>
+        <div class="training-modal-content">
+            <div class="training-modal-header">
+                <h2>👤 Add Fact About You</h2>
+                <button id="factModalClose" class="modal-close-btn">×</button>
+            </div>
+            <div class="training-modal-body">
+                <p class="modal-hint">Add facts about yourself that your mindclone should know and share when relevant.</p>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="factCategory" class="training-select">
+                        <option value="personal">Personal Info</option>
+                        <option value="work">Work & Business</option>
+                        <option value="contact">Contact & Location</option>
+                        <option value="interests">Interests & Hobbies</option>
+                        <option value="achievements">Achievements</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Fact</label>
+                    <textarea id="factContent" class="training-textarea" rows="3" placeholder="e.g., My office is in Gurgaon, Sector 44. Visitors are welcome!"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="factShareable" checked>
+                        <span>Share publicly (your mindclone can tell visitors this)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="training-modal-footer">
+                <button id="factModalCancel" class="btn-secondary">Cancel</button>
+                <button id="factModalSave" class="btn-primary">Save Fact</button>
+            </div>
+        </div>
+    </div>
+
     <div class="app-container">
         <!-- Collapsible Left Panel -->
         <div class="left-panel" id="leftPanel" style="display: none;">
@@ -6963,6 +7312,66 @@
                         <button class="panel-upload-btn" id="panelUploadBtn">
                             <span>+</span>
                             <span>Upload Document</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Q&A Training Section -->
+                <div class="left-panel-section" id="qaSection">
+                    <div class="left-panel-section-header" id="qaSectionHeader" style="cursor: pointer;">
+                        <span class="left-panel-section-icon">💬</span>
+                        <span class="left-panel-section-title">Q&A Training</span>
+                        <span id="qaCount" class="kb-count" style="margin-left: auto;">0</span>
+                        <span class="left-panel-expand-icon" id="qaExpandIcon" style="margin-left: 8px;">▶</span>
+                    </div>
+                    <div class="left-panel-section-content" id="qaSectionContent" style="display: none;">
+                        <p class="section-hint">Teach your mindclone how to answer specific questions</p>
+                        <div class="qa-list" id="qaList">
+                            <!-- Q&A pairs will be listed here -->
+                        </div>
+                        <button class="panel-upload-btn" id="addQaBtn">
+                            <span>+</span>
+                            <span>Add Q&A</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Teachings & Frameworks Section -->
+                <div class="left-panel-section" id="teachingsSection">
+                    <div class="left-panel-section-header" id="teachingsSectionHeader" style="cursor: pointer;">
+                        <span class="left-panel-section-icon">🎯</span>
+                        <span class="left-panel-section-title">Teachings</span>
+                        <span id="teachingsCount" class="kb-count" style="margin-left: auto;">0</span>
+                        <span class="left-panel-expand-icon" id="teachingsExpandIcon" style="margin-left: 8px;">▶</span>
+                    </div>
+                    <div class="left-panel-section-content" id="teachingsSectionContent" style="display: none;">
+                        <p class="section-hint">Share your frameworks, philosophies, and key ideas</p>
+                        <div class="teachings-list" id="teachingsList">
+                            <!-- Teachings will be listed here -->
+                        </div>
+                        <button class="panel-upload-btn" id="addTeachingBtn">
+                            <span>+</span>
+                            <span>Add Teaching</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Personal Facts Section -->
+                <div class="left-panel-section" id="factsSection">
+                    <div class="left-panel-section-header" id="factsSectionHeader" style="cursor: pointer;">
+                        <span class="left-panel-section-icon">👤</span>
+                        <span class="left-panel-section-title">About Me</span>
+                        <span id="factsCount" class="kb-count" style="margin-left: auto;">0</span>
+                        <span class="left-panel-expand-icon" id="factsExpandIcon" style="margin-left: 8px;">▶</span>
+                    </div>
+                    <div class="left-panel-section-content" id="factsSectionContent" style="display: none;">
+                        <p class="section-hint">Facts about you that your mindclone should know</p>
+                        <div class="facts-list" id="factsList">
+                            <!-- Facts will be listed here -->
+                        </div>
+                        <button class="panel-upload-btn" id="addFactBtn">
+                            <span>+</span>
+                            <span>Add Fact</span>
                         </button>
                     </div>
                 </div>
@@ -10204,6 +10613,326 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             });
         }
 
+        // ==================== TRAINING SECTIONS ====================
+
+        // Q&A Section expand/collapse
+        const qaSectionHeader = document.getElementById('qaSectionHeader');
+        const qaSectionContent = document.getElementById('qaSectionContent');
+        const qaExpandIcon = document.getElementById('qaExpandIcon');
+
+        if (qaSectionHeader && qaSectionContent && qaExpandIcon) {
+            qaSectionHeader.addEventListener('click', function() {
+                const isExpanded = qaSectionContent.style.display !== 'none';
+                qaSectionContent.style.display = isExpanded ? 'none' : 'block';
+                qaExpandIcon.textContent = isExpanded ? '▶' : '▼';
+            });
+        }
+
+        // Teachings Section expand/collapse
+        const teachingsSectionHeader = document.getElementById('teachingsSectionHeader');
+        const teachingsSectionContent = document.getElementById('teachingsSectionContent');
+        const teachingsExpandIcon = document.getElementById('teachingsExpandIcon');
+
+        if (teachingsSectionHeader && teachingsSectionContent && teachingsExpandIcon) {
+            teachingsSectionHeader.addEventListener('click', function() {
+                const isExpanded = teachingsSectionContent.style.display !== 'none';
+                teachingsSectionContent.style.display = isExpanded ? 'none' : 'block';
+                teachingsExpandIcon.textContent = isExpanded ? '▶' : '▼';
+            });
+        }
+
+        // Facts Section expand/collapse
+        const factsSectionHeader = document.getElementById('factsSectionHeader');
+        const factsSectionContent = document.getElementById('factsSectionContent');
+        const factsExpandIcon = document.getElementById('factsExpandIcon');
+
+        if (factsSectionHeader && factsSectionContent && factsExpandIcon) {
+            factsSectionHeader.addEventListener('click', function() {
+                const isExpanded = factsSectionContent.style.display !== 'none';
+                factsSectionContent.style.display = isExpanded ? 'none' : 'block';
+                factsExpandIcon.textContent = isExpanded ? '▶' : '▼';
+            });
+        }
+
+        // ==================== TRAINING MODALS ====================
+
+        // Q&A Modal
+        const qaModal = document.getElementById('qaModal');
+        const addQaBtn = document.getElementById('addQaBtn');
+        const qaModalClose = document.getElementById('qaModalClose');
+        const qaModalCancel = document.getElementById('qaModalCancel');
+        const qaModalSave = document.getElementById('qaModalSave');
+        const qaQuestion = document.getElementById('qaQuestion');
+        const qaAnswer = document.getElementById('qaAnswer');
+
+        function openQaModal() {
+            qaModal?.classList.remove('hidden');
+            qaQuestion.value = '';
+            qaAnswer.value = '';
+            qaQuestion?.focus();
+        }
+
+        function closeQaModal() {
+            qaModal?.classList.add('hidden');
+        }
+
+        addQaBtn?.addEventListener('click', openQaModal);
+        qaModalClose?.addEventListener('click', closeQaModal);
+        qaModalCancel?.addEventListener('click', closeQaModal);
+        qaModal?.querySelector('.training-modal-overlay')?.addEventListener('click', closeQaModal);
+
+        qaModalSave?.addEventListener('click', async function() {
+            const question = qaQuestion?.value?.trim();
+            const answer = qaAnswer?.value?.trim();
+
+            if (!question || !answer) {
+                alert('Please fill in both question and answer');
+                return;
+            }
+
+            if (!auth.currentUser) {
+                alert('Please sign in first');
+                return;
+            }
+
+            try {
+                const trainingRef = collection(db, 'users', auth.currentUser.uid, 'training');
+                await addDoc(trainingRef, {
+                    type: 'qa',
+                    question: question,
+                    answer: answer,
+                    createdAt: serverTimestamp()
+                });
+
+                closeQaModal();
+                loadTrainingData();
+            } catch (error) {
+                console.error('Error saving Q&A:', error);
+                alert('Failed to save Q&A');
+            }
+        });
+
+        // Teaching Modal
+        const teachingModal = document.getElementById('teachingModal');
+        const addTeachingBtn = document.getElementById('addTeachingBtn');
+        const teachingModalClose = document.getElementById('teachingModalClose');
+        const teachingModalCancel = document.getElementById('teachingModalCancel');
+        const teachingModalSave = document.getElementById('teachingModalSave');
+        const teachingName = document.getElementById('teachingName');
+        const teachingDescription = document.getElementById('teachingDescription');
+        const teachingContext = document.getElementById('teachingContext');
+
+        function openTeachingModal() {
+            teachingModal?.classList.remove('hidden');
+            teachingName.value = '';
+            teachingDescription.value = '';
+            teachingContext.value = '';
+            teachingName?.focus();
+        }
+
+        function closeTeachingModal() {
+            teachingModal?.classList.add('hidden');
+        }
+
+        addTeachingBtn?.addEventListener('click', openTeachingModal);
+        teachingModalClose?.addEventListener('click', closeTeachingModal);
+        teachingModalCancel?.addEventListener('click', closeTeachingModal);
+        teachingModal?.querySelector('.training-modal-overlay')?.addEventListener('click', closeTeachingModal);
+
+        teachingModalSave?.addEventListener('click', async function() {
+            const name = teachingName?.value?.trim();
+            const description = teachingDescription?.value?.trim();
+            const context = teachingContext?.value?.trim();
+
+            if (!name || !description) {
+                alert('Please fill in the name and description');
+                return;
+            }
+
+            if (!auth.currentUser) {
+                alert('Please sign in first');
+                return;
+            }
+
+            try {
+                const trainingRef = collection(db, 'users', auth.currentUser.uid, 'training');
+                await addDoc(trainingRef, {
+                    type: 'teaching',
+                    name: name,
+                    description: description,
+                    context: context || null,
+                    createdAt: serverTimestamp()
+                });
+
+                closeTeachingModal();
+                loadTrainingData();
+            } catch (error) {
+                console.error('Error saving teaching:', error);
+                alert('Failed to save teaching');
+            }
+        });
+
+        // Fact Modal
+        const factModal = document.getElementById('factModal');
+        const addFactBtn = document.getElementById('addFactBtn');
+        const factModalClose = document.getElementById('factModalClose');
+        const factModalCancel = document.getElementById('factModalCancel');
+        const factModalSave = document.getElementById('factModalSave');
+        const factCategory = document.getElementById('factCategory');
+        const factContent = document.getElementById('factContent');
+        const factShareable = document.getElementById('factShareable');
+
+        function openFactModal() {
+            factModal?.classList.remove('hidden');
+            factCategory.value = 'personal';
+            factContent.value = '';
+            factShareable.checked = true;
+            factContent?.focus();
+        }
+
+        function closeFactModal() {
+            factModal?.classList.add('hidden');
+        }
+
+        addFactBtn?.addEventListener('click', openFactModal);
+        factModalClose?.addEventListener('click', closeFactModal);
+        factModalCancel?.addEventListener('click', closeFactModal);
+        factModal?.querySelector('.training-modal-overlay')?.addEventListener('click', closeFactModal);
+
+        factModalSave?.addEventListener('click', async function() {
+            const category = factCategory?.value;
+            const content = factContent?.value?.trim();
+            const shareable = factShareable?.checked;
+
+            if (!content) {
+                alert('Please enter a fact');
+                return;
+            }
+
+            if (!auth.currentUser) {
+                alert('Please sign in first');
+                return;
+            }
+
+            try {
+                const trainingRef = collection(db, 'users', auth.currentUser.uid, 'training');
+                await addDoc(trainingRef, {
+                    type: 'fact',
+                    category: category,
+                    content: content,
+                    shareable: shareable,
+                    createdAt: serverTimestamp()
+                });
+
+                closeFactModal();
+                loadTrainingData();
+            } catch (error) {
+                console.error('Error saving fact:', error);
+                alert('Failed to save fact');
+            }
+        });
+
+        // ==================== LOAD TRAINING DATA ====================
+
+        async function loadTrainingData() {
+            if (!auth.currentUser) return;
+
+            try {
+                const trainingRef = collection(db, 'users', auth.currentUser.uid, 'training');
+                const q = query(trainingRef, orderBy('createdAt', 'desc'));
+                const snapshot = await getDocs(q);
+
+                const qaList = document.getElementById('qaList');
+                const teachingsList = document.getElementById('teachingsList');
+                const factsList = document.getElementById('factsList');
+                const qaCount = document.getElementById('qaCount');
+                const teachingsCount = document.getElementById('teachingsCount');
+                const factsCount = document.getElementById('factsCount');
+
+                let qas = [], teachings = [], facts = [];
+
+                snapshot.forEach((docSnap) => {
+                    const data = { id: docSnap.id, ...docSnap.data() };
+                    if (data.type === 'qa') qas.push(data);
+                    else if (data.type === 'teaching') teachings.push(data);
+                    else if (data.type === 'fact') facts.push(data);
+                });
+
+                // Update counts
+                if (qaCount) qaCount.textContent = qas.length;
+                if (teachingsCount) teachingsCount.textContent = teachings.length;
+                if (factsCount) factsCount.textContent = facts.length;
+
+                // Render Q&As
+                if (qaList) {
+                    qaList.innerHTML = qas.length ? qas.map(qa => `
+                        <div class="training-item" data-id="${qa.id}">
+                            <div class="training-item-title">${escapeHtml(qa.question)}</div>
+                            <div class="training-item-preview">${escapeHtml(qa.answer)}</div>
+                            <button class="training-item-delete" onclick="deleteTrainingItem('${qa.id}')" title="Delete">×</button>
+                        </div>
+                    `).join('') : '<div class="empty-state-small">No Q&As yet</div>';
+                }
+
+                // Render Teachings
+                if (teachingsList) {
+                    teachingsList.innerHTML = teachings.length ? teachings.map(t => `
+                        <div class="training-item" data-id="${t.id}">
+                            <div class="training-item-title">${escapeHtml(t.name)}</div>
+                            <div class="training-item-preview">${escapeHtml(t.description)}</div>
+                            <button class="training-item-delete" onclick="deleteTrainingItem('${t.id}')" title="Delete">×</button>
+                        </div>
+                    `).join('') : '<div class="empty-state-small">No teachings yet</div>';
+                }
+
+                // Render Facts
+                if (factsList) {
+                    const categoryLabels = {
+                        personal: 'Personal',
+                        work: 'Work',
+                        contact: 'Contact',
+                        interests: 'Interests',
+                        achievements: 'Achievements',
+                        other: 'Other'
+                    };
+                    factsList.innerHTML = facts.length ? facts.map(f => `
+                        <div class="training-item" data-id="${f.id}">
+                            <div class="training-item-category">${categoryLabels[f.category] || f.category}</div>
+                            <div class="training-item-preview">${escapeHtml(f.content)}</div>
+                            <button class="training-item-delete" onclick="deleteTrainingItem('${f.id}')" title="Delete">×</button>
+                        </div>
+                    `).join('') : '<div class="empty-state-small">No facts yet</div>';
+                }
+
+            } catch (error) {
+                console.error('Error loading training data:', error);
+            }
+        }
+
+        // Delete training item
+        window.deleteTrainingItem = async function(docId) {
+            if (!auth.currentUser || !docId) return;
+
+            if (!confirm('Delete this item?')) return;
+
+            try {
+                const docRef = doc(db, 'users', auth.currentUser.uid, 'training', docId);
+                await deleteDoc(docRef);
+                loadTrainingData();
+            } catch (error) {
+                console.error('Error deleting training item:', error);
+                alert('Failed to delete');
+            }
+        };
+
+        // Helper to escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         // Get file type icon based on file extension
         function getFileTypeIcon(fileName) {
             const ext = fileName.split('.').pop().toLowerCase();
@@ -11124,7 +11853,8 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                     loadConversationHistory(user.uid),
                     loadLinkStatus().catch(e => console.warn('[Parallel] loadLinkStatus error:', e)),
                     loadActivityFeed().catch(e => console.warn('[Parallel] loadActivityFeed error:', e)),
-                    loadPanelKbFiles().catch(e => console.warn('[Parallel] loadPanelKbFiles error:', e))
+                    loadPanelKbFiles().catch(e => console.warn('[Parallel] loadPanelKbFiles error:', e)),
+                    loadTrainingData().catch(e => console.warn('[Parallel] loadTrainingData error:', e))
                 ]);
             } finally {
                 clearTimeout(loadingTimeout);

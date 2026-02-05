@@ -654,6 +654,109 @@ async function checkRateLimit(visitorId, userId) {
   }
 }
 
+// Load training data (Q&As, Teachings, Facts) for the mindclone
+async function loadTrainingData(userId, context = 'private') {
+  try {
+    const trainingRef = db.collection('users').doc(userId).collection('training');
+    const snapshot = await trainingRef.orderBy('createdAt', 'desc').get();
+
+    const qas = [];
+    const teachings = [];
+    const facts = [];
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+
+      if (data.type === 'qa') {
+        qas.push({ question: data.question, answer: data.answer });
+      } else if (data.type === 'teaching') {
+        teachings.push({
+          name: data.name,
+          description: data.description,
+          context: data.context || null
+        });
+      } else if (data.type === 'fact') {
+        // For public context, only include shareable facts
+        if (context === 'public' && data.shareable === false) return;
+        facts.push({
+          category: data.category,
+          content: data.content,
+          shareable: data.shareable
+        });
+      }
+    });
+
+    console.log(`[Chat] Loaded training data: ${qas.length} Q&As, ${teachings.length} teachings, ${facts.length} facts`);
+
+    return { qas, teachings, facts };
+  } catch (error) {
+    console.error('[Chat] Error loading training data:', error);
+    return { qas: [], teachings: [], facts: [] };
+  }
+}
+
+// Format training data for system prompt
+function formatTrainingDataForPrompt(trainingData) {
+  if (!trainingData) return '';
+
+  let prompt = '';
+
+  // Add Q&As
+  if (trainingData.qas && trainingData.qas.length > 0) {
+    prompt += `\n\n## TRAINED Q&A RESPONSES
+When someone asks these questions (or similar), answer accordingly:\n`;
+    trainingData.qas.forEach((qa, i) => {
+      prompt += `\nQ${i + 1}: "${qa.question}"
+A${i + 1}: ${qa.answer}\n`;
+    });
+  }
+
+  // Add Teachings
+  if (trainingData.teachings && trainingData.teachings.length > 0) {
+    prompt += `\n\n## MY TEACHINGS & FRAMEWORKS
+These are my philosophies and frameworks. Share them naturally in conversations when relevant:\n`;
+    trainingData.teachings.forEach(t => {
+      prompt += `\n### ${t.name}
+${t.description}`;
+      if (t.context) {
+        prompt += `\n(Share this when: ${t.context})`;
+      }
+      prompt += '\n';
+    });
+  }
+
+  // Add Facts
+  if (trainingData.facts && trainingData.facts.length > 0) {
+    prompt += `\n\n## FACTS ABOUT ME
+These are facts about me that I should know and can share:\n`;
+
+    const categoryLabels = {
+      personal: 'Personal Info',
+      work: 'Work & Business',
+      contact: 'Contact & Location',
+      interests: 'Interests & Hobbies',
+      achievements: 'Achievements',
+      other: 'Other'
+    };
+
+    const factsByCategory = {};
+    trainingData.facts.forEach(f => {
+      const cat = f.category || 'other';
+      if (!factsByCategory[cat]) factsByCategory[cat] = [];
+      factsByCategory[cat].push(f.content);
+    });
+
+    for (const [cat, catFacts] of Object.entries(factsByCategory)) {
+      prompt += `\n${categoryLabels[cat] || cat}:\n`;
+      catFacts.forEach(fact => {
+        prompt += `- ${fact}\n`;
+      });
+    }
+  }
+
+  return prompt;
+}
+
 // Load knowledge base with privacy filtering based on context
 // For public context: only return documents marked as public
 // For private context: return all documents
@@ -2350,12 +2453,19 @@ module.exports = async (req, res) => {
     // === KNOWLEDGE BASE LOADING ===
     // Load knowledge base with privacy filtering based on context
     let knowledgeBase = null;
+    let trainingData = null;
     try {
       knowledgeBase = await loadKnowledgeBase(resolvedUserId, context);
       if (knowledgeBase) {
         const docCount = Object.keys(knowledgeBase.documents || {}).length;
         const sectionCount = Object.keys(knowledgeBase.sections || {}).length;
         console.log(`[Chat] Loaded knowledge base: ${sectionCount} sections, ${docCount} documents`);
+      }
+
+      // Load training data (Q&As, teachings, facts)
+      trainingData = await loadTrainingData(resolvedUserId, context);
+      if (trainingData) {
+        console.log(`[Chat] Loaded training: ${trainingData.qas?.length || 0} Q&As, ${trainingData.teachings?.length || 0} teachings, ${trainingData.facts?.length || 0} facts`);
       }
     } catch (kbError) {
       console.error('[Chat] Error loading knowledge base:', kbError.message);
@@ -2743,6 +2853,14 @@ STYLE:
 
         if (context === 'public') {
           enhancedPrompt += '\nIMPORTANT: Only share information from the knowledge base above. If asked about something not covered, politely say you don\'t have that information available.\n';
+        }
+      }
+
+      // Add training data (Q&As, Teachings, Facts) to prompt
+      if (trainingData && (trainingData.qas?.length > 0 || trainingData.teachings?.length > 0 || trainingData.facts?.length > 0)) {
+        const trainingPrompt = formatTrainingDataForPrompt(trainingData);
+        if (trainingPrompt) {
+          enhancedPrompt += trainingPrompt;
         }
       }
 
