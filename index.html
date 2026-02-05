@@ -11813,9 +11813,6 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             initializePanelSettings();
             initializePanelAnalytics();
 
-            // Set up real-time listener for activity feed
-            setupActivityListener();
-
             // Update activity badge
             updateActivityBadge();
 
@@ -11854,6 +11851,10 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             }
 
             console.log('[Chat] Parallel loading complete');
+
+            // Set up real-time listener AFTER initial data is loaded
+            // This prevents the listener's initial snapshot from reversing the order
+            setupActivityListener();
 
             try {
                 // Process conversation history
