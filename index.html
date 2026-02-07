@@ -7205,6 +7205,9 @@
             <div class="header-title">my mindclone</div>
         </div>
         <div class="app-header-right">
+            <button id="headerAnalyticsBtn" class="header-settings-btn" title="Analytics">
+                📊
+            </button>
             <button id="headerSettingsBtn" class="header-settings-btn" title="Link Settings">
                 ⚙️
             </button>
@@ -7751,10 +7754,6 @@
                     <span class="tab-label">Live</span>
                     <span class="tab-badge" id="activityBadge"></span>
                 </button>
-                <button class="panel-tab" data-tab="analytics">
-                    <span class="tab-icon">📈</span>
-                    <span class="tab-label">Analytics</span>
-                </button>
                 <button class="panel-tab" data-tab="matching">
                     <span class="tab-icon">💫</span>
                     <span class="tab-label">Matching</span>
@@ -7782,141 +7781,6 @@
                             <div class="icon">🔗</div>
                             <div class="message">No Link Activity Yet<br>Enable your link to see visitor conversations</div>
                             <button class="switch-to-settings-btn">Go to Settings</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Analytics Tab - Hidden by default -->
-                <div class="panel-tab-content" id="analyticsTab" style="display:none">
-                    <div class="analytics-scroll-container">
-                        <div class="panel-section">
-                            <h3 class="panel-section-title">Visitor Analytics</h3>
-                            <p class="panel-section-subtitle">See how people are engaging with your link</p>
-
-                            <!-- Stats Grid -->
-                            <div class="stats-grid">
-                                <div class="stat-card">
-                                    <div class="stat-value" id="panelTotalVisitors">0</div>
-                                    <div class="stat-label">Visitors</div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-value" id="panelTotalMessages">0</div>
-                                    <div class="stat-label">Messages</div>
-                                </div>
-                            </div>
-
-                            <!-- Engagement Metrics -->
-                            <div class="engagement-metrics-section">
-                                <h4 class="subsection-title">Engagement</h4>
-                                <div class="metrics-list">
-                                    <div class="metric-row">
-                                        <span class="metric-label">Avg messages per visitor</span>
-                                        <span class="metric-value" id="panelAvgMessages">-</span>
-                                    </div>
-                                    <div class="metric-row">
-                                        <span class="metric-label">Engaged visitors (2+ msgs)</span>
-                                        <span class="metric-value" id="panelEngagedVisitors">-</span>
-                                    </div>
-                                    <div class="metric-row">
-                                        <span class="metric-label">Engagement rate</span>
-                                        <span class="metric-value" id="panelEngagementRate">-</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Time Period Filter -->
-                            <div class="analytics-filters">
-                                <label class="panel-label">Time Period</label>
-                                <select id="analyticsPeriodFilter" class="panel-select">
-                                    <option value="7">Last 7 Days</option>
-                                    <option value="30" selected>Last 30 Days</option>
-                                    <option value="90">Last 90 Days</option>
-                                    <option value="all">All Time</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Moltbook Analytics Section -->
-                        <div class="panel-section moltbook-analytics-section">
-                            <div class="moltbook-analytics-header">
-                                <span class="moltbook-logo">🦞</span>
-                                <div>
-                                    <h3 class="panel-section-title">Moltbook Analytics</h3>
-                                    <p class="panel-section-subtitle">Your mindclone's social presence</p>
-                                </div>
-                                <div class="moltbook-status-badge" id="moltbookStatusBadge">
-                                    <span class="status-dot"></span>
-                                    <span class="status-text">Active</span>
-                                </div>
-                            </div>
-
-                            <!-- Moltbook Profile Stats -->
-                            <div class="moltbook-profile-stats" id="moltbookProfileStats">
-                                <div class="stats-grid">
-                                    <div class="stat-card">
-                                        <div class="stat-value" id="moltbookKarma">-</div>
-                                        <div class="stat-label">Karma</div>
-                                    </div>
-                                    <div class="stat-card">
-                                        <div class="stat-value" id="moltbookFollowers">-</div>
-                                        <div class="stat-label">Followers</div>
-                                    </div>
-                                    <div class="stat-card">
-                                        <div class="stat-value" id="moltbookTotalPosts">-</div>
-                                        <div class="stat-label">Posts</div>
-                                    </div>
-                                    <div class="stat-card">
-                                        <div class="stat-value" id="moltbookTotalComments">-</div>
-                                        <div class="stat-label">Comments</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Today's Activity -->
-                            <div class="engagement-metrics-section">
-                                <h4 class="subsection-title">Today's Activity</h4>
-                                <div class="metrics-list">
-                                    <div class="metric-row">
-                                        <span class="metric-label">Posts created</span>
-                                        <span class="metric-value" id="moltbookPostsToday">0</span>
-                                    </div>
-                                    <div class="metric-row">
-                                        <span class="metric-label">Comments made</span>
-                                        <span class="metric-value" id="moltbookCommentsToday">0</span>
-                                    </div>
-                                    <div class="metric-row">
-                                        <span class="metric-label">Upvotes given</span>
-                                        <span class="metric-value" id="moltbookUpvotesToday">0</span>
-                                    </div>
-                                    <div class="metric-row">
-                                        <span class="metric-label">Replies sent</span>
-                                        <span class="metric-value" id="moltbookRepliesToday">0</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Current Settings -->
-                            <div class="engagement-metrics-section">
-                                <h4 class="subsection-title">Current Mode</h4>
-                                <div class="moltbook-mode-display">
-                                    <div class="mode-icon" id="moltbookModeIcon">📈</div>
-                                    <div class="mode-info">
-                                        <div class="mode-name" id="moltbookModeName">Growth</div>
-                                        <div class="mode-desc" id="moltbookModeDesc">Maximizing visibility & followers</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Last Activity -->
-                            <div class="moltbook-last-activity">
-                                <span class="activity-label">Last heartbeat:</span>
-                                <span class="activity-value" id="moltbookLastHeartbeat">-</span>
-                            </div>
-
-                            <!-- View on Moltbook Link -->
-                            <a href="https://www.moltbook.com/u/alok" target="_blank" class="moltbook-profile-link" id="moltbookProfileLink">
-                                View Profile on Moltbook →
-                            </a>
                         </div>
                     </div>
                 </div>
@@ -8518,6 +8382,131 @@
                         <!-- Save Status -->
                         <div class="moltbook-save-status" id="moltbookSaveStatus">Settings saved!</div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Overlay (triggered by header analytics icon) -->
+    <div id="analyticsOverlay" class="settings-overlay hidden">
+        <div class="settings-overlay-backdrop"></div>
+        <div class="settings-overlay-panel">
+            <div class="settings-overlay-header">
+                <h3>📊 Analytics</h3>
+                <button id="analyticsOverlayClose" class="settings-overlay-close">×</button>
+            </div>
+            <div class="settings-overlay-content">
+                <!-- Visitor Analytics -->
+                <div class="panel-section">
+                    <h3 class="panel-section-title">Visitor Analytics</h3>
+                    <p class="panel-section-subtitle">See how people are engaging with your link</p>
+
+                    <!-- Stats Grid -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="overlayTotalVisitors">0</div>
+                            <div class="stat-label">Visitors</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="overlayTotalMessages">0</div>
+                            <div class="stat-label">Messages</div>
+                        </div>
+                    </div>
+
+                    <!-- Engagement Metrics -->
+                    <div class="engagement-metrics-section">
+                        <h4 class="subsection-title">Engagement</h4>
+                        <div class="metrics-list">
+                            <div class="metric-row">
+                                <span class="metric-label">Avg messages per visitor</span>
+                                <span class="metric-value" id="overlayAvgMessages">-</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Engaged visitors (2+ msgs)</span>
+                                <span class="metric-value" id="overlayEngagedVisitors">-</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Engagement rate</span>
+                                <span class="metric-value" id="overlayEngagementRate">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Time Period Filter -->
+                    <div class="analytics-filters">
+                        <label class="panel-label">Time Period</label>
+                        <select id="overlayAnalyticsPeriodFilter" class="panel-select">
+                            <option value="7">Last 7 Days</option>
+                            <option value="30" selected>Last 30 Days</option>
+                            <option value="90">Last 90 Days</option>
+                            <option value="all">All Time</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Moltbook Analytics Section -->
+                <div class="panel-section moltbook-analytics-section">
+                    <div class="moltbook-analytics-header">
+                        <span class="moltbook-logo">🦞</span>
+                        <div>
+                            <h3 class="panel-section-title">Moltbook Analytics</h3>
+                            <p class="panel-section-subtitle">Your mindclone's social presence</p>
+                        </div>
+                        <div class="moltbook-status-badge" id="overlayMoltbookStatusBadge">
+                            <span class="status-dot"></span>
+                            <span class="status-text">Active</span>
+                        </div>
+                    </div>
+
+                    <!-- Moltbook Profile Stats -->
+                    <div class="moltbook-profile-stats">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value" id="overlayMoltbookKarma">-</div>
+                                <div class="stat-label">Karma</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="overlayMoltbookFollowers">-</div>
+                                <div class="stat-label">Followers</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="overlayMoltbookTotalPosts">-</div>
+                                <div class="stat-label">Posts</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="overlayMoltbookTotalComments">-</div>
+                                <div class="stat-label">Comments</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Today's Activity -->
+                    <div class="engagement-metrics-section">
+                        <h4 class="subsection-title">Today's Activity</h4>
+                        <div class="metrics-list">
+                            <div class="metric-row">
+                                <span class="metric-label">Posts created</span>
+                                <span class="metric-value" id="overlayMoltbookPostsToday">0</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Comments made</span>
+                                <span class="metric-value" id="overlayMoltbookCommentsToday">0</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Upvotes given</span>
+                                <span class="metric-value" id="overlayMoltbookUpvotesToday">0</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Replies sent</span>
+                                <span class="metric-value" id="overlayMoltbookRepliesToday">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- View on Moltbook Link -->
+                    <a href="https://www.moltbook.com" target="_blank" class="moltbook-profile-link" id="overlayMoltbookProfileLink">
+                        View Profile on Moltbook →
+                    </a>
                 </div>
             </div>
         </div>
@@ -14690,6 +14679,72 @@ Is there anything else you'd like to configure?`;
             settingsOverlayBackdrop.addEventListener('click', () => {
                 settingsOverlay.classList.add('hidden');
             });
+        }
+
+        // Analytics overlay - triggered by header analytics icon
+        const headerAnalyticsBtn = document.getElementById('headerAnalyticsBtn');
+        const analyticsOverlay = document.getElementById('analyticsOverlay');
+        const analyticsOverlayClose = document.getElementById('analyticsOverlayClose');
+        const analyticsOverlayBackdrop = analyticsOverlay ? analyticsOverlay.querySelector('.settings-overlay-backdrop') : null;
+
+        if (headerAnalyticsBtn && analyticsOverlay) {
+            headerAnalyticsBtn.addEventListener('click', () => {
+                analyticsOverlay.classList.remove('hidden');
+                loadAnalyticsOverlay(); // Load analytics data
+            });
+        }
+
+        if (analyticsOverlayClose) {
+            analyticsOverlayClose.addEventListener('click', () => {
+                analyticsOverlay.classList.add('hidden');
+            });
+        }
+
+        if (analyticsOverlayBackdrop) {
+            analyticsOverlayBackdrop.addEventListener('click', () => {
+                analyticsOverlay.classList.add('hidden');
+            });
+        }
+
+        // Function to load analytics data into overlay
+        async function loadAnalyticsOverlay() {
+            if (!currentUser) return;
+
+            try {
+                // Copy values from panel analytics if they exist
+                const panelVisitors = document.getElementById('panelTotalVisitors');
+                const panelMessages = document.getElementById('panelTotalMessages');
+                const panelAvgMessages = document.getElementById('panelAvgMessages');
+                const panelEngagedVisitors = document.getElementById('panelEngagedVisitors');
+                const panelEngagementRate = document.getElementById('panelEngagementRate');
+
+                // Update overlay elements
+                const overlayVisitors = document.getElementById('overlayTotalVisitors');
+                const overlayMessages = document.getElementById('overlayTotalMessages');
+                const overlayAvgMessages = document.getElementById('overlayAvgMessages');
+                const overlayEngagedVisitors = document.getElementById('overlayEngagedVisitors');
+                const overlayEngagementRate = document.getElementById('overlayEngagementRate');
+
+                if (panelVisitors && overlayVisitors) overlayVisitors.textContent = panelVisitors.textContent;
+                if (panelMessages && overlayMessages) overlayMessages.textContent = panelMessages.textContent;
+                if (panelAvgMessages && overlayAvgMessages) overlayAvgMessages.textContent = panelAvgMessages.textContent;
+                if (panelEngagedVisitors && overlayEngagedVisitors) overlayEngagedVisitors.textContent = panelEngagedVisitors.textContent;
+                if (panelEngagementRate && overlayEngagementRate) overlayEngagementRate.textContent = panelEngagementRate.textContent;
+
+                // Copy Moltbook stats
+                const moltbookKarma = document.getElementById('moltbookKarma');
+                const moltbookFollowers = document.getElementById('moltbookFollowers');
+                const moltbookTotalPosts = document.getElementById('moltbookTotalPosts');
+                const moltbookTotalComments = document.getElementById('moltbookTotalComments');
+
+                if (moltbookKarma) document.getElementById('overlayMoltbookKarma').textContent = moltbookKarma.textContent;
+                if (moltbookFollowers) document.getElementById('overlayMoltbookFollowers').textContent = moltbookFollowers.textContent;
+                if (moltbookTotalPosts) document.getElementById('overlayMoltbookTotalPosts').textContent = moltbookTotalPosts.textContent;
+                if (moltbookTotalComments) document.getElementById('overlayMoltbookTotalComments').textContent = moltbookTotalComments.textContent;
+
+            } catch (error) {
+                console.error('Error loading analytics overlay:', error);
+            }
         }
 
         // Header sign-out button
