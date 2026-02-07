@@ -7811,9 +7811,43 @@
                                     </label>
                                 </div>
                                 <div id="datingProfileForm" class="profile-form" style="display:none;background:#1a1a1a;padding:16px;border-radius:8px;margin:12px 0;border:1px solid #444">
-                                    <h5 style="font-size:14px;font-weight:600;margin-bottom:12px;color:#fff">💕 Dating Profile</h5>
+                                    <!-- ABOUT ME SECTION -->
+                                    <h5 style="font-size:14px;font-weight:600;margin-bottom:12px;color:#fff">👤 About Me</h5>
                                     <div class="form-group" style="margin-bottom:12px">
-                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Looking for</label>
+                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">My Age</label>
+                                        <input type="number" id="datingMyAge" placeholder="Your age" min="18" max="99" style="width:100px;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:12px">
+                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">My Gender</label>
+                                        <select id="datingMyGender" style="width:100%;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:14px">
+                                            <option value="">Select...</option>
+                                            <option value="male">Male</option>
+                                            <option value="female">Female</option>
+                                            <option value="nonbinary">Non-binary</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:12px">
+                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">My Location</label>
+                                        <input type="text" id="datingMyLocation" placeholder="City, Country" style="width:100%;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:14px">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:12px">
+                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">My Occupation</label>
+                                        <input type="text" id="datingMyOccupation" placeholder="What do you do?" style="width:100%;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:14px">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:12px">
+                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">My Interests & Hobbies</label>
+                                        <input type="text" id="datingMyInterests" placeholder="e.g., Travel, Music, Fitness, Reading..." style="width:100%;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:14px">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:16px">
+                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">About Me</label>
+                                        <textarea id="datingAboutMe" placeholder="Describe yourself - personality, lifestyle, what makes you unique..." rows="3" style="width:100%;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:14px;resize:vertical"></textarea>
+                                    </div>
+
+                                    <!-- LOOKING FOR SECTION -->
+                                    <h5 style="font-size:14px;font-weight:600;margin-bottom:12px;color:#fff;border-top:1px solid #333;padding-top:16px">💕 What I'm Looking For</h5>
+                                    <div class="form-group" style="margin-bottom:12px">
+                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Relationship Type</label>
                                         <select id="datingLookingFor" style="width:100%;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:14px">
                                             <option value="">Select...</option>
                                             <option value="serious">Serious Relationship</option>
@@ -7823,24 +7857,25 @@
                                         </select>
                                     </div>
                                     <div class="form-group" style="margin-bottom:12px">
-                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Age Range</label>
+                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Interested In</label>
+                                        <select id="datingInterestedIn" style="width:100%;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:14px">
+                                            <option value="">Select...</option>
+                                            <option value="men">Men</option>
+                                            <option value="women">Women</option>
+                                            <option value="everyone">Everyone</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:12px">
+                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Age Range Preference</label>
                                         <div style="display:flex;gap:8px;align-items:center">
                                             <input type="number" id="datingAgeMin" placeholder="Min" min="18" max="99" style="width:70px;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff">
                                             <span style="color:#666">to</span>
                                             <input type="number" id="datingAgeMax" placeholder="Max" min="18" max="99" style="width:70px;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff">
                                         </div>
                                     </div>
-                                    <div class="form-group" style="margin-bottom:12px">
-                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Interests & Hobbies</label>
-                                        <input type="text" id="datingInterests" placeholder="e.g., Travel, Music, Fitness, Reading..." style="width:100%;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:14px">
-                                    </div>
-                                    <div class="form-group" style="margin-bottom:12px">
-                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">What matters most to you?</label>
-                                        <textarea id="datingValues" placeholder="Describe your values, what you're looking for in a partner..." rows="3" style="width:100%;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:14px;resize:vertical"></textarea>
-                                    </div>
                                     <div class="form-group">
-                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">About yourself</label>
-                                        <textarea id="datingAbout" placeholder="A brief intro about yourself for potential matches..." rows="3" style="width:100%;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:14px;resize:vertical"></textarea>
+                                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">What I Value in a Partner</label>
+                                        <textarea id="datingValues" placeholder="What qualities matter most to you? What are your deal-breakers?" rows="3" style="width:100%;padding:10px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:14px;resize:vertical"></textarea>
                                     </div>
                                 </div>
                             </div>
