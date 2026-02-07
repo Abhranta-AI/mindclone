@@ -9088,12 +9088,15 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             }
 
             panelTabs.forEach(tab => {
-                tab.addEventListener('click', () => {
+                tab.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     const tabName = tab.dataset.tab;
                     console.log('[Panel] Tab clicked:', tabName);
                     switchPanelTab(tabName);
                 });
             });
+            console.log('[Panel] Added click handlers to', panelTabs.length, 'tabs');
 
             // Handle "Go to Settings" button clicks - opens settings overlay
             const switchToSettingsBtns = document.querySelectorAll('.switch-to-settings-btn');
