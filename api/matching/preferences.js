@@ -62,6 +62,12 @@ module.exports = async (req, res) => {
               hiring: false,
               networking: false
             },
+            profiles: {
+              dating: { lookingFor: '', ageMin: null, ageMax: null, interests: '', values: '', about: '' },
+              investing: { companyName: '', industry: '', stage: '', fundingAmount: '', description: '', traction: '' },
+              hiring: { role: '', jobTitle: '', skills: '', experience: '', workPref: '', about: '' },
+              networking: { expertise: '', lookingFor: '', interests: '', offer: '' }
+            },
             matchingPreferences: {
               industries: [],
               interests: [],
@@ -90,6 +96,7 @@ module.exports = async (req, res) => {
         mindcloneName,
         photoURL,
         goals,
+        profiles,  // Goal-specific profiles (dating, investing, hiring, networking)
         matchingPreferences,
         isActive
       } = req.body;
@@ -127,6 +134,39 @@ module.exports = async (req, res) => {
           investing: false,
           hiring: false,
           networking: false
+        },
+        // Goal-specific profiles
+        profiles: {
+          dating: {
+            lookingFor: profiles?.dating?.lookingFor ?? existingProfile?.profiles?.dating?.lookingFor ?? '',
+            ageMin: profiles?.dating?.ageMin ?? existingProfile?.profiles?.dating?.ageMin ?? null,
+            ageMax: profiles?.dating?.ageMax ?? existingProfile?.profiles?.dating?.ageMax ?? null,
+            interests: profiles?.dating?.interests ?? existingProfile?.profiles?.dating?.interests ?? '',
+            values: profiles?.dating?.values ?? existingProfile?.profiles?.dating?.values ?? '',
+            about: profiles?.dating?.about ?? existingProfile?.profiles?.dating?.about ?? ''
+          },
+          investing: {
+            companyName: profiles?.investing?.companyName ?? existingProfile?.profiles?.investing?.companyName ?? '',
+            industry: profiles?.investing?.industry ?? existingProfile?.profiles?.investing?.industry ?? '',
+            stage: profiles?.investing?.stage ?? existingProfile?.profiles?.investing?.stage ?? '',
+            fundingAmount: profiles?.investing?.fundingAmount ?? existingProfile?.profiles?.investing?.fundingAmount ?? '',
+            description: profiles?.investing?.description ?? existingProfile?.profiles?.investing?.description ?? '',
+            traction: profiles?.investing?.traction ?? existingProfile?.profiles?.investing?.traction ?? ''
+          },
+          hiring: {
+            role: profiles?.hiring?.role ?? existingProfile?.profiles?.hiring?.role ?? '',
+            jobTitle: profiles?.hiring?.jobTitle ?? existingProfile?.profiles?.hiring?.jobTitle ?? '',
+            skills: profiles?.hiring?.skills ?? existingProfile?.profiles?.hiring?.skills ?? '',
+            experience: profiles?.hiring?.experience ?? existingProfile?.profiles?.hiring?.experience ?? '',
+            workPref: profiles?.hiring?.workPref ?? existingProfile?.profiles?.hiring?.workPref ?? '',
+            about: profiles?.hiring?.about ?? existingProfile?.profiles?.hiring?.about ?? ''
+          },
+          networking: {
+            expertise: profiles?.networking?.expertise ?? existingProfile?.profiles?.networking?.expertise ?? '',
+            lookingFor: profiles?.networking?.lookingFor ?? existingProfile?.profiles?.networking?.lookingFor ?? '',
+            interests: profiles?.networking?.interests ?? existingProfile?.profiles?.networking?.interests ?? '',
+            offer: profiles?.networking?.offer ?? existingProfile?.profiles?.networking?.offer ?? ''
+          }
         },
         matchingPreferences: {
           industries: matchingPreferences?.industries ?? existingProfile?.matchingPreferences?.industries ?? [],

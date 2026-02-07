@@ -142,12 +142,46 @@ async function buildMindclonePrompt(userId, matchType, conversationContext, isIn
     console.warn('[Matching] Could not load training data:', e.message);
   }
 
+  // Build goal-specific profile context
+  let goalProfileContext = '';
+  const goalProfile = profile.profiles?.[matchType];
+
+  if (matchType === 'dating' && goalProfile) {
+    if (goalProfile.lookingFor) goalProfileContext += `\nLooking for: ${goalProfile.lookingFor}`;
+    if (goalProfile.interests) goalProfileContext += `\nInterests: ${goalProfile.interests}`;
+    if (goalProfile.values) goalProfileContext += `\nValues: ${goalProfile.values}`;
+    if (goalProfile.about) goalProfileContext += `\nAbout me: ${goalProfile.about}`;
+    if (goalProfile.ageMin || goalProfile.ageMax) {
+      goalProfileContext += `\nPreferred age: ${goalProfile.ageMin || '18'}-${goalProfile.ageMax || '99'}`;
+    }
+  } else if (matchType === 'investing' && goalProfile) {
+    if (goalProfile.companyName) goalProfileContext += `\nCompany: ${goalProfile.companyName}`;
+    if (goalProfile.industry) goalProfileContext += `\nIndustry: ${goalProfile.industry}`;
+    if (goalProfile.stage) goalProfileContext += `\nStage: ${goalProfile.stage}`;
+    if (goalProfile.fundingAmount) goalProfileContext += `\nSeeking: ${goalProfile.fundingAmount}`;
+    if (goalProfile.description) goalProfileContext += `\nWhat we do: ${goalProfile.description}`;
+    if (goalProfile.traction) goalProfileContext += `\nTraction: ${goalProfile.traction}`;
+  } else if (matchType === 'hiring' && goalProfile) {
+    if (goalProfile.role) goalProfileContext += `\nRole: ${goalProfile.role === 'seeking' ? 'Looking for a job' : 'Hiring'}`;
+    if (goalProfile.jobTitle) goalProfileContext += `\nJob Title: ${goalProfile.jobTitle}`;
+    if (goalProfile.skills) goalProfileContext += `\nSkills: ${goalProfile.skills}`;
+    if (goalProfile.experience) goalProfileContext += `\nExperience: ${goalProfile.experience}`;
+    if (goalProfile.workPref) goalProfileContext += `\nWork Preference: ${goalProfile.workPref}`;
+    if (goalProfile.about) goalProfileContext += `\nAbout: ${goalProfile.about}`;
+  } else if (matchType === 'networking' && goalProfile) {
+    if (goalProfile.expertise) goalProfileContext += `\nExpertise: ${goalProfile.expertise}`;
+    if (goalProfile.lookingFor) goalProfileContext += `\nLooking to connect with: ${goalProfile.lookingFor}`;
+    if (goalProfile.interests) goalProfileContext += `\nCollaboration interests: ${goalProfile.interests}`;
+    if (goalProfile.offer) goalProfileContext += `\nWhat I offer: ${goalProfile.offer}`;
+  }
+
   const prompt = `You are ${profile.mindcloneName || profile.displayName}'s mindclone - their AI representative.
 You are having a ${matchType} matching conversation with another mindclone to evaluate compatibility.
 
 YOUR HUMAN'S PROFILE:
 Name: ${profile.displayName}
 Bio: ${profile.bio || 'Not provided'}
+${goalProfileContext ? `\n${matchType.toUpperCase()} PROFILE:${goalProfileContext}` : ''}
 ${kbContent ? `\nKnowledge:${kbContent}` : ''}
 ${trainingContent ? `\nTraits:${trainingContent}` : ''}
 
@@ -160,7 +194,7 @@ GUIDELINES:
 1. Represent your human authentically - speak as if you ARE them
 2. Be conversational and warm, not robotic
 3. Ask thoughtful follow-up questions
-4. Share relevant insights from your knowledge
+4. Share relevant insights from your knowledge and ${matchType} profile
 5. Be honest about compatibility concerns
 6. Keep responses concise (2-4 sentences)
 7. Don't mention you're an AI or mindclone in the conversation
