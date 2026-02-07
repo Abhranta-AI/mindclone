@@ -816,15 +816,11 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
 
-        // Sign in with Google
-        async function signInWithGoogle() {
-            try {
-                const provider = new firebase.auth.GoogleAuthProvider();
-                await auth.signInWithPopup(provider);
-            } catch (error) {
-                console.error('Sign in error:', error);
-                alert('Sign in failed. Please try again.');
-            }
+        // Sign in with Google - redirect to main page then back
+        function signInWithGoogle() {
+            // Store return URL and redirect to main page for sign-in
+            sessionStorage.setItem('returnTo', '/matching');
+            window.location.href = '/?signin=true';
         }
 
         // State

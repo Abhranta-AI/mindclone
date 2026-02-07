@@ -10260,6 +10260,14 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
         // Auth State Observer
         onAuthStateChanged(auth, async (user) => {
             if (user) {
+                // Check if we need to redirect back to another page
+                const returnTo = sessionStorage.getItem('returnTo');
+                if (returnTo) {
+                    sessionStorage.removeItem('returnTo');
+                    window.location.href = returnTo;
+                    return;
+                }
+
                 // User is signed in
                 showChatInterface(user);
                 // Load billing status
