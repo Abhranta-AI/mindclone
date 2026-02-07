@@ -9371,7 +9371,8 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             // Update tab content - use inline styles for reliable switching
             panelTabContents.forEach(content => {
                 if (content.id === `${tabName}Tab`) {
-                    content.style.display = 'flex';
+                    // Use block for matching tab to prevent flexbox spacing issues
+                    content.style.display = (tabName === 'matching') ? 'block' : 'flex';
                     content.classList.add('active');
                 } else {
                     content.style.display = 'none';
