@@ -2801,14 +2801,23 @@
             flex: 1;
         }
 
-        /* Matching tab - content starts at top */
+        /* Matching tab - use block layout, not flex */
         #matchingTab {
-            justify-content: flex-start !important;
-            align-content: flex-start !important;
+            display: none;
+            overflow-y: auto !important;
         }
-        #matchingTab .matching-scroll-container {
-            flex: 0 0 auto !important;
-            width: 100%;
+        #matchingTab.active,
+        #matchingTab[style*="display: flex"],
+        #matchingTab[style*="display:flex"] {
+            display: block !important;
+            overflow-y: auto !important;
+        }
+
+        /* Fix chat input visibility */
+        .chat-input-container {
+            position: relative;
+            z-index: 10;
+            flex-shrink: 0;
         }
 
         .settings-scroll-container,
@@ -7891,8 +7900,8 @@
             </div>
 
             <!-- Matching Tab -->
-            <div class="panel-tab-content" id="matchingTab" style="display:none;color:#fff;flex-direction:column;justify-content:flex-start">
-                <div class="matching-scroll-container" style="overflow-y:auto;padding:8px 16px 16px 16px;flex:0 0 auto">
+            <div class="panel-tab-content" id="matchingTab" style="display:none;color:#fff;overflow-y:auto">
+                <div class="matching-scroll-container" style="padding:8px 16px 16px 16px">
                     <!-- Matching Settings -->
                     <div class="panel-section" style="margin-top:0;padding-top:0">
                         <h3 class="panel-section-title" style="color:#fff;font-size:16px;font-weight:600;margin:0 0 4px 0">💫 Mindclone Matching</h3>
