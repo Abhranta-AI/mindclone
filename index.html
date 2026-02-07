@@ -7656,10 +7656,11 @@
                     <span class="tab-icon">📈</span>
                     <span class="tab-label">Analytics</span>
                 </button>
-                <a href="/matching" class="panel-tab" style="text-decoration: none;">
+                <button class="panel-tab" data-tab="matching">
                     <span class="tab-icon">💫</span>
                     <span class="tab-label">Matching</span>
-                </a>
+                    <span class="tab-badge" id="matchingBadge"></span>
+                </button>
             </div>
 
             <!-- Tab Content Container -->
@@ -7821,6 +7822,84 @@
                     </div>
                 </div>
 
+            </div>
+
+            <!-- Matching Tab -->
+            <div class="panel-tab-content" id="matchingTab" style="display:none">
+                <div class="matching-scroll-container" style="flex:1;overflow-y:auto;padding:16px">
+                    <!-- Matching Settings -->
+                    <div class="panel-section">
+                        <h3 class="panel-section-title">💫 Mindclone Matching</h3>
+                        <p class="panel-section-subtitle">Let your mindclone find compatible connections</p>
+
+                        <!-- Goal Toggles -->
+                        <div class="matching-goals" style="margin-top:16px">
+                            <div class="matching-goal-item" style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #222">
+                                <div style="display:flex;align-items:center;gap:10px">
+                                    <span style="font-size:18px">💕</span>
+                                    <span>Dating</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="matchGoalDating">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="matching-goal-item" style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #222">
+                                <div style="display:flex;align-items:center;gap:10px">
+                                    <span style="font-size:18px">💰</span>
+                                    <span>Find Investors</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="matchGoalInvesting">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="matching-goal-item" style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #222">
+                                <div style="display:flex;align-items:center;gap:10px">
+                                    <span style="font-size:18px">💼</span>
+                                    <span>Hiring / Jobs</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="matchGoalHiring">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="matching-goal-item" style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+                                <div style="display:flex;align-items:center;gap:10px">
+                                    <span style="font-size:18px">🤝</span>
+                                    <span>Networking</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="matchGoalNetworking">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Save Button -->
+                        <button id="saveMatchingSettings" class="panel-button" style="width:100%;margin-top:16px">
+                            Save & Activate Matching
+                        </button>
+
+                        <div id="matchingActiveStatus" style="display:none;margin-top:12px;color:#22c55e;font-size:13px;display:flex;align-items:center;gap:8px">
+                            <span style="width:8px;height:8px;background:#22c55e;border-radius:50%"></span>
+                            Matching is active
+                        </div>
+                    </div>
+
+                    <!-- Matches List -->
+                    <div class="panel-section" style="margin-top:20px">
+                        <h4 style="font-size:14px;font-weight:600;margin-bottom:12px">Your Matches</h4>
+                        <div id="matchesList" style="display:flex;flex-direction:column;gap:12px">
+                            <!-- Match cards will be inserted here -->
+                        </div>
+                        <div id="matchesEmpty" style="text-align:center;padding:30px;color:#888">
+                            <div style="font-size:32px;margin-bottom:8px">🔍</div>
+                            <div>No matches yet</div>
+                            <div style="font-size:13px;margin-top:4px">Enable goals above to start matching</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -9063,6 +9142,8 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             // Load data for the tab (settings is now a separate overlay)
             if (tabName === 'analytics') {
                 loadPanelAnalytics();
+            } else if (tabName === 'matching') {
+                loadMatchingData();
             }
 
             // Ensure right panel is open when switching tabs
@@ -9081,7 +9162,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
         // Handle URL hash for deep linking
         function handlePanelDeepLink() {
             const hash = window.location.hash.substring(1);
-            if (['activity', 'settings', 'analytics'].includes(hash)) {
+            if (['activity', 'settings', 'analytics', 'matching'].includes(hash)) {
                 switchPanelTab(hash);
                 history.replaceState(null, null, window.location.pathname);
             }
@@ -14778,6 +14859,237 @@ Is there anything else you'd like to configure?`;
 
         // Initialize billing on page load
         initializeBilling();
+
+        // ============================================
+        // Matching Feature
+        // ============================================
+
+        let matchingProfile = null;
+        let matchingMatches = [];
+
+        // Load matching data when tab is opened
+        async function loadMatchingData() {
+            if (!auth.currentUser) return;
+
+            try {
+                const idToken = await auth.currentUser.getIdToken();
+
+                // Load preferences
+                const prefResponse = await fetch('/api/matching/preferences', {
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+                const prefData = await prefResponse.json();
+
+                if (prefData.success) {
+                    matchingProfile = prefData.profile;
+                    renderMatchingSettings();
+                }
+
+                // Load matches
+                const matchResponse = await fetch('/api/matching/matches', {
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+                const matchData = await matchResponse.json();
+
+                if (matchData.success) {
+                    matchingMatches = matchData.matches || [];
+                    renderMatchesList();
+                    updateMatchingBadge();
+                }
+            } catch (error) {
+                console.error('[Matching] Error loading data:', error);
+            }
+        }
+
+        // Render matching settings
+        function renderMatchingSettings() {
+            if (!matchingProfile) return;
+
+            document.getElementById('matchGoalDating').checked = matchingProfile.goals?.dating || false;
+            document.getElementById('matchGoalInvesting').checked = matchingProfile.goals?.investing || false;
+            document.getElementById('matchGoalHiring').checked = matchingProfile.goals?.hiring || false;
+            document.getElementById('matchGoalNetworking').checked = matchingProfile.goals?.networking || false;
+
+            if (matchingProfile.isActive) {
+                document.getElementById('matchingActiveStatus').style.display = 'flex';
+            }
+        }
+
+        // Render matches list
+        function renderMatchesList() {
+            const listEl = document.getElementById('matchesList');
+            const emptyEl = document.getElementById('matchesEmpty');
+
+            if (!matchingMatches || matchingMatches.length === 0) {
+                listEl.style.display = 'none';
+                emptyEl.style.display = 'block';
+                return;
+            }
+
+            listEl.style.display = 'flex';
+            emptyEl.style.display = 'none';
+
+            listEl.innerHTML = matchingMatches.map(match => {
+                const other = match.otherUser || {};
+                const statusColors = {
+                    active: '#3b82f6',
+                    pending_approval: '#f59e0b',
+                    completed: '#f59e0b',
+                    approved: '#22c55e',
+                    rejected: '#ef4444'
+                };
+                const statusLabels = {
+                    active: 'Conversation in progress',
+                    pending_approval: 'Ready for review',
+                    completed: 'Ready for review',
+                    approved: 'Mutually approved!',
+                    rejected: 'Not a match'
+                };
+
+                return `
+                    <div class="match-card" style="background:#1a1a1e;border-radius:12px;padding:14px;cursor:pointer" onclick="viewMatchDetail('${match.id}')">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                            <div style="display:flex;align-items:center;gap:10px">
+                                <div style="width:36px;height:36px;background:linear-gradient(135deg,#a855f7,#6366f1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600">
+                                    ${(other.displayName || '?')[0].toUpperCase()}
+                                </div>
+                                <div>
+                                    <div style="font-weight:500;font-size:14px">${other.displayName || 'Unknown'}</div>
+                                    <div style="font-size:12px;color:#888">${other.mindcloneName || 'Mindclone'}</div>
+                                </div>
+                            </div>
+                            <span style="font-size:12px;color:${statusColors[match.status] || '#888'}">${statusLabels[match.status] || match.status}</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+                            <span style="background:rgba(168,85,247,0.1);color:#a855f7;padding:2px 8px;border-radius:8px;text-transform:capitalize">${match.matchType}</span>
+                            <span style="color:#888">${match.compatibilityScore}% match</span>
+                        </div>
+                        ${match.status === 'pending_approval' || match.status === 'completed' ? `
+                            <div style="display:flex;gap:8px;margin-top:12px">
+                                <button onclick="event.stopPropagation(); approveMatch('${match.id}')" style="flex:1;background:#22c55e;color:white;border:none;padding:8px;border-radius:6px;cursor:pointer;font-size:13px">✓ Approve</button>
+                                <button onclick="event.stopPropagation(); rejectMatch('${match.id}')" style="flex:1;background:#333;color:white;border:none;padding:8px;border-radius:6px;cursor:pointer;font-size:13px">✗ Reject</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update matching badge
+        function updateMatchingBadge() {
+            const badge = document.getElementById('matchingBadge');
+            if (!badge) return;
+
+            const pendingCount = matchingMatches.filter(m =>
+                m.status === 'pending_approval' || m.status === 'completed'
+            ).length;
+
+            if (pendingCount > 0) {
+                badge.textContent = pendingCount;
+                badge.style.display = 'inline';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        // Save matching settings
+        document.getElementById('saveMatchingSettings')?.addEventListener('click', async () => {
+            if (!auth.currentUser) return;
+
+            const btn = document.getElementById('saveMatchingSettings');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            try {
+                const idToken = await auth.currentUser.getIdToken();
+                const response = await fetch('/api/matching/preferences', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({
+                        goals: {
+                            dating: document.getElementById('matchGoalDating').checked,
+                            investing: document.getElementById('matchGoalInvesting').checked,
+                            hiring: document.getElementById('matchGoalHiring').checked,
+                            networking: document.getElementById('matchGoalNetworking').checked
+                        },
+                        isActive: true
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('matchingActiveStatus').style.display = 'flex';
+                    btn.textContent = 'Saved!';
+                    setTimeout(() => {
+                        btn.textContent = 'Save & Activate Matching';
+                        btn.disabled = false;
+                    }, 2000);
+                }
+            } catch (error) {
+                console.error('[Matching] Save error:', error);
+                btn.textContent = 'Error - Try Again';
+                btn.disabled = false;
+            }
+        });
+
+        // Approve match
+        async function approveMatch(matchId) {
+            if (!auth.currentUser) return;
+
+            try {
+                const idToken = await auth.currentUser.getIdToken();
+                const response = await fetch('/api/matching/matches', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({ matchId, action: 'approve' })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert(data.message || 'Match approved!');
+                    loadMatchingData(); // Refresh
+                }
+            } catch (error) {
+                console.error('[Matching] Approve error:', error);
+            }
+        }
+
+        // Reject match
+        async function rejectMatch(matchId) {
+            if (!auth.currentUser) return;
+
+            try {
+                const idToken = await auth.currentUser.getIdToken();
+                const response = await fetch('/api/matching/matches', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({ matchId, action: 'reject' })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    loadMatchingData(); // Refresh
+                }
+            } catch (error) {
+                console.error('[Matching] Reject error:', error);
+            }
+        }
+
+        // View match detail (opens conversation modal or new page)
+        function viewMatchDetail(matchId) {
+            // For now, open the standalone matching page with the match detail
+            window.open(`/matching?matchId=${matchId}`, '_blank');
+        }
 
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
