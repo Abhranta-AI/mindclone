@@ -2803,7 +2803,7 @@
             flex: 1;
         }
 
-        /* Matching tab - CRITICAL: start content at top */
+        /* Matching tab - fill parent, no gap */
         #matchingTab {
             display: none !important;
         }
@@ -2814,17 +2814,27 @@
         #matchingTab[style*="display:block"] {
             display: block !important;
             overflow-y: auto !important;
-            height: 100% !important;
-            flex: none !important;  /* Remove flex expansion */
-            position: relative !important;
+            flex: 1 !important;
         }
         #matchingTab .matching-scroll-container {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            bottom: 0 !important;
-            overflow-y: auto !important;
+            padding: 8px 16px 16px 16px !important;
+        }
+        /* Force hide inactive tabs */
+        .panel-tab-content:not(.active) {
+            display: none !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            visibility: hidden !important;
+            flex: 0 !important;
+        }
+        #activityTab[style*="display:none"],
+        #analyticsTab[style*="display:none"],
+        #activityTab[style*="display: none"],
+        #analyticsTab[style*="display: none"] {
+            display: none !important;
+            height: 0 !important;
+            visibility: hidden !important;
+            flex: 0 !important;
         }
 
         /* Fix chat input visibility */
@@ -4988,7 +4998,7 @@
             flex-direction: column;
             height: 100%;
             min-height: 0;
-            padding-bottom: env(safe-area-inset-bottom, 0);
+            padding-bottom: calc(env(safe-area-inset-bottom, 0) + 20px);
         }
 
         .chat-messages {
@@ -7914,8 +7924,8 @@
             </div>
 
             <!-- Matching Tab -->
-            <div class="panel-tab-content" id="matchingTab" style="display:none;color:#fff;overflow-y:auto;flex:1">
-                <div class="matching-scroll-container" style="padding:8px 16px 16px 16px;height:auto">
+            <div class="panel-tab-content" id="matchingTab" style="display:none;color:#fff;overflow-y:auto">
+                <div class="matching-scroll-container" style="padding:8px 16px 16px 16px">
                     <!-- Matching Settings -->
                     <div class="panel-section" style="margin-top:0;padding-top:0">
                         <h3 class="panel-section-title" style="color:#fff;font-size:16px;font-weight:600;margin:0 0 4px 0">💫 Mindclone Matching</h3>
