@@ -3270,7 +3270,15 @@ Use this to understand time references like "yesterday", "next week", "this mont
     while (!apiCallSuccess && currentModelIndex < CLAUDE_MODELS.length) {
       currentModel = CLAUDE_MODELS[currentModelIndex];
       requestBody.model = currentModel;
-      console.log(`[Chat] Trying Claude model: ${currentModel}`);
+
+      // DETAILED LOGGING FOR DEBUGGING
+      console.log(`[Chat] ========== CLAUDE API REQUEST ==========`);
+      console.log(`[Chat] Model: ${currentModel}`);
+      console.log(`[Chat] Messages count: ${requestBody.messages?.length}`);
+      console.log(`[Chat] First message role: ${requestBody.messages?.[0]?.role}`);
+      console.log(`[Chat] System prompt length: ${requestBody.system?.length || 0}`);
+      console.log(`[Chat] Tools count: ${requestBody.tools?.length || 0}`);
+      console.log(`[Chat] Request body preview:`, JSON.stringify(requestBody).substring(0, 500));
 
       response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -3281,6 +3289,8 @@ Use this to understand time references like "yesterday", "next week", "this mont
         },
         body: JSON.stringify(requestBody)
       });
+
+      console.log(`[Chat] Response status: ${response.status}`);
 
       data = await response.json();
 
