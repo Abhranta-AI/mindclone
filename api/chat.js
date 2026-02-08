@@ -1,4 +1,4 @@
-// xAI Grok API handler with Tool Calling
+// Claude API handler with Tool Calling (upgraded from xAI Grok)
 // Memory system uses Firestore (users/{userId}/memories collection)
 const { CONNOISSEUR_STYLE_GUIDE } = require('./_style-guide');
 const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
@@ -10,7 +10,73 @@ const { loadMindcloneBeliefs, formBelief, reviseBelief, getBeliefs, formatBelief
 initializeFirebaseAdmin();
 const db = admin.firestore();
 
-// ===================== FORMAT CONVERTERS FOR xAI API =====================
+// ===================== FORMAT CONVERTERS FOR CLAUDE API =====================
+// Convert Gemini-style tools to Claude-style tools
+function convertToolsToClaude(geminiTools) {
+  const claudeTools = [];
+  for (const toolGroup of geminiTools) {
+    for (const func of toolGroup.function_declarations || []) {
+      claudeTools.push({
+        name: func.name,
+        description: func.description,
+        input_schema: func.parameters
+      });
+    }
+  }
+  return claudeTools;
+}
+
+// Convert Gemini-style messages to Claude-style messages (system separate)
+function convertMessagesToClaude(geminiContents, systemPrompt = null) {
+  const messages = [];
+
+  for (const msg of geminiContents) {
+    const role = msg.role === 'model' ? 'assistant' : (msg.role === 'user' ? 'user' : msg.role);
+
+    // Skip system messages (handled separately)
+    if (role === 'system') continue;
+
+    if (msg.parts) {
+      const textParts = msg.parts.filter(p => p.text).map(p => p.text).join('');
+      const functionCall = msg.parts.find(p => p.functionCall);
+      const functionResponse = msg.parts.find(p => p.functionResponse);
+
+      if (functionCall) {
+        // Assistant message with tool use
+        const content = [];
+        if (textParts) {
+          content.push({ type: 'text', text: textParts });
+        }
+        content.push({
+          type: 'tool_use',
+          id: `toolu_${Date.now()}`,
+          name: functionCall.functionCall.name,
+          input: functionCall.functionCall.args || {}
+        });
+        messages.push({ role: 'assistant', content });
+      } else if (functionResponse) {
+        // Tool result message
+        messages.push({
+          role: 'user',
+          content: [{
+            type: 'tool_result',
+            tool_use_id: `toolu_${Date.now() - 1}`,
+            content: JSON.stringify(functionResponse.functionResponse.response)
+          }]
+        });
+      } else if (textParts) {
+        // Regular message
+        messages.push({ role, content: textParts });
+      }
+    } else if (msg.content) {
+      messages.push({ role, content: msg.content });
+    }
+  }
+
+  return { system: systemPrompt, messages };
+}
+
+// ===================== FORMAT CONVERTERS FOR xAI API (LEGACY) =====================
 // Convert Gemini-style tools to OpenAI-style tools
 function convertToolsToOpenAI(geminiTools) {
   const openaiTools = [];
@@ -3137,10 +3203,10 @@ Use this to understand time references like "yesterday", "next week", "this mont
       };
     }
 
-    // === xAI GROK MODEL CONFIGURATION ===
-    const XAI_MODELS = ['grok-3', 'grok-3-mini'];
+    // === CLAUDE MODEL CONFIGURATION ===
+    const CLAUDE_MODELS = ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022'];
     let currentModelIndex = 0;
-    let currentModel = XAI_MODELS[0];
+    let currentModel = CLAUDE_MODELS[0];
 
     // === TOOL FILTERING BASED ON CONTEXT ===
     let filteredToolsGemini = tools;
@@ -3156,36 +3222,45 @@ Use this to understand time references like "yesterday", "next week", "this mont
       console.log(`[Chat] Private context - all tools available`);
     }
 
-    // Convert to OpenAI format for xAI
-    const openaiTools = convertToolsToOpenAI(filteredToolsGemini);
+    // Convert to Claude format
+    const claudeTools = convertToolsToClaude(filteredToolsGemini);
 
     // Extract system prompt text
     const systemPromptText = systemInstruction?.parts?.[0]?.text || null;
 
-    // Convert messages to OpenAI format
-    const openaiMessages = convertMessagesToOpenAI(contents, systemPromptText);
+    // Convert messages to Claude format
+    const { system: claudeSystem, messages: claudeMessages } = convertMessagesToClaude(contents, systemPromptText);
 
-    // Build xAI request
+    // Build Claude request
     const requestBody = {
       model: currentModel,
-      messages: openaiMessages,
-      tools: openaiTools.length > 0 ? openaiTools : undefined
+      max_tokens: 4096,
+      system: claudeSystem || undefined,
+      messages: claudeMessages,
+      tools: claudeTools.length > 0 ? claudeTools : undefined
     };
+
+    // Get Claude API key
+    const claudeApiKey = process.env.ANTHROPIC_API_KEY;
+    if (!claudeApiKey) {
+      throw new Error('ANTHROPIC_API_KEY not configured');
+    }
 
     // Initial API call with model fallback
     let response, data;
     let apiCallSuccess = false;
 
-    while (!apiCallSuccess && currentModelIndex < XAI_MODELS.length) {
-      currentModel = XAI_MODELS[currentModelIndex];
+    while (!apiCallSuccess && currentModelIndex < CLAUDE_MODELS.length) {
+      currentModel = CLAUDE_MODELS[currentModelIndex];
       requestBody.model = currentModel;
-      console.log(`[Chat] Trying xAI model: ${currentModel}`);
+      console.log(`[Chat] Trying Claude model: ${currentModel}`);
 
-      response = await fetch('https://api.x.ai/v1/chat/completions', {
+      response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'x-api-key': claudeApiKey,
+          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify(requestBody)
       });
@@ -3194,24 +3269,24 @@ Use this to understand time references like "yesterday", "next week", "this mont
 
       if (!response.ok) {
         const errorMsg = data.error?.message || data.error || '';
-        if (errorMsg.includes('quota') || errorMsg.includes('rate') || response.status === 429) {
+        if (errorMsg.includes('quota') || errorMsg.includes('rate') || response.status === 429 || errorMsg.includes('overloaded')) {
           console.log(`[Chat] Model ${currentModel} rate limited, trying next model...`);
           currentModelIndex++;
           continue;
         }
-        throw new Error(errorMsg || 'xAI API request failed');
+        throw new Error(errorMsg || 'Claude API request failed');
       }
 
       apiCallSuccess = true;
-      console.log(`[Chat] Successfully using xAI model: ${currentModel}`);
+      console.log(`[Chat] Successfully using Claude model: ${currentModel}`);
     }
 
     if (!apiCallSuccess) {
-      throw new Error('All xAI models failed. Please try again later.');
+      throw new Error('All Claude models failed. Please try again later.');
     }
 
-    // Check if model wants to call a tool (xAI/OpenAI format)
-    let choice = data.choices?.[0];
+    // Check if model wants to call a tool (Claude format)
+    // Claude returns { content: [...], stop_reason: "end_turn" | "tool_use" }
     let maxToolCalls = 5; // Prevent infinite loops
     let toolCallCount = 0;
     let usedMemorySearch = false; // Track if search_memory was called for UI animation
@@ -3220,9 +3295,26 @@ Use this to understand time references like "yesterday", "next week", "this mont
     let lastMemorySearchResult = null; // Store memory search result for fallback responses
     let lastGeneratedImageId = null; // Track generated image ID for injection
 
-    // Helper functions for xAI/OpenAI format
-    const getToolCall = (choice) => choice?.message?.tool_calls?.[0];
-    const getText = (choice) => choice?.message?.content || '';
+    // Helper functions for Claude format
+    const getToolCall = (responseData) => {
+      const toolUse = responseData?.content?.find(c => c.type === 'tool_use');
+      if (toolUse) {
+        return {
+          id: toolUse.id,
+          function: {
+            name: toolUse.name,
+            arguments: JSON.stringify(toolUse.input || {})
+          }
+        };
+      }
+      return null;
+    };
+    const getText = (responseData) => {
+      const textBlocks = responseData?.content?.filter(c => c.type === 'text') || [];
+      return textBlocks.map(b => b.text).join('') || '';
+    };
+    // Adapter to make Claude response look like choice object
+    let choice = { message: { content: getText(data), tool_calls: getToolCall(data) ? [getToolCall(data)] : null } };
 
     // Sanitize response to remove leaked internal tool call patterns
     // Gemini sometimes outputs tool calls as text instead of structured functionCall
@@ -3310,40 +3402,46 @@ Use this to understand time references like "yesterday", "next week", "this mont
         console.log(`[Image] Stored generated image ID: ${lastGeneratedImageId}`);
       }
 
-      // Add assistant's tool call to messages
-      openaiMessages.push({
+      // Add assistant's tool call to messages (Claude format)
+      const assistantContent = [];
+      if (choice.message.content) {
+        assistantContent.push({ type: 'text', text: choice.message.content });
+      }
+      assistantContent.push({
+        type: 'tool_use',
+        id: toolCall.id,
+        name: funcName,
+        input: JSON.parse(toolCall.function?.arguments || '{}')
+      });
+      claudeMessages.push({
         role: 'assistant',
-        content: choice.message.content || null,
-        tool_calls: [{
-          id: toolCall.id,
-          type: 'function',
-          function: {
-            name: funcName,
-            arguments: toolCall.function?.arguments || '{}'
-          }
+        content: assistantContent
+      });
+
+      // Add tool response (Claude format)
+      claudeMessages.push({
+        role: 'user',
+        content: [{
+          type: 'tool_result',
+          tool_use_id: toolCall.id,
+          content: JSON.stringify(toolResult)
         }]
       });
 
-      // Add tool response
-      openaiMessages.push({
-        role: 'tool',
-        tool_call_id: toolCall.id,
-        content: JSON.stringify(toolResult)
-      });
-
       // Call API again with tool result
-      requestBody.messages = openaiMessages;
+      requestBody.messages = claudeMessages;
       let toolCallSuccess = false;
 
-      while (!toolCallSuccess && currentModelIndex < XAI_MODELS.length) {
-        currentModel = XAI_MODELS[currentModelIndex];
+      while (!toolCallSuccess && currentModelIndex < CLAUDE_MODELS.length) {
+        currentModel = CLAUDE_MODELS[currentModelIndex];
         requestBody.model = currentModel;
 
-        response = await fetch('https://api.x.ai/v1/chat/completions', {
+        response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
+            'x-api-key': claudeApiKey,
+            'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify(requestBody)
         });
@@ -3352,23 +3450,24 @@ Use this to understand time references like "yesterday", "next week", "this mont
 
         if (!response.ok) {
           const errorMsg = data.error?.message || data.error || '';
-          if (errorMsg.includes('quota') || errorMsg.includes('rate') || response.status === 429) {
+          if (errorMsg.includes('quota') || errorMsg.includes('rate') || response.status === 429 || errorMsg.includes('overloaded')) {
             console.log(`[Tool] Model ${currentModel} rate limited, trying next...`);
             currentModelIndex++;
             continue;
           }
           console.log(`[Tool] API error after tool call: ${errorMsg}`);
-          throw new Error(errorMsg || 'xAI API request failed after tool call');
+          throw new Error(errorMsg || 'Claude API request failed after tool call');
         }
 
         toolCallSuccess = true;
       }
 
       if (!toolCallSuccess) {
-        throw new Error('All xAI models failed during tool call');
+        throw new Error('All Claude models failed during tool call');
       }
 
-      choice = data.choices?.[0];
+      // Update choice adapter for new response
+      choice = { message: { content: getText(data), tool_calls: getToolCall(data) ? [getToolCall(data)] : null } };
 
       // Log post-tool-call response for debugging
       const postToolText = getText(choice) || '';
@@ -3380,7 +3479,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
       toolCall = getToolCall(choice);
     }
 
-    // Extract final text response (xAI format)
+    // Extract final text response (Claude format)
     const rawText = getText(choice) || '';
     let text = sanitizeResponse(rawText);
 
@@ -3419,25 +3518,26 @@ Use this to understand time references like "yesterday", "next week", "this mont
 
       // Use different nudge based on whether tools were called
       if (toolCallCount > 0) {
-        openaiMessages.push({ role: 'assistant', content: 'Let me formulate a response based on what I found.' });
-        openaiMessages.push({ role: 'user', content: 'Yes, please share what you found.' });
+        claudeMessages.push({ role: 'assistant', content: 'Let me formulate a response based on what I found.' });
+        claudeMessages.push({ role: 'user', content: 'Yes, please share what you found.' });
       } else {
-        openaiMessages.push({ role: 'assistant', content: 'Let me think about this more carefully.' });
-        openaiMessages.push({ role: 'user', content: 'Please continue with your thoughts.' });
+        claudeMessages.push({ role: 'assistant', content: 'Let me think about this more carefully.' });
+        claudeMessages.push({ role: 'user', content: 'Please continue with your thoughts.' });
       }
 
       // Retry the API call (with model fallback)
-      requestBody.messages = openaiMessages;
+      requestBody.messages = claudeMessages;
       let retryResponse, retryData;
       let retrySuccess = false;
 
-      for (let i = currentModelIndex; i < XAI_MODELS.length && !retrySuccess; i++) {
-        requestBody.model = XAI_MODELS[i];
-        retryResponse = await fetch('https://api.x.ai/v1/chat/completions', {
+      for (let i = currentModelIndex; i < CLAUDE_MODELS.length && !retrySuccess; i++) {
+        requestBody.model = CLAUDE_MODELS[i];
+        retryResponse = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
+            'x-api-key': claudeApiKey,
+            'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify(requestBody)
         });
@@ -3447,7 +3547,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
         if (retryResponse.ok) {
           retrySuccess = true;
         } else if (retryData.error?.message?.includes('rate') || retryResponse.status === 429) {
-          console.log(`[Auto-Retry] Model ${XAI_MODELS[i]} rate limited, trying next...`);
+          console.log(`[Auto-Retry] Model ${CLAUDE_MODELS[i]} rate limited, trying next...`);
           continue;
         } else {
           break;
@@ -3455,8 +3555,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
       }
 
       if (retrySuccess) {
-        const retryChoice = retryData.choices?.[0];
-        const retryText = sanitizeResponse(retryChoice?.message?.content || '');
+        const retryText = sanitizeResponse(getText(retryData) || '');
 
         if (retryText && retryText.trim().length > 5 && !retryText.includes('unable to generate')) {
           console.log('[Auto-Retry] Retry successful, using new response');
