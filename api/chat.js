@@ -3204,7 +3204,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
     }
 
     // === CLAUDE MODEL CONFIGURATION ===
-    const CLAUDE_MODELS = ['claude-3-5-sonnet-20241022', 'claude-3-haiku-20240307'];
+    const CLAUDE_MODELS = ['claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001'];
     let currentModelIndex = 0;
     let currentModel = CLAUDE_MODELS[0];
 
