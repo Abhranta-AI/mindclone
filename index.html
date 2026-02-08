@@ -7739,17 +7739,16 @@
 
         <!-- Right Activity Panel -->
         <div class="right-activity-panel">
-            <!-- Panel Header -->
-            <div class="right-panel-header-container" style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid #333">
-                <div class="right-panel-header" id="rightPanelHeader" title="Click to open Link Settings" style="flex:1;display:flex;align-items:center;cursor:pointer">
-                    <span class="panel-header-icon">🔗</span>
-                    <div class="panel-header-text">
-                        <span class="panel-header-title" id="panelHeaderLink">mindclone.link/...</span>
-                        <span class="panel-header-subtitle">Let anyone access your mindclone</span>
-                    </div>
-                    <span class="panel-header-arrow">›</span>
-                </div>
-                <button id="panelAnalyticsBtn" title="Analytics" style="background:none;border:none;font-size:18px;cursor:pointer;padding:8px;margin-left:8px;opacity:0.7;transition:opacity 0.2s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">📊</button>
+            <!-- Panel Header - Settings & Analytics Tabs -->
+            <div class="panel-header-tabs" style="display:flex;border-bottom:1px solid #333">
+                <button id="rightPanelHeader" class="panel-header-tab" title="Open Settings" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 12px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;color:#fff;transition:all 0.2s;font-size:13px" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='none'">
+                    <span>⚙️</span>
+                    <span>Settings</span>
+                </button>
+                <button id="panelAnalyticsBtn" class="panel-header-tab" title="Open Analytics" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 12px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;color:#fff;transition:all 0.2s;font-size:13px" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='none'">
+                    <span>📊</span>
+                    <span>Analytics</span>
+                </button>
             </div>
 
             <!-- Tab Navigation (Profile moved to header gear icon) -->
