@@ -3204,7 +3204,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
     }
 
     // === CLAUDE MODEL CONFIGURATION ===
-    const CLAUDE_MODELS = ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022'];
+    const CLAUDE_MODELS = ['claude-3-5-sonnet-latest', 'claude-3-5-sonnet-20241022'];
     let currentModelIndex = 0;
     let currentModel = CLAUDE_MODELS[0];
 
@@ -3268,7 +3268,9 @@ Use this to understand time references like "yesterday", "next week", "this mont
       data = await response.json();
 
       if (!response.ok) {
-        const errorMsg = data.error?.message || data.error || '';
+        const errorMsg = data.error?.message || data.error?.type || JSON.stringify(data.error) || '';
+        console.error(`[Chat] Claude API error: ${response.status} - ${errorMsg}`);
+        console.error(`[Chat] Full error response:`, JSON.stringify(data));
         if (errorMsg.includes('quota') || errorMsg.includes('rate') || response.status === 429 || errorMsg.includes('overloaded')) {
           console.log(`[Chat] Model ${currentModel} rate limited, trying next model...`);
           currentModelIndex++;
