@@ -7879,10 +7879,10 @@
                                     <div class="form-group" style="margin-bottom:16px">
                                         <label style="font-size:12px;color:#888;display:block;margin-bottom:8px">I am a...</label>
                                         <div style="display:flex;gap:8px">
-                                            <button type="button" id="roleFounderBtn" onclick="selectInvestingRole('founder')" style="flex:1;padding:12px;background:#2a2a2a;border:2px solid #444;border-radius:8px;color:#fff;cursor:pointer;font-size:14px;transition:all 0.2s">
+                                            <button type="button" id="roleFounderBtn" onclick="window.selectInvestingRole('founder')" style="flex:1;padding:12px;background:#2a2a2a;border:2px solid #444;border-radius:8px;color:#fff;cursor:pointer;font-size:14px;transition:all 0.2s">
                                                 🚀 Founder
                                             </button>
-                                            <button type="button" id="roleInvestorBtn" onclick="selectInvestingRole('investor')" style="flex:1;padding:12px;background:#2a2a2a;border:2px solid #444;border-radius:8px;color:#fff;cursor:pointer;font-size:14px;transition:all 0.2s">
+                                            <button type="button" id="roleInvestorBtn" onclick="window.selectInvestingRole('investor')" style="flex:1;padding:12px;background:#2a2a2a;border:2px solid #444;border-radius:8px;color:#fff;cursor:pointer;font-size:14px;transition:all 0.2s">
                                                 💼 Investor
                                             </button>
                                         </div>
@@ -15449,13 +15449,27 @@ Is there anything else you'd like to configure?`;
             }
         }
 
-        // Select Founder or Investor role
-        function selectInvestingRole(role) {
+        // Select Founder or Investor role - Make globally accessible
+        window.selectInvestingRole = function(role) {
+            console.log('[Matching] selectInvestingRole called with:', role);
             const founderBtn = document.getElementById('roleFounderBtn');
             const investorBtn = document.getElementById('roleInvestorBtn');
             const founderFields = document.getElementById('founderFormFields');
             const investorFields = document.getElementById('investorFormFields');
             const roleInput = document.getElementById('investingRole');
+
+            console.log('[Matching] Elements found:', {
+                founderBtn: !!founderBtn,
+                investorBtn: !!investorBtn,
+                founderFields: !!founderFields,
+                investorFields: !!investorFields,
+                roleInput: !!roleInput
+            });
+
+            if (!founderBtn || !investorBtn || !founderFields || !investorFields) {
+                console.error('[Matching] Missing elements for role selection');
+                return;
+            }
 
             // Reset button styles
             founderBtn.style.background = '#2a2a2a';
@@ -15472,14 +15486,16 @@ Is there anything else you'd like to configure?`;
                 founderBtn.style.background = '#8b5cf6';
                 founderBtn.style.borderColor = '#a78bfa';
                 founderFields.style.display = 'block';
+                console.log('[Matching] Showing founder form');
             } else if (role === 'investor') {
                 investorBtn.style.background = '#8b5cf6';
                 investorBtn.style.borderColor = '#a78bfa';
                 investorFields.style.display = 'block';
+                console.log('[Matching] Showing investor form');
             }
 
             // Store the role
-            roleInput.value = role;
+            if (roleInput) roleInput.value = role;
         }
 
         // Update completion indicators for goals
