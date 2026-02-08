@@ -3204,7 +3204,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
     }
 
     // === CLAUDE MODEL CONFIGURATION ===
-    const CLAUDE_MODELS = ['claude-3-5-sonnet-latest', 'claude-3-5-sonnet-20241022'];
+    const CLAUDE_MODELS = ['claude-3-5-sonnet-20241022', 'claude-3-haiku-20240307'];
     let currentModelIndex = 0;
     let currentModel = CLAUDE_MODELS[0];
 
@@ -3231,20 +3231,37 @@ Use this to understand time references like "yesterday", "next week", "this mont
     // Convert messages to Claude format
     const { system: claudeSystem, messages: claudeMessages } = convertMessagesToClaude(contents, systemPromptText);
 
+    // Ensure messages array is valid for Claude (must start with user, alternate roles)
+    let validMessages = claudeMessages.filter(m => m.content && (typeof m.content === 'string' ? m.content.trim() : m.content.length > 0));
+
+    // If first message is not from user, prepend a user message
+    if (validMessages.length > 0 && validMessages[0].role !== 'user') {
+      validMessages.unshift({ role: 'user', content: 'Hello' });
+    }
+
+    // If no messages, add a default
+    if (validMessages.length === 0) {
+      validMessages = [{ role: 'user', content: 'Hello' }];
+    }
+
+    console.log(`[Chat] Claude messages count: ${validMessages.length}, first role: ${validMessages[0]?.role}`);
+
     // Build Claude request
     const requestBody = {
       model: currentModel,
       max_tokens: 4096,
       system: claudeSystem || undefined,
-      messages: claudeMessages,
+      messages: validMessages,
       tools: claudeTools.length > 0 ? claudeTools : undefined
     };
 
     // Get Claude API key
     const claudeApiKey = process.env.ANTHROPIC_API_KEY;
     if (!claudeApiKey) {
+      console.error('[Chat] ANTHROPIC_API_KEY is not set!');
       throw new Error('ANTHROPIC_API_KEY not configured');
     }
+    console.log(`[Chat] API key present: ${claudeApiKey ? 'yes' : 'no'}, length: ${claudeApiKey?.length}`);
 
     // Initial API call with model fallback
     let response, data;
