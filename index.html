@@ -5260,6 +5260,8 @@
             opacity: 0;
             transition: opacity 0.2s ease;
             z-index: 10;
+            user-select: none;
+            -webkit-user-select: none;
         }
         .message-content:hover .message-actions {
             opacity: 1;
@@ -5678,6 +5680,8 @@
             transition: all 0.2s ease;
             margin-top: 4px;
             display: inline-block;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .message.ai:hover .copy-btn {
@@ -13709,6 +13713,13 @@ Is there anything else you'd like to configure?`;
                         lastUserMessage.innerHTML = lastUserMessage.innerHTML.replace(' ⏳', ' ❌ (upload failed)');
                     }
                     addMessage('assistant', 'Sorry, the file upload failed. Please try again.', new Date());
+                    // Re-enable input so user can send again
+                    isSending = false;
+                    chatInput.disabled = false;
+                    sendButton.disabled = false;
+                    // Clear the failed file
+                    fileToUpload = null;
+                    filePreview.classList.remove('visible');
                     return;
                 }
             }
