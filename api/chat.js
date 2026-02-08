@@ -1609,7 +1609,7 @@ async function handleBrowseUrl(params = {}) {
   }
 }
 
-// Handle analyze_image tool - uses Gemini vision to analyze images from URLs
+// Handle analyze_image tool - uses Claude vision to analyze images from URLs
 async function handleAnalyzeImage(args) {
   const { image_url, question } = args;
 
@@ -1661,47 +1661,51 @@ async function handleAnalyzeImage(args) {
       mimeType = 'image/jpeg'; // Default
     }
 
-    // Call xAI vision API
-    const apiKey = process.env.XAI_API_KEY;
+    // Call Claude vision API
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     const prompt = question || 'Describe this image in detail. What do you see? Include any text, people, objects, and the overall scene.';
 
-    console.log(`[Vision] Using xAI grok-2-vision-1212`);
+    console.log(`[Vision] Using Claude claude-sonnet-4-5-20250929`);
 
-    const visionResponse = await fetch('https://api.x.ai/v1/chat/completions', {
+    const visionResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'grok-2-vision-1212',
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 1024,
         messages: [{
           role: 'user',
           content: [
-            { type: 'text', text: prompt },
             {
-              type: 'image_url',
-              image_url: {
-                url: `data:${mimeType};base64,${base64Image}`
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: mimeType,
+                data: base64Image
               }
-            }
+            },
+            { type: 'text', text: prompt }
           ]
-        }],
-        max_tokens: 1024
+        }]
       })
     });
 
     if (!visionResponse.ok) {
       const errorData = await visionResponse.json().catch(() => ({}));
-      console.error('[Tool] xAI vision API error:', errorData.error);
+      console.error('[Tool] Claude vision API error:', errorData.error);
       return {
         success: false,
-        error: `Vision API error: ${visionResponse.status}`
+        error: `Vision API error: ${visionResponse.status} - ${errorData.error?.message || ''}`
       };
     }
 
     const visionData = await visionResponse.json();
-    const analysis = visionData.choices?.[0]?.message?.content;
+    // Claude returns content as array of blocks
+    const analysis = visionData.content?.find(c => c.type === 'text')?.text;
 
     if (!analysis) {
       return {
