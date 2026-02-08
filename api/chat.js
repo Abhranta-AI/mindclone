@@ -3634,7 +3634,9 @@ Use this to understand time references like "yesterday", "next week", "this mont
 
     // Final generic fallback if still empty
     if (!text || text.trim().length < 5) {
-      console.log('[Response] Using final generic fallback message');
+      console.log('[Response] Using final generic fallback message. Data received:', JSON.stringify(data)?.substring(0, 500));
+      console.log('[Response] Stop reason:', data?.stop_reason);
+      console.log('[Response] Content:', JSON.stringify(data?.content)?.substring(0, 500));
       text = "I'm having trouble responding to that right now. Could you try asking in a different way, or maybe break your question into smaller parts?";
     }
 
