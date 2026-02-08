@@ -1,4 +1,4 @@
-// Claude API handler with Tool Calling (upgraded from xAI Grok)
+// OpenAI API handler with Tool Calling (upgraded from Claude)
 // Memory system uses Firestore (users/{userId}/memories collection)
 const { CONNOISSEUR_STYLE_GUIDE } = require('./_style-guide');
 const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
@@ -1609,7 +1609,7 @@ async function handleBrowseUrl(params = {}) {
   }
 }
 
-// Handle analyze_image tool - uses Claude vision to analyze images from URLs
+// Handle analyze_image tool - uses OpenAI GPT-4o vision to analyze images from URLs
 async function handleAnalyzeImage(args) {
   const { image_url, question } = args;
 
@@ -1661,31 +1661,28 @@ async function handleAnalyzeImage(args) {
       mimeType = 'image/jpeg'; // Default
     }
 
-    // Call Claude vision API
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    // Call OpenAI vision API (GPT-4o has vision)
+    const apiKey = process.env.OPENAI_API_KEY;
     const prompt = question || 'Describe this image in detail. What do you see? Include any text, people, objects, and the overall scene.';
 
-    console.log(`[Vision] Using Claude claude-sonnet-4-5-20250929`);
+    console.log(`[Vision] Using OpenAI gpt-4o`);
 
-    const visionResponse = await fetch('https://api.anthropic.com/v1/messages', {
+    const visionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'gpt-4o',
         max_tokens: 1024,
         messages: [{
           role: 'user',
           content: [
             {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mimeType,
-                data: base64Image
+              type: 'image_url',
+              image_url: {
+                url: `data:${mimeType};base64,${base64Image}`
               }
             },
             { type: 'text', text: prompt }
@@ -1696,7 +1693,7 @@ async function handleAnalyzeImage(args) {
 
     if (!visionResponse.ok) {
       const errorData = await visionResponse.json().catch(() => ({}));
-      console.error('[Tool] Claude vision API error:', errorData.error);
+      console.error('[Tool] OpenAI vision API error:', errorData.error);
       return {
         success: false,
         error: `Vision API error: ${visionResponse.status} - ${errorData.error?.message || ''}`
@@ -1704,8 +1701,8 @@ async function handleAnalyzeImage(args) {
     }
 
     const visionData = await visionResponse.json();
-    // Claude returns content as array of blocks
-    const analysis = visionData.content?.find(c => c.type === 'text')?.text;
+    // OpenAI returns content as string in choices[0].message.content
+    const analysis = visionData.choices?.[0]?.message?.content;
 
     if (!analysis) {
       return {
@@ -3207,10 +3204,10 @@ Use this to understand time references like "yesterday", "next week", "this mont
       };
     }
 
-    // === CLAUDE MODEL CONFIGURATION ===
-    const CLAUDE_MODELS = ['claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001'];
+    // === OPENAI MODEL CONFIGURATION ===
+    const OPENAI_MODELS = ['gpt-4o', 'gpt-4o-mini'];
     let currentModelIndex = 0;
-    let currentModel = CLAUDE_MODELS[0];
+    let currentModel = OPENAI_MODELS[0];
 
     // === TOOL FILTERING BASED ON CONTEXT ===
     let filteredToolsGemini = tools;
@@ -3226,100 +3223,120 @@ Use this to understand time references like "yesterday", "next week", "this mont
       console.log(`[Chat] Private context - all tools available`);
     }
 
-    // Convert to Claude format
-    const claudeTools = convertToolsToClaude(filteredToolsGemini);
+    // Convert to OpenAI format
+    const openaiTools = convertToolsToOpenAI(filteredToolsGemini);
 
     // Extract system prompt text
     const systemPromptText = systemInstruction?.parts?.[0]?.text || null;
 
-    // Convert messages to Claude format
-    const { system: claudeSystem, messages: claudeMessages } = convertMessagesToClaude(contents, systemPromptText);
+    // Convert messages to OpenAI format
+    const openaiMessages = convertMessagesToOpenAI(contents, systemPromptText);
 
-    // Ensure messages array is valid for Claude (must start with user, alternate roles)
-    let validMessages = claudeMessages.filter(m => m.content && (typeof m.content === 'string' ? m.content.trim() : m.content.length > 0));
+    // Ensure we have valid messages
+    let validMessages = openaiMessages.filter(m => m.content && m.content.trim());
 
-    // If first message is not from user, prepend a user message
-    if (validMessages.length > 0 && validMessages[0].role !== 'user') {
-      validMessages.unshift({ role: 'user', content: 'Hello' });
+    // If no user messages, add a default
+    if (!validMessages.some(m => m.role === 'user')) {
+      validMessages.push({ role: 'user', content: 'Hello' });
     }
 
-    // If no messages, add a default
-    if (validMessages.length === 0) {
-      validMessages = [{ role: 'user', content: 'Hello' }];
-    }
+    console.log(`[Chat] OpenAI messages count: ${validMessages.length}`);
 
-    console.log(`[Chat] Claude messages count: ${validMessages.length}, first role: ${validMessages[0]?.role}`);
-
-    // Build Claude request
+    // Build OpenAI request
     const requestBody = {
       model: currentModel,
       max_tokens: 4096,
-      system: claudeSystem || undefined,
       messages: validMessages,
-      tools: claudeTools.length > 0 ? claudeTools : undefined
+      tools: openaiTools.length > 0 ? openaiTools : undefined
     };
 
-    // Get Claude API key
-    const claudeApiKey = process.env.ANTHROPIC_API_KEY;
-    if (!claudeApiKey) {
-      console.error('[Chat] ANTHROPIC_API_KEY is not set!');
-      throw new Error('ANTHROPIC_API_KEY not configured');
+    // Get OpenAI API key
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      console.error('[Chat] OPENAI_API_KEY is not set!');
+      throw new Error('OPENAI_API_KEY not configured');
     }
-    console.log(`[Chat] API key present: ${claudeApiKey ? 'yes' : 'no'}, length: ${claudeApiKey?.length}`);
+    console.log(`[Chat] OpenAI API key present: ${openaiApiKey ? 'yes' : 'no'}, length: ${openaiApiKey?.length}`);
 
-    // Initial API call with model fallback
+    // Initial API call with model fallback AND retry logic
     let response, data;
     let apiCallSuccess = false;
+    const MAX_RETRIES = 3;
+    const RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
 
-    while (!apiCallSuccess && currentModelIndex < CLAUDE_MODELS.length) {
-      currentModel = CLAUDE_MODELS[currentModelIndex];
+    while (!apiCallSuccess && currentModelIndex < OPENAI_MODELS.length) {
+      currentModel = OPENAI_MODELS[currentModelIndex];
       requestBody.model = currentModel;
 
-      // DETAILED LOGGING FOR DEBUGGING
-      console.log(`[Chat] ========== CLAUDE API REQUEST ==========`);
-      console.log(`[Chat] Model: ${currentModel}`);
-      console.log(`[Chat] Messages count: ${requestBody.messages?.length}`);
-      console.log(`[Chat] First message role: ${requestBody.messages?.[0]?.role}`);
-      console.log(`[Chat] System prompt length: ${requestBody.system?.length || 0}`);
-      console.log(`[Chat] Tools count: ${requestBody.tools?.length || 0}`);
-      console.log(`[Chat] Request body preview:`, JSON.stringify(requestBody).substring(0, 500));
-
-      response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': claudeApiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      console.log(`[Chat] Response status: ${response.status}`);
-
-      data = await response.json();
-
-      if (!response.ok) {
-        const errorMsg = data.error?.message || data.error?.type || JSON.stringify(data.error) || '';
-        console.error(`[Chat] Claude API error: ${response.status} - ${errorMsg}`);
-        console.error(`[Chat] Full error response:`, JSON.stringify(data));
-        if (errorMsg.includes('quota') || errorMsg.includes('rate') || response.status === 429 || errorMsg.includes('overloaded')) {
-          console.log(`[Chat] Model ${currentModel} rate limited, trying next model...`);
-          currentModelIndex++;
-          continue;
+      // Retry loop for transient failures
+      for (let retryAttempt = 0; retryAttempt < MAX_RETRIES && !apiCallSuccess; retryAttempt++) {
+        if (retryAttempt > 0) {
+          const delay = RETRY_DELAYS[retryAttempt - 1] || 4000;
+          console.log(`[Chat] Retry attempt ${retryAttempt}/${MAX_RETRIES - 1} after ${delay}ms delay...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
-        throw new Error(errorMsg || 'Claude API request failed');
+
+        // DETAILED LOGGING FOR DEBUGGING
+        console.log(`[Chat] ========== OPENAI API REQUEST (attempt ${retryAttempt + 1}) ==========`);
+        console.log(`[Chat] Model: ${currentModel}`);
+        console.log(`[Chat] Messages count: ${requestBody.messages?.length}`);
+        console.log(`[Chat] Tools count: ${requestBody.tools?.length || 0}`);
+
+        try {
+          response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${openaiApiKey}`
+            },
+            body: JSON.stringify(requestBody)
+          });
+
+          console.log(`[Chat] Response status: ${response.status}`);
+
+          data = await response.json();
+
+          if (!response.ok) {
+            const errorMsg = data.error?.message || JSON.stringify(data.error) || '';
+            console.error(`[Chat] OpenAI API error: ${response.status} - ${errorMsg}`);
+
+            // Check if retryable error
+            if (response.status === 503 || response.status === 500 ||
+                errorMsg.includes('overloaded') || errorMsg.includes('temporarily')) {
+              console.log(`[Chat] Retryable error, will retry...`);
+              continue; // Retry
+            }
+
+            if (errorMsg.includes('quota') || errorMsg.includes('rate') || response.status === 429) {
+              console.log(`[Chat] Model ${currentModel} rate limited, trying next model...`);
+              break; // Break retry loop, try next model
+            }
+
+            throw new Error(errorMsg || 'OpenAI API request failed');
+          }
+
+          apiCallSuccess = true;
+          console.log(`[Chat] Successfully using OpenAI model: ${currentModel} (attempt ${retryAttempt + 1})`);
+        } catch (fetchError) {
+          console.error(`[Chat] Fetch error (attempt ${retryAttempt + 1}):`, fetchError.message);
+          if (retryAttempt === MAX_RETRIES - 1) {
+            throw fetchError; // Last retry failed, throw error
+          }
+          // Otherwise continue to next retry
+        }
       }
 
-      apiCallSuccess = true;
-      console.log(`[Chat] Successfully using Claude model: ${currentModel}`);
+      if (!apiCallSuccess) {
+        currentModelIndex++; // Try next model
+      }
     }
 
     if (!apiCallSuccess) {
-      throw new Error('All Claude models failed. Please try again later.');
+      throw new Error('All OpenAI models failed. Please try again later.');
     }
 
-    // Check if model wants to call a tool (Claude format)
-    // Claude returns { content: [...], stop_reason: "end_turn" | "tool_use" }
+    // Check if model wants to call a tool (OpenAI format)
+    // OpenAI returns { choices: [{ message: { content, tool_calls } }] }
     let maxToolCalls = 5; // Prevent infinite loops
     let toolCallCount = 0;
     let usedMemorySearch = false; // Track if search_memory was called for UI animation
@@ -3328,26 +3345,19 @@ Use this to understand time references like "yesterday", "next week", "this mont
     let lastMemorySearchResult = null; // Store memory search result for fallback responses
     let lastGeneratedImageId = null; // Track generated image ID for injection
 
-    // Helper functions for Claude format
+    // Helper functions for OpenAI format
     const getToolCall = (responseData) => {
-      const toolUse = responseData?.content?.find(c => c.type === 'tool_use');
-      if (toolUse) {
-        return {
-          id: toolUse.id,
-          function: {
-            name: toolUse.name,
-            arguments: JSON.stringify(toolUse.input || {})
-          }
-        };
+      const toolCalls = responseData?.choices?.[0]?.message?.tool_calls;
+      if (toolCalls && toolCalls.length > 0) {
+        return toolCalls[0]; // Return first tool call
       }
       return null;
     };
     const getText = (responseData) => {
-      const textBlocks = responseData?.content?.filter(c => c.type === 'text') || [];
-      return textBlocks.map(b => b.text).join('') || '';
+      return responseData?.choices?.[0]?.message?.content || '';
     };
-    // Adapter to make Claude response look like choice object
-    let choice = { message: { content: getText(data), tool_calls: getToolCall(data) ? [getToolCall(data)] : null } };
+    // OpenAI response is already in the right format
+    let choice = data?.choices?.[0] || { message: { content: '', tool_calls: null } };
 
     // Sanitize response to remove leaked internal tool call patterns
     // Gemini sometimes outputs tool calls as text instead of structured functionCall
@@ -3435,46 +3445,40 @@ Use this to understand time references like "yesterday", "next week", "this mont
         console.log(`[Image] Stored generated image ID: ${lastGeneratedImageId}`);
       }
 
-      // Add assistant's tool call to messages (Claude format)
-      const assistantContent = [];
-      if (choice.message.content) {
-        assistantContent.push({ type: 'text', text: choice.message.content });
-      }
-      assistantContent.push({
-        type: 'tool_use',
-        id: toolCall.id,
-        name: funcName,
-        input: JSON.parse(toolCall.function?.arguments || '{}')
-      });
-      claudeMessages.push({
+      // Add assistant's tool call to messages (OpenAI format)
+      validMessages.push({
         role: 'assistant',
-        content: assistantContent
-      });
-
-      // Add tool response (Claude format)
-      claudeMessages.push({
-        role: 'user',
-        content: [{
-          type: 'tool_result',
-          tool_use_id: toolCall.id,
-          content: JSON.stringify(toolResult)
+        content: choice.message.content || null,
+        tool_calls: [{
+          id: toolCall.id,
+          type: 'function',
+          function: {
+            name: funcName,
+            arguments: toolCall.function?.arguments || '{}'
+          }
         }]
       });
 
+      // Add tool response (OpenAI format)
+      validMessages.push({
+        role: 'tool',
+        tool_call_id: toolCall.id,
+        content: JSON.stringify(toolResult)
+      });
+
       // Call API again with tool result
-      requestBody.messages = claudeMessages;
+      requestBody.messages = validMessages;
       let toolCallSuccess = false;
 
-      while (!toolCallSuccess && currentModelIndex < CLAUDE_MODELS.length) {
-        currentModel = CLAUDE_MODELS[currentModelIndex];
+      while (!toolCallSuccess && currentModelIndex < OPENAI_MODELS.length) {
+        currentModel = OPENAI_MODELS[currentModelIndex];
         requestBody.model = currentModel;
 
-        response = await fetch('https://api.anthropic.com/v1/messages', {
+        response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': claudeApiKey,
-            'anthropic-version': '2023-06-01'
+            'Authorization': `Bearer ${openaiApiKey}`
           },
           body: JSON.stringify(requestBody)
         });
@@ -3489,18 +3493,18 @@ Use this to understand time references like "yesterday", "next week", "this mont
             continue;
           }
           console.log(`[Tool] API error after tool call: ${errorMsg}`);
-          throw new Error(errorMsg || 'Claude API request failed after tool call');
+          throw new Error(errorMsg || 'OpenAI API request failed after tool call');
         }
 
         toolCallSuccess = true;
       }
 
       if (!toolCallSuccess) {
-        throw new Error('All Claude models failed during tool call');
+        throw new Error('All OpenAI models failed during tool call');
       }
 
-      // Update choice adapter for new response
-      choice = { message: { content: getText(data), tool_calls: getToolCall(data) ? [getToolCall(data)] : null } };
+      // Update choice for new response (OpenAI format)
+      choice = data?.choices?.[0] || { message: { content: '', tool_calls: null } };
 
       // Log post-tool-call response for debugging
       const postToolText = getText(choice) || '';
@@ -3551,26 +3555,25 @@ Use this to understand time references like "yesterday", "next week", "this mont
 
       // Use different nudge based on whether tools were called
       if (toolCallCount > 0) {
-        claudeMessages.push({ role: 'assistant', content: 'Let me formulate a response based on what I found.' });
-        claudeMessages.push({ role: 'user', content: 'Yes, please share what you found.' });
+        validMessages.push({ role: 'assistant', content: 'Let me formulate a response based on what I found.' });
+        validMessages.push({ role: 'user', content: 'Yes, please share what you found.' });
       } else {
-        claudeMessages.push({ role: 'assistant', content: 'Let me think about this more carefully.' });
-        claudeMessages.push({ role: 'user', content: 'Please continue with your thoughts.' });
+        validMessages.push({ role: 'assistant', content: 'Let me think about this more carefully.' });
+        validMessages.push({ role: 'user', content: 'Please continue with your thoughts.' });
       }
 
       // Retry the API call (with model fallback)
-      requestBody.messages = claudeMessages;
+      requestBody.messages = validMessages;
       let retryResponse, retryData;
       let retrySuccess = false;
 
-      for (let i = currentModelIndex; i < CLAUDE_MODELS.length && !retrySuccess; i++) {
-        requestBody.model = CLAUDE_MODELS[i];
-        retryResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      for (let i = currentModelIndex; i < OPENAI_MODELS.length && !retrySuccess; i++) {
+        requestBody.model = OPENAI_MODELS[i];
+        retryResponse = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': claudeApiKey,
-            'anthropic-version': '2023-06-01'
+            'Authorization': `Bearer ${openaiApiKey}`
           },
           body: JSON.stringify(requestBody)
         });
@@ -3580,7 +3583,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
         if (retryResponse.ok) {
           retrySuccess = true;
         } else if (retryData.error?.message?.includes('rate') || retryResponse.status === 429) {
-          console.log(`[Auto-Retry] Model ${CLAUDE_MODELS[i]} rate limited, trying next...`);
+          console.log(`[Auto-Retry] Model ${OPENAI_MODELS[i]} rate limited, trying next...`);
           continue;
         } else {
           break;
