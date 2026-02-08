@@ -13718,11 +13718,28 @@ Is there anything else you'd like to configure?`;
             let messageHTML = null;
             if (fileUrl) {
                 const isImage = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif'].includes(fileMetadata.type);
+                const fileExt = fileMetadata.name.split('.').pop().toLowerCase();
+                const isTextFile = ['md', 'txt', 'json'].includes(fileExt);
 
                 if (isImage) {
                     // For images, create HTML to display the image inline
                     messageHTML = `${message ? `<p>${message}</p>` : ''}<img src="${fileUrl}" alt="${fileMetadata.name}" class="message-image">`;
                     finalMessage = `${message}\n\n[Image: ${fileMetadata.name}]\nImage URL: ${fileUrl}`;
+                } else if (isTextFile && fileToUpload) {
+                    // For text files (.md, .txt, .json), read and include the actual content
+                    try {
+                        const textContent = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.onerror = reject;
+                            reader.readAsText(fileToUpload);
+                        });
+                        finalMessage = `${message}\n\n[Attached file: ${fileMetadata.name}]\n\n--- FILE CONTENT START ---\n${textContent}\n--- FILE CONTENT END ---`;
+                        console.log('[Upload] Text file content extracted, length:', textContent.length);
+                    } catch (readError) {
+                        console.error('Error reading text file:', readError);
+                        finalMessage = `${message}\n\n[Attached file: ${fileMetadata.name}]\nFile URL: ${fileUrl}`;
+                    }
                 } else {
                     finalMessage = `${message}\n\n[Attached file: ${fileMetadata.name}]\nFile URL: ${fileUrl}`;
                 }
