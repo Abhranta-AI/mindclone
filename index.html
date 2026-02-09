@@ -7753,21 +7753,21 @@
                 <!-- Activity Tab (LIVE) -->
                 <div class="panel-tab-content active" id="activityTab" style="display:flex;flex-direction:column;flex:1">
                     <div class="activity-feed" style="display:flex;flex-direction:column;flex:1">
-                        <div class="activity-feed-header" style="display:flex;flex-direction:column;padding:16px">
-                            <a href="#" id="rightActivityFeedLink" class="activity-feed-link" target="_blank">
-                                <span class="icon">🔗</span> Live Link Activity
-                                <span class="arrow">→</span>
+                        <!-- Simple count bar - no redundant title -->
+                        <div class="activity-feed-header" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.05)">
+                            <span id="rightActivityCount" class="activity-feed-count" style="font-size:13px;color:var(--text-secondary)">0 today</span>
+                            <a href="#" id="rightActivityFeedLink" class="activity-feed-link" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;display:flex;align-items:center;gap:4px">
+                                Open Link <span class="arrow">→</span>
                             </a>
-                            <span id="rightActivityCount" class="activity-feed-count">0 today</span>
                         </div>
                         <div id="rightActivityList" class="activity-feed-list">
                             <!-- Activity items will be dynamically added here -->
                         </div>
                         <!-- Empty state (shown when no activity) -->
                         <div id="rightActivityEmpty" class="activity-feed-empty" style="display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px">
-                            <div class="icon">🔗</div>
-                            <div class="message">No Link Activity Yet<br>Enable your link to see visitor conversations</div>
-                            <button class="switch-to-settings-btn">Go to Settings</button>
+                            <div class="icon" style="font-size:32px;margin-bottom:12px">📡</div>
+                            <div class="message" style="text-align:center;color:var(--text-secondary);font-size:14px;line-height:1.5">No activity yet<br><span style="font-size:12px;color:var(--text-muted)">Share your link to see visitor conversations</span></div>
+                            <button class="switch-to-settings-btn" style="margin-top:16px">Go to Settings</button>
                         </div>
                     </div>
                 </div>
