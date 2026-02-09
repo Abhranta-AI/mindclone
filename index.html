@@ -7392,8 +7392,11 @@
 
             <!-- Panel Content -->
             <div class="left-panel-content">
-                <!-- Knowledge Base Section (collapsible) -->
-                <div class="left-panel-section" id="kbSection">
+                <!-- Training sections hidden per PRD v2 Section 13.2 - Mindclone learns from conversation -->
+                <!-- These can be re-enabled in a future Admin/Settings page for power users -->
+
+                <!-- Knowledge Base Section (HIDDEN - Admin only) -->
+                <div class="left-panel-section" id="kbSection" style="display:none">
                     <div class="left-panel-section-header" id="kbSectionHeader" style="cursor: pointer;">
                         <span class="left-panel-section-icon">📚</span>
                         <span class="left-panel-section-title">Knowledge Base</span>
@@ -7401,9 +7404,7 @@
                         <span class="left-panel-expand-icon" id="kbExpandIcon" style="margin-left: 8px;">▶</span>
                     </div>
                     <div class="left-panel-section-content" id="kbSectionContent" style="display: none;">
-                        <div class="panel-kb-list" id="panelKbList">
-                            <!-- KB files will be listed here -->
-                        </div>
+                        <div class="panel-kb-list" id="panelKbList"></div>
                         <input type="file" id="panelKbFileInput" class="hidden" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.csv,.pptx,.ppt,.doc,.docx,.txt,.md,.json" multiple>
                         <button class="panel-upload-btn" id="panelUploadBtn">
                             <span>+</span>
@@ -7412,8 +7413,8 @@
                     </div>
                 </div>
 
-                <!-- Q&A Training Section -->
-                <div class="left-panel-section" id="qaSection">
+                <!-- Q&A Training Section (HIDDEN - Admin only) -->
+                <div class="left-panel-section" id="qaSection" style="display:none">
                     <div class="left-panel-section-header" id="qaSectionHeader" style="cursor: pointer;">
                         <span class="left-panel-section-icon">💬</span>
                         <span class="left-panel-section-title">Q&A Training</span>
@@ -7422,9 +7423,7 @@
                     </div>
                     <div class="left-panel-section-content" id="qaSectionContent" style="display: none;">
                         <p class="section-hint">Teach your mindclone how to answer specific questions</p>
-                        <div class="qa-list" id="qaList">
-                            <!-- Q&A pairs will be listed here -->
-                        </div>
+                        <div class="qa-list" id="qaList"></div>
                         <button class="panel-upload-btn" id="addQaBtn">
                             <span>+</span>
                             <span>Add Q&A</span>
@@ -7432,8 +7431,8 @@
                     </div>
                 </div>
 
-                <!-- Teachings & Frameworks Section -->
-                <div class="left-panel-section" id="teachingsSection">
+                <!-- Teachings Section (HIDDEN - Admin only) -->
+                <div class="left-panel-section" id="teachingsSection" style="display:none">
                     <div class="left-panel-section-header" id="teachingsSectionHeader" style="cursor: pointer;">
                         <span class="left-panel-section-icon">🎯</span>
                         <span class="left-panel-section-title">Teachings</span>
@@ -7442,9 +7441,7 @@
                     </div>
                     <div class="left-panel-section-content" id="teachingsSectionContent" style="display: none;">
                         <p class="section-hint">Share your frameworks, philosophies, and key ideas</p>
-                        <div class="teachings-list" id="teachingsList">
-                            <!-- Teachings will be listed here -->
-                        </div>
+                        <div class="teachings-list" id="teachingsList"></div>
                         <button class="panel-upload-btn" id="addTeachingBtn">
                             <span>+</span>
                             <span>Add Teaching</span>
@@ -7452,8 +7449,8 @@
                     </div>
                 </div>
 
-                <!-- Personal Facts Section -->
-                <div class="left-panel-section" id="factsSection">
+                <!-- About Me Section (HIDDEN - Admin only) -->
+                <div class="left-panel-section" id="factsSection" style="display:none">
                     <div class="left-panel-section-header" id="factsSectionHeader" style="cursor: pointer;">
                         <span class="left-panel-section-icon">👤</span>
                         <span class="left-panel-section-title">About Me</span>
@@ -7462,9 +7459,7 @@
                     </div>
                     <div class="left-panel-section-content" id="factsSectionContent" style="display: none;">
                         <p class="section-hint">Facts about you that your mindclone should know</p>
-                        <div class="facts-list" id="factsList">
-                            <!-- Facts will be listed here -->
-                        </div>
+                        <div class="facts-list" id="factsList"></div>
                         <button class="panel-upload-btn" id="addFactBtn">
                             <span>+</span>
                             <span>Add Fact</span>
@@ -7731,24 +7726,29 @@
 
         <!-- Right Activity Panel -->
         <div class="right-activity-panel">
-            <!-- Panel Header - Settings & Analytics Tabs -->
+            <!-- Single Row Tabs: Live | Settings | Analytics (PRD v2 Section 13.3) -->
             <div class="panel-header-tabs" style="display:flex;border-bottom:1px solid #333">
-                <button id="rightPanelHeader" class="panel-header-tab" title="Open Settings" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 12px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;color:#fff;transition:all 0.2s;font-size:13px" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='none'">
+                <button id="liveTabBtn" class="panel-header-tab active" title="Live Activity" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:14px 8px;background:rgba(167,139,250,0.1);border:none;border-bottom:2px solid var(--accent);cursor:pointer;color:#fff;transition:all 0.2s;font-size:13px">
+                    <span>📡</span>
+                    <span>Live</span>
+                    <span class="tab-badge" id="activityBadge" style="background:var(--accent);color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;margin-left:4px"></span>
+                </button>
+                <button id="rightPanelHeader" class="panel-header-tab" title="Open Settings" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:14px 8px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;color:#fff;transition:all 0.2s;font-size:13px" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="if(!this.classList.contains('active'))this.style.background='none'">
                     <span>⚙️</span>
                     <span>Settings</span>
                 </button>
-                <button id="panelAnalyticsBtn" class="panel-header-tab" title="Open Analytics" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 12px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;color:#fff;transition:all 0.2s;font-size:13px" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='none'">
+                <button id="panelAnalyticsBtn" class="panel-header-tab" title="Open Analytics" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:14px 8px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;color:#fff;transition:all 0.2s;font-size:13px" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="if(!this.classList.contains('active'))this.style.background='none'">
                     <span>📊</span>
                     <span>Analytics</span>
                 </button>
             </div>
 
-            <!-- Tab Navigation - Only Activity/Live tab (Matching is purely conversational now) -->
-            <div class="panel-tabs">
+            <!-- Hidden old panel-tabs (keeping for backwards compatibility but not displayed) -->
+            <div class="panel-tabs" style="display:none">
                 <button class="panel-tab active" data-tab="activity">
                     <span class="tab-icon">📊</span>
                     <span class="tab-label">Live</span>
-                    <span class="tab-badge" id="activityBadge"></span>
+                    <span class="tab-badge" id="activityBadgeLegacy"></span>
                 </button>
             </div>
 
@@ -7782,7 +7782,7 @@
     </div>
     </div>
 
-    <!-- Panel Visibility - Only Activity/Live tab now (Matching is conversational) -->
+    <!-- Panel Visibility & Tab Management (PRD v2 Section 13.3) -->
     <script>
     (function() {
         // Clear any saved matching tab preference since it's removed
@@ -7790,8 +7790,13 @@
 
         const activityTab = document.getElementById('activityTab');
         const activityFeed = document.querySelector('.activity-feed');
+        const liveTabBtn = document.getElementById('liveTabBtn');
+        const settingsTabBtn = document.getElementById('rightPanelHeader');
+        const analyticsTabBtn = document.getElementById('panelAnalyticsBtn');
+        const settingsOverlay = document.getElementById('settingsOverlay');
+        const analyticsOverlay = document.getElementById('analyticsOverlay');
 
-        // Always show activity tab (only tab now)
+        // Always show activity tab (default tab)
         if (activityTab) {
             activityTab.style.cssText = 'display:flex!important;flex-direction:column!important;visibility:visible!important;';
             activityTab.classList.add('active');
@@ -7799,6 +7804,62 @@
         if (activityFeed) {
             activityFeed.style.cssText = 'display:flex!important;flex-direction:column!important;flex:1!important;';
         }
+
+        // Helper to reset all tabs to inactive state
+        function resetAllTabs() {
+            [liveTabBtn, settingsTabBtn, analyticsTabBtn].forEach(btn => {
+                if (btn) {
+                    btn.classList.remove('active');
+                    btn.style.background = 'none';
+                    btn.style.borderBottom = '2px solid transparent';
+                }
+            });
+        }
+
+        // Helper to set active tab
+        function setActiveTab(btn) {
+            resetAllTabs();
+            if (btn) {
+                btn.classList.add('active');
+                btn.style.background = 'rgba(167,139,250,0.1)';
+                btn.style.borderBottom = '2px solid var(--accent)';
+            }
+        }
+
+        // Live tab click - show activity, close overlays
+        if (liveTabBtn) {
+            liveTabBtn.addEventListener('click', function() {
+                setActiveTab(liveTabBtn);
+                // Close any open overlays
+                if (settingsOverlay) settingsOverlay.classList.add('hidden');
+                if (analyticsOverlay) analyticsOverlay.classList.add('hidden');
+                // Show activity feed
+                if (activityTab) activityTab.style.display = 'flex';
+            });
+        }
+
+        // When Settings overlay opens, highlight Settings tab
+        if (settingsTabBtn) {
+            const originalClick = settingsTabBtn.onclick;
+            settingsTabBtn.addEventListener('click', function() {
+                setActiveTab(settingsTabBtn);
+            });
+        }
+
+        // When Analytics overlay opens, highlight Analytics tab
+        if (analyticsTabBtn) {
+            analyticsTabBtn.addEventListener('click', function() {
+                setActiveTab(analyticsTabBtn);
+            });
+        }
+
+        // When overlays close, switch back to Live tab
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('panel-close-btn') ||
+                e.target.closest('.panel-close-btn')) {
+                setTimeout(() => setActiveTab(liveTabBtn), 100);
+            }
+        });
     })();
     </script>
 

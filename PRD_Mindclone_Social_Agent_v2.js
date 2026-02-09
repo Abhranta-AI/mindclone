@@ -369,6 +369,64 @@ const doc = new Document({
       para([bold("NO Category selection"), text(" - Intent extracted from natural language")], { numbering: { reference: "bullets", level: 0 } }),
       para([bold("NO Badge showing \"pending\""), text(" - Only show count of successful matches if any")], { numbering: { reference: "bullets", level: 0 } }),
 
+      // UI Simplification
+      new Paragraph({ children: [new PageBreak()] }),
+      h1("13. UI Simplification (NEW)"),
+      para([bold("The mindclone is the interface. The UI should be minimal and unobtrusive, letting the conversation be the primary experience.")]),
+      para(""),
+
+      h2("13.1 Core Principle: Chat-First Design"),
+      para("Users should feel like they're talking to a friend, not navigating an app. Every UI element that isn't the chat is a distraction from the core relationship."),
+      para(""),
+
+      h2("13.2 Left Panel: Hide Training Sections"),
+      para([bold("Problem: "), text("The left panel currently shows Knowledge Base, Q&A Training, Teachings, and About Me sections. These are admin/setup features that clutter the everyday experience.")]),
+      para(""),
+      para([bold("Solution: "), text("Hide these sections by default. The mindclone learns from conversation, not from users manually entering data.")]),
+      para(""),
+      createTable(
+        ["Section", "Current State", "New State", "Rationale"],
+        [
+          ["Knowledge Base", "Visible", "Hidden (Admin only)", "Mindclone learns from chat, not file uploads"],
+          ["Q&A Training", "Visible", "Hidden (Admin only)", "Rarely used; confuses new users"],
+          ["Teachings", "Visible", "Hidden (Admin only)", "Advanced feature; not needed for daily use"],
+          ["About Me", "Visible", "Hidden (Admin only)", "Profile auto-built from conversation"]
+        ],
+        [2000, 2000, 2500, 2860]
+      ),
+      para(""),
+      para([italic("These sections can be accessed via a Settings/Admin page for power users, but should not be visible in the main experience.")]),
+
+      h2("13.3 Right Panel: Consolidate to Single Row"),
+      para([bold("Problem: "), text("Right panel tabs (Settings, Analytics, Live) are stacked or inconsistently laid out. With only 2-3 tabs, they should be in a single horizontal row.")]),
+      para(""),
+      para([bold("Solution: "), text("Display remaining tabs in a clean horizontal row at the top of the right panel.")]),
+      para(""),
+      createTable(
+        ["Tab", "Keep/Remove", "Purpose"],
+        [
+          ["Live", "KEEP", "Shows mindclone activity and visitor interactions"],
+          ["Settings", "KEEP (minimal)", "Essential settings only: name, email, contact prefs"],
+          ["Analytics", "KEEP (simplified)", "Simple metrics: conversations, matches, visitors"]
+        ],
+        [2500, 2500, 4360]
+      ),
+      para(""),
+      para([bold("Layout: "), text("[ Live ] [ Settings ] [ Analytics ] - all in one row, evenly spaced")]),
+
+      h2("13.4 Overall UI Philosophy"),
+      para([bold("BEFORE (cluttered):"), text(" Tabs everywhere, forms for everything, separate panels for matching")], { numbering: { reference: "bullets", level: 0 } }),
+      para([bold("AFTER (minimal):"), text(" Chat is 80% of screen. Right panel shows activity. Left panel is clean.")], { numbering: { reference: "bullets", level: 0 } }),
+      para(""),
+      para([italic("The mindclone is your friend, philosopher, and guide. You don't fill out forms to talk to a friend - you just talk.")]),
+
+      h2("13.5 Implementation Steps"),
+      para("Hide left panel sections (KB, Q&A, Teachings, About Me) with CSS display:none or remove from DOM", { numbering: { reference: "numbers", level: 0 } }),
+      para("Consolidate right panel tabs into single horizontal row", { numbering: { reference: "numbers", level: 0 } }),
+      para("Remove any remaining matching-related UI elements", { numbering: { reference: "numbers", level: 0 } }),
+      para("Ensure chat area is the dominant visual element", { numbering: { reference: "numbers", level: 0 } }),
+      para("Test on mobile: chat should be full-screen, panels accessible via menu", { numbering: { reference: "numbers", level: 0 } }),
+
       // End
       para(""),
       para("--- END OF DOCUMENT ---", { alignment: AlignmentType.CENTER }),
