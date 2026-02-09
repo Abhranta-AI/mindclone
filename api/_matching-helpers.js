@@ -677,6 +677,58 @@ async function hasExistingMatch(userAId, userBId) {
   }
 }
 
+// ===================== NOTIFICATIONS =====================
+
+/**
+ * Create a notification for a user
+ */
+async function createMatchNotification(userId, type, data) {
+  try {
+    const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    const notification = {
+      notificationId,
+      type, // 'new_match', 'match_approved', 'mutual_match', 'match_message'
+      data,
+      read: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    await db.collection('users').doc(userId)
+      .collection('notifications').doc(notificationId).set(notification);
+
+    console.log(`[Matching] Created notification ${type} for user ${userId}`);
+    return notification;
+  } catch (error) {
+    console.error('[Matching] Error creating notification:', error);
+    return null;
+  }
+}
+
+/**
+ * Get unread notifications for a user
+ */
+async function getUnreadNotifications(userId, limit = 20) {
+  try {
+    const snapshot = await db.collection('users').doc(userId)
+      .collection('notifications')
+      .where('read', '==', false)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+
+    const notifications = [];
+    snapshot.forEach(doc => {
+      notifications.push({ id: doc.id, ...doc.data() });
+    });
+
+    return notifications;
+  } catch (error) {
+    console.error('[Matching] Error getting notifications:', error);
+    return [];
+  }
+}
+
 // ===================== EXPORTS =====================
 
 module.exports = {
@@ -715,5 +767,9 @@ module.exports = {
   getMatchingState,
   updateMatchingState,
   hasReachedDailyLimit,
-  hasExistingMatch
+  hasExistingMatch,
+
+  // Notifications
+  createMatchNotification,
+  getUnreadNotifications
 };

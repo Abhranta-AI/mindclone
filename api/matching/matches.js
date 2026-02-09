@@ -7,7 +7,8 @@ const {
   getMatch,
   handleMatchApproval,
   getMatchingProfile,
-  getConversation
+  getConversation,
+  createMatchNotification
 } = require('../_matching-helpers');
 
 // Initialize Firebase Admin SDK
@@ -62,18 +63,27 @@ async function getContactInfoForApprovedMatch(match, requestingUserId) {
   try {
     const otherUserId = match.userA_id === requestingUserId ? match.userB_id : match.userA_id;
 
+    // Get user data
+    const userDoc = await db.collection('users').doc(otherUserId).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+
     // Get link settings for contact info
     const linkSettingsDoc = await db.collection('users').doc(otherUserId)
       .collection('linkSettings').doc('config').get();
 
-    if (!linkSettingsDoc.exists) {
-      return null;
-    }
+    const settings = linkSettingsDoc.exists ? linkSettingsDoc.data() : {};
 
-    const settings = linkSettingsDoc.data();
+    // Get matching profile for display info
+    const profile = await getMatchingProfile(otherUserId);
+
     return {
-      email: settings.contactEmail || null,
-      whatsapp: settings.contactWhatsApp || null
+      displayName: settings.displayName || profile?.displayName || userData.displayName || 'Your match',
+      email: settings.contactEmail || userData.email || null,
+      whatsapp: settings.contactWhatsApp || settings.whatsappNumber || null,
+      preferredContact: settings.preferredContact || 'email',
+      bio: profile?.bio || settings.bio || null,
+      linkedIn: settings.linkedIn || null,
+      twitter: settings.twitter || null
     };
   } catch (error) {
     console.warn('[Matches] Could not get contact info:', error.message);
@@ -232,13 +242,37 @@ module.exports = async (req, res) => {
         return res.status(500).json({ error: result.error });
       }
 
-      // If mutual approval, get contact info
+      // If mutual approval, get contact info and create notifications
       let contactInfo = null;
       if (result.mutualApproval) {
         contactInfo = await getContactInfoForApprovedMatch(
           { ...match, status: 'approved' },
           userId
         );
+
+        // Get other user's contact info and profile for notification
+        const otherUserId = match.userA_id === userId ? match.userB_id : match.userA_id;
+        const otherContactInfo = await getContactInfoForApprovedMatch(
+          { ...match, status: 'approved' },
+          otherUserId
+        );
+
+        // Create notification for the other user
+        const myProfile = await getMatchingProfile(userId);
+        await createMatchNotification(otherUserId, 'mutual_match', {
+          matchId: match.id,
+          displayName: myProfile?.displayName || 'Someone',
+          message: `🎉 It's a match! ${myProfile?.displayName || 'Someone'} also wants to connect with you.`,
+          contactInfo: otherContactInfo
+        });
+
+        // Also notify the current user via a system message (handled in chat)
+        await createMatchNotification(userId, 'mutual_match', {
+          matchId: match.id,
+          displayName: contactInfo?.displayName || 'Your match',
+          message: `🎉 Mutual match! You can now connect with ${contactInfo?.displayName || 'your match'}.`,
+          contactInfo
+        });
       }
 
       return res.status(200).json({
