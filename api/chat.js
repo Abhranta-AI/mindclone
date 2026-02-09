@@ -716,6 +716,60 @@ const tools = [
           type: "object",
           properties: {}
         }
+      },
+      {
+        name: "find_people",
+        description: "Search for and find people to connect with based on user's natural language request. AUTOMATICALLY use this tool when the user says things like 'find me investors', 'I need a co-founder', 'looking for people who...', 'connect me with...', 'find someone for coffee', 'I want to meet...', etc. This is the conversational way to find matches - NO FORMS NEEDED. The mindclone will go out, search for compatible people, and initiate mindclone-to-mindclone conversations on the user's behalf.",
+        parameters: {
+          type: "object",
+          properties: {
+            intent: {
+              type: "string",
+              description: "The user's search request in natural language (e.g., 'find investors who understand AI', 'co-founder for payments startup', 'someone to grab coffee with who's into philosophy')"
+            },
+            urgency: {
+              type: "string",
+              enum: ["whenever", "soon", "now"],
+              description: "How urgently they need this connection: 'whenever' (no rush), 'soon' (within a few days), 'now' (as soon as possible)"
+            },
+            additionalContext: {
+              type: "string",
+              description: "Any additional context from the conversation that's relevant to the search (e.g., user's company stage, what they value in connections, deal-breakers)"
+            }
+          },
+          required: ["intent"]
+        }
+      },
+      {
+        name: "get_active_searches",
+        description: "Get the user's current active people searches and their status. Use when the user asks 'any matches yet?', 'how's the search going?', 'did you find anyone?', or wants to check on pending connections.",
+        parameters: {
+          type: "object",
+          properties: {}
+        }
+      },
+      {
+        name: "respond_to_match",
+        description: "Handle user's response to a potential match (approve, reject, or ask for more info). Use when user says 'yes connect me', 'let's connect', 'not interested', 'tell me more about them', etc.",
+        parameters: {
+          type: "object",
+          properties: {
+            matchId: {
+              type: "string",
+              description: "The ID of the match to respond to"
+            },
+            action: {
+              type: "string",
+              enum: ["approve", "reject", "more_info"],
+              description: "User's decision: approve (want to connect), reject (not interested), more_info (need more details)"
+            },
+            comment: {
+              type: "string",
+              description: "Optional comment from the user about why they're approving/rejecting"
+            }
+          },
+          required: ["matchId", "action"]
+        }
       }
     ]
   }
@@ -1147,6 +1201,700 @@ async function handleGetLinkBehavior(userId) {
     return result;
   } catch (error) {
     console.error('[Tool] Error getting link behavior:', error);
+    return { success: false, error: error?.message };
+  }
+}
+
+// ===================== CONVERSATIONAL MATCHING TOOLS =====================
+
+// Find people based on natural language intent
+async function handleFindPeople(userId, args) {
+  try {
+    const { intent, urgency = 'whenever', additionalContext = '' } = args;
+    console.log('[Tool] Find people request:', { userId, intent, urgency });
+
+    // Step 1: Extract search criteria from the natural language intent
+    const extractedCriteria = await extractSearchCriteria(intent, additionalContext);
+    console.log('[Tool] Extracted criteria:', extractedCriteria);
+
+    // Step 2: Load user's cognitive profile (or create from conversation history)
+    const cognitiveProfile = await loadOrBuildCognitiveProfile(userId);
+    console.log('[Tool] Loaded cognitive profile for user');
+
+    // Step 3: Create an active search record
+    const searchId = `search_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const searchData = {
+      searchId,
+      userId,
+      intent,
+      extractedCriteria,
+      additionalContext,
+      urgency,
+      status: 'searching',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      matches: [],
+      cognitiveProfileSnapshot: cognitiveProfile
+    };
+
+    await db.collection('users').doc(userId)
+      .collection('activeSearches').doc(searchId).set(searchData);
+
+    // Step 4: Find potential matches based on criteria
+    const potentialMatches = await findPotentialMatches(userId, extractedCriteria, cognitiveProfile);
+    console.log('[Tool] Found potential matches:', potentialMatches.length);
+
+    // Step 5: If matches found, initiate M2M conversations
+    const initiatedConversations = [];
+    for (const match of potentialMatches.slice(0, 3)) { // Limit to 3 at a time
+      try {
+        const conversationResult = await initiateM2MConversation(userId, match.userId, searchId, extractedCriteria);
+        if (conversationResult.success) {
+          initiatedConversations.push({
+            matchUserId: match.userId,
+            displayName: match.displayName,
+            compatibilityScore: match.score,
+            conversationId: conversationResult.conversationId
+          });
+        }
+      } catch (convError) {
+        console.error('[Tool] Error initiating M2M conversation:', convError);
+      }
+    }
+
+    // Step 6: Update search status
+    await db.collection('users').doc(userId)
+      .collection('activeSearches').doc(searchId).update({
+        status: potentialMatches.length > 0 ? 'conversations_initiated' : 'no_matches_yet',
+        matchesFound: potentialMatches.length,
+        conversationsInitiated: initiatedConversations.length,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+    // Return response for the mindclone to communicate to user
+    if (initiatedConversations.length > 0) {
+      return {
+        success: true,
+        searchId,
+        status: 'searching',
+        message: `Great! I'm on it. I found ${potentialMatches.length} potential ${extractedCriteria.lookingFor || 'people'} and I'm starting conversations with ${initiatedConversations.length} of them. I'll report back once I've had a chance to chat with their mindclones and see who might be a good fit for you.`,
+        extractedCriteria,
+        potentialMatchCount: potentialMatches.length,
+        conversationsInitiated: initiatedConversations.length,
+        matches: initiatedConversations.map(m => ({
+          displayName: m.displayName,
+          score: m.compatibilityScore
+        }))
+      };
+    } else {
+      return {
+        success: true,
+        searchId,
+        status: 'no_matches_yet',
+        message: `I searched for ${extractedCriteria.lookingFor || 'matches'} but haven't found anyone matching your criteria yet. I'll keep looking and let you know as soon as I find someone. In the meantime, you could try broadening your criteria or adding more context about what you're looking for.`,
+        extractedCriteria,
+        potentialMatchCount: 0
+      };
+    }
+  } catch (error) {
+    console.error('[Tool] Error in findPeople:', error);
+    return {
+      success: false,
+      error: error?.message || 'Failed to search for people',
+      message: `I ran into an issue while searching. Let me try again in a moment. Error: ${error?.message}`
+    };
+  }
+}
+
+// Extract search criteria from natural language
+async function extractSearchCriteria(intent, additionalContext) {
+  // Parse the intent to extract structured criteria
+  const criteria = {
+    lookingFor: null,
+    role: null,
+    industry: null,
+    stage: null,
+    qualities: [],
+    dealBreakers: [],
+    purpose: null
+  };
+
+  const intentLower = intent.toLowerCase();
+
+  // Detect what they're looking for
+  if (intentLower.includes('investor') || intentLower.includes('funding') || intentLower.includes('invest')) {
+    criteria.lookingFor = 'investor';
+    criteria.purpose = 'fundraising';
+  } else if (intentLower.includes('co-founder') || intentLower.includes('cofounder')) {
+    criteria.lookingFor = 'co-founder';
+    criteria.purpose = 'co-founding';
+  } else if (intentLower.includes('founder') && !intentLower.includes('co-')) {
+    criteria.lookingFor = 'founder';
+    criteria.purpose = 'networking';
+  } else if (intentLower.includes('hire') || intentLower.includes('developer') || intentLower.includes('designer') || intentLower.includes('engineer')) {
+    criteria.lookingFor = 'talent';
+    criteria.purpose = 'hiring';
+  } else if (intentLower.includes('mentor') || intentLower.includes('advisor')) {
+    criteria.lookingFor = 'mentor';
+    criteria.purpose = 'mentorship';
+  } else if (intentLower.includes('date') || intentLower.includes('dating') || intentLower.includes('relationship')) {
+    criteria.lookingFor = 'date';
+    criteria.purpose = 'dating';
+  } else if (intentLower.includes('coffee') || intentLower.includes('chat') || intentLower.includes('talk')) {
+    criteria.lookingFor = 'connection';
+    criteria.purpose = 'casual_networking';
+  } else {
+    criteria.lookingFor = 'connection';
+    criteria.purpose = 'networking';
+  }
+
+  // Detect industry/domain
+  const industries = ['ai', 'fintech', 'healthtech', 'edtech', 'saas', 'e-commerce', 'crypto', 'web3', 'payments', 'consumer', 'enterprise', 'b2b', 'b2c'];
+  for (const ind of industries) {
+    if (intentLower.includes(ind)) {
+      criteria.industry = ind;
+      break;
+    }
+  }
+
+  // Detect stage
+  if (intentLower.includes('pre-seed') || intentLower.includes('preseed')) {
+    criteria.stage = 'pre-seed';
+  } else if (intentLower.includes('seed')) {
+    criteria.stage = 'seed';
+  } else if (intentLower.includes('series a')) {
+    criteria.stage = 'series-a';
+  } else if (intentLower.includes('early')) {
+    criteria.stage = 'early-stage';
+  } else if (intentLower.includes('growth') || intentLower.includes('late')) {
+    criteria.stage = 'growth';
+  }
+
+  // Extract qualities from the intent
+  const qualityPatterns = [
+    { pattern: /who (understand|get|know)s? (.+?)(?:\.|,|and|$)/i, extract: 2 },
+    { pattern: /comfortable with (.+?)(?:\.|,|and|$)/i, extract: 1 },
+    { pattern: /experience in (.+?)(?:\.|,|and|$)/i, extract: 1 },
+    { pattern: /interested in (.+?)(?:\.|,|and|$)/i, extract: 1 },
+    { pattern: /into (.+?)(?:\.|,|and|$)/i, extract: 1 }
+  ];
+
+  for (const qp of qualityPatterns) {
+    const match = intent.match(qp.pattern);
+    if (match && match[qp.extract]) {
+      criteria.qualities.push(match[qp.extract].trim());
+    }
+  }
+
+  // Add context-based qualities
+  if (additionalContext) {
+    criteria.additionalContext = additionalContext;
+  }
+
+  return criteria;
+}
+
+// Load or build cognitive profile from conversation history
+async function loadOrBuildCognitiveProfile(userId) {
+  try {
+    // First try to load existing cognitive profile
+    const profileDoc = await db.collection('users').doc(userId)
+      .collection('cognitiveProfile').doc('current').get();
+
+    if (profileDoc.exists) {
+      const profile = profileDoc.data();
+      // Check if profile is recent (within last 24 hours)
+      const lastUpdated = profile.updatedAt?.toDate?.() || new Date(0);
+      const hoursSinceUpdate = (Date.now() - lastUpdated.getTime()) / (1000 * 60 * 60);
+
+      if (hoursSinceUpdate < 24) {
+        console.log('[Tool] Using existing cognitive profile');
+        return profile;
+      }
+    }
+
+    // Build profile from various sources
+    console.log('[Tool] Building cognitive profile from sources');
+
+    // Get user data
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+
+    // Get link settings
+    const linkSettingsDoc = await db.collection('users').doc(userId)
+      .collection('linkSettings').doc('config').get();
+    const linkSettings = linkSettingsDoc.exists ? linkSettingsDoc.data() : {};
+
+    // Get mental model
+    const mentalModelDoc = await db.collection('users').doc(userId)
+      .collection('mentalModel').doc('current').get();
+    const mentalModel = mentalModelDoc.exists ? mentalModelDoc.data() : {};
+
+    // Get training data (facts about user)
+    const trainingSnapshot = await db.collection('users').doc(userId)
+      .collection('training').where('type', '==', 'fact').limit(50).get();
+    const facts = [];
+    trainingSnapshot.forEach(doc => facts.push(doc.data()));
+
+    // Get KB config for professional context
+    const kbConfigDoc = await db.collection('users').doc(userId)
+      .collection('linkKnowledgeBase').doc('config').get();
+    const kbConfig = kbConfigDoc.exists ? kbConfigDoc.data() : {};
+
+    // Build the cognitive profile
+    const cognitiveProfile = {
+      identity: {
+        displayName: linkSettings.displayName || userData.displayName || 'Anonymous',
+        mindcloneName: linkSettings.mindcloneName || null,
+        bio: linkSettings.bio || '',
+        role: extractRole(facts, kbConfig),
+        company: extractCompany(facts, kbConfig),
+        background: extractBackground(facts)
+      },
+      drives: {
+        goals: mentalModel.goals || [],
+        motivations: extractMotivations(mentalModel, facts)
+      },
+      values: {
+        beliefs: mentalModel.beliefs || [],
+        priorities: extractPriorities(mentalModel, facts)
+      },
+      currentNeeds: {
+        lookingFor: extractCurrentNeeds(mentalModel),
+        openTo: kbConfig.desiredActions || []
+      },
+      networkingStyle: {
+        communicationPreferences: extractCommunicationStyle(linkSettings),
+        contactPreferences: {
+          email: userData.email,
+          whatsapp: linkSettings.whatsappNumber || null
+        }
+      },
+      professional: {
+        industry: kbConfig.industry || extractIndustry(facts),
+        stage: kbConfig.stage || null,
+        expertise: kbConfig.expertise || []
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Save the profile
+    await db.collection('users').doc(userId)
+      .collection('cognitiveProfile').doc('current').set(cognitiveProfile);
+
+    return cognitiveProfile;
+  } catch (error) {
+    console.error('[Tool] Error building cognitive profile:', error);
+    // Return minimal profile
+    return {
+      identity: { displayName: 'User' },
+      drives: { goals: [], motivations: [] },
+      values: { beliefs: [], priorities: [] },
+      currentNeeds: { lookingFor: [], openTo: [] },
+      networkingStyle: {},
+      professional: {}
+    };
+  }
+}
+
+// Helper functions for cognitive profile extraction
+function extractRole(facts, kbConfig) {
+  const roleFact = facts.find(f => f.category === 'role' || f.content?.toLowerCase().includes('founder') || f.content?.toLowerCase().includes('ceo'));
+  if (roleFact) return roleFact.content;
+  if (kbConfig.ownerRole) return kbConfig.ownerRole;
+  return null;
+}
+
+function extractCompany(facts, kbConfig) {
+  const companyFact = facts.find(f => f.category === 'company' || f.category === 'work');
+  if (companyFact) return companyFact.content;
+  if (kbConfig.companyName) return kbConfig.companyName;
+  return null;
+}
+
+function extractBackground(facts) {
+  const backgroundFacts = facts.filter(f => f.category === 'background' || f.category === 'experience');
+  return backgroundFacts.map(f => f.content);
+}
+
+function extractMotivations(mentalModel, facts) {
+  const motivations = [];
+  if (mentalModel.goals) {
+    motivations.push(...mentalModel.goals.filter(g => g.priority === 'high').map(g => g.content));
+  }
+  return motivations;
+}
+
+function extractPriorities(mentalModel, facts) {
+  const priorities = [];
+  if (mentalModel.beliefs) {
+    priorities.push(...mentalModel.beliefs.filter(b => b.confidence > 0.7).map(b => b.content));
+  }
+  return priorities;
+}
+
+function extractCurrentNeeds(mentalModel) {
+  if (mentalModel.goals) {
+    return mentalModel.goals.filter(g => g.status === 'active').map(g => g.content);
+  }
+  return [];
+}
+
+function extractCommunicationStyle(linkSettings) {
+  return {
+    formality: linkSettings.linkBehaviorInstructions?.includes('formal') ? 'formal' : 'casual',
+    topicFocus: linkSettings.linkTopicFocus || null
+  };
+}
+
+function extractIndustry(facts) {
+  const industryFact = facts.find(f => f.category === 'industry' || f.category === 'sector');
+  return industryFact?.content || null;
+}
+
+// Find potential matches based on criteria
+async function findPotentialMatches(userId, criteria, userProfile) {
+  try {
+    const matches = [];
+
+    // Query matching profiles based on criteria
+    let query = db.collection('matchingProfiles')
+      .where('isActive', '==', true);
+
+    // Get all active profiles (we'll filter in memory for flexibility)
+    const snapshot = await query.limit(100).get();
+
+    for (const doc of snapshot.docs) {
+      // Skip self
+      if (doc.id === userId) continue;
+
+      const profile = doc.data();
+
+      // Calculate compatibility score
+      const score = calculateQuickCompatibility(criteria, userProfile, profile);
+
+      if (score >= 50) { // Lower threshold for initial matches
+        matches.push({
+          userId: doc.id,
+          displayName: profile.displayName || 'Anonymous',
+          bio: profile.bio || '',
+          score,
+          matchReason: generateMatchReason(criteria, profile)
+        });
+      }
+    }
+
+    // Sort by score descending
+    matches.sort((a, b) => b.score - a.score);
+
+    return matches;
+  } catch (error) {
+    console.error('[Tool] Error finding matches:', error);
+    return [];
+  }
+}
+
+// Quick compatibility calculation
+function calculateQuickCompatibility(criteria, userProfile, candidateProfile) {
+  let score = 50; // Base score
+
+  // Industry match
+  if (criteria.industry && candidateProfile.industry === criteria.industry) {
+    score += 20;
+  }
+
+  // Role match (e.g., looking for investor, candidate is investor)
+  if (criteria.lookingFor === 'investor' && candidateProfile.goals?.investing) {
+    score += 25;
+  }
+  if (criteria.lookingFor === 'founder' && candidateProfile.goals?.networking) {
+    score += 15;
+  }
+  if (criteria.lookingFor === 'co-founder' && candidateProfile.goals?.hiring) {
+    score += 20;
+  }
+
+  // Stage match
+  if (criteria.stage && candidateProfile.profiles?.investing?.preferredStage === criteria.stage) {
+    score += 15;
+  }
+
+  // Bio keyword matching
+  if (candidateProfile.bio && criteria.qualities.length > 0) {
+    const bioLower = candidateProfile.bio.toLowerCase();
+    for (const quality of criteria.qualities) {
+      if (bioLower.includes(quality.toLowerCase())) {
+        score += 10;
+      }
+    }
+  }
+
+  return Math.min(score, 100);
+}
+
+// Generate human-readable match reason
+function generateMatchReason(criteria, profile) {
+  const reasons = [];
+
+  if (criteria.lookingFor === 'investor' && profile.goals?.investing) {
+    reasons.push('is an active investor');
+  }
+  if (profile.profiles?.investing?.investmentFocus) {
+    reasons.push(`focuses on ${profile.profiles.investing.investmentFocus}`);
+  }
+  if (profile.bio) {
+    reasons.push(`has relevant background`);
+  }
+
+  return reasons.length > 0 ? reasons.join(', ') : 'matches your criteria';
+}
+
+// Initiate M2M conversation
+async function initiateM2MConversation(userAId, userBId, searchId, criteria) {
+  try {
+    const conversationId = `m2m_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Create conversation record
+    const conversationData = {
+      conversationId,
+      userA_id: userAId,
+      userB_id: userBId,
+      searchId,
+      criteria,
+      status: 'initiated',
+      currentRound: 0,
+      messages: [],
+      state: {
+        phase: 'discovery',
+        topicsExplored: [],
+        questionsAsked: []
+      },
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    await db.collection('matchingConversations').doc(conversationId).set(conversationData);
+
+    // Also create a match record
+    const matchId = `match_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    await db.collection('matches').doc(matchId).set({
+      matchId,
+      userA_id: userAId,
+      userB_id: userBId,
+      conversationId,
+      searchId,
+      status: 'active',
+      human_approval: {
+        userA_approved: null,
+        userB_approved: null
+      },
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log('[Tool] M2M conversation initiated:', conversationId);
+
+    return {
+      success: true,
+      conversationId,
+      matchId
+    };
+  } catch (error) {
+    console.error('[Tool] Error initiating M2M conversation:', error);
+    return { success: false, error: error?.message };
+  }
+}
+
+// Get user's active searches
+async function handleGetActiveSearches(userId) {
+  try {
+    const searchesSnapshot = await db.collection('users').doc(userId)
+      .collection('activeSearches')
+      .orderBy('createdAt', 'desc')
+      .limit(10)
+      .get();
+
+    const searches = [];
+    for (const doc of searchesSnapshot.docs) {
+      const search = doc.data();
+
+      // Get associated matches
+      const matchesSnapshot = await db.collection('matches')
+        .where('searchId', '==', search.searchId)
+        .get();
+
+      const matches = [];
+      for (const matchDoc of matchesSnapshot.docs) {
+        const match = matchDoc.data();
+
+        // Get conversation status
+        if (match.conversationId) {
+          const convDoc = await db.collection('matchingConversations').doc(match.conversationId).get();
+          if (convDoc.exists) {
+            const conv = convDoc.data();
+            match.conversationStatus = conv.status;
+            match.conversationRound = conv.currentRound;
+          }
+        }
+
+        // Get other user's display name
+        const otherUserId = match.userA_id === userId ? match.userB_id : match.userA_id;
+        const otherProfileDoc = await db.collection('matchingProfiles').doc(otherUserId).get();
+        if (otherProfileDoc.exists) {
+          match.otherUserDisplayName = otherProfileDoc.data().displayName || 'Someone';
+        }
+
+        matches.push(match);
+      }
+
+      searches.push({
+        searchId: search.searchId,
+        intent: search.intent,
+        status: search.status,
+        createdAt: search.createdAt?.toDate?.()?.toISOString() || null,
+        matchCount: matches.length,
+        matches: matches.map(m => ({
+          matchId: m.matchId,
+          displayName: m.otherUserDisplayName,
+          status: m.status,
+          conversationStatus: m.conversationStatus,
+          conversationRound: m.conversationRound,
+          userApproved: m.human_approval?.userA_approved ?? m.human_approval?.userB_approved,
+          otherApproved: userId === m.userA_id ? m.human_approval?.userB_approved : m.human_approval?.userA_approved
+        }))
+      });
+    }
+
+    if (searches.length === 0) {
+      return {
+        success: true,
+        hasSearches: false,
+        message: "You don't have any active searches. Just tell me who you're looking to connect with, and I'll go find them for you!"
+      };
+    }
+
+    return {
+      success: true,
+      hasSearches: true,
+      searches,
+      summary: `You have ${searches.length} active search(es). ${searches.reduce((sum, s) => sum + s.matchCount, 0)} potential matches found.`
+    };
+  } catch (error) {
+    console.error('[Tool] Error getting active searches:', error);
+    return { success: false, error: error?.message };
+  }
+}
+
+// Handle user's response to a match
+async function handleRespondToMatch(userId, args) {
+  try {
+    const { matchId, action, comment } = args;
+    console.log('[Tool] Match response:', { userId, matchId, action });
+
+    // Get the match
+    const matchDoc = await db.collection('matches').doc(matchId).get();
+    if (!matchDoc.exists) {
+      return { success: false, error: 'Match not found' };
+    }
+
+    const match = matchDoc.data();
+
+    // Determine which user this is
+    const isUserA = match.userA_id === userId;
+    const approvalField = isUserA ? 'userA_approved' : 'userB_approved';
+    const commentField = isUserA ? 'userA_comment' : 'userB_comment';
+
+    if (action === 'approve') {
+      // Update approval
+      await db.collection('matches').doc(matchId).update({
+        [`human_approval.${approvalField}`]: true,
+        [`human_approval.${commentField}`]: comment || null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Check if both approved
+      const otherApprovalField = isUserA ? 'userB_approved' : 'userA_approved';
+      const otherApproved = match.human_approval?.[otherApprovalField];
+
+      if (otherApproved === true) {
+        // Mutual match! Reveal contact info
+        await db.collection('matches').doc(matchId).update({
+          status: 'approved'
+        });
+
+        // Get other user's contact info
+        const otherUserId = isUserA ? match.userB_id : match.userA_id;
+        const otherUserDoc = await db.collection('users').doc(otherUserId).get();
+        const otherLinkSettings = await db.collection('users').doc(otherUserId)
+          .collection('linkSettings').doc('config').get();
+
+        const otherUserData = otherUserDoc.data() || {};
+        const otherSettings = otherLinkSettings.data() || {};
+
+        return {
+          success: true,
+          mutualMatch: true,
+          message: "It's a match! They also want to connect with you. Here's how you can reach them:",
+          contact: {
+            displayName: otherSettings.displayName || otherUserData.displayName || 'Your match',
+            email: otherUserData.email,
+            whatsapp: otherSettings.whatsappNumber || null,
+            preferredContact: otherSettings.preferredContact || 'email'
+          }
+        };
+      } else {
+        return {
+          success: true,
+          mutualMatch: false,
+          message: "Great! I've recorded your interest. I'll let you know as soon as they respond. In the meantime, their mindclone and I are still chatting to help them understand if you're a good fit for them too."
+        };
+      }
+    } else if (action === 'reject') {
+      await db.collection('matches').doc(matchId).update({
+        [`human_approval.${approvalField}`]: false,
+        [`human_approval.${commentField}`]: comment || null,
+        status: 'rejected',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      return {
+        success: true,
+        message: "No problem! I'll keep looking for better matches. If you want to give me more context about what you're looking for, that would help me find better fits."
+      };
+    } else if (action === 'more_info') {
+      // Get more details about the match
+      const otherUserId = isUserA ? match.userB_id : match.userA_id;
+
+      // Get their profile
+      const otherProfileDoc = await db.collection('matchingProfiles').doc(otherUserId).get();
+      const otherProfile = otherProfileDoc.data() || {};
+
+      // Get conversation summary
+      let conversationSummary = null;
+      if (match.conversationId) {
+        const convDoc = await db.collection('matchingConversations').doc(match.conversationId).get();
+        if (convDoc.exists) {
+          const conv = convDoc.data();
+          conversationSummary = {
+            roundsCompleted: conv.currentRound,
+            topicsDiscussed: conv.state?.topicsExplored || [],
+            lastMessages: conv.messages?.slice(-4) || []
+          };
+        }
+      }
+
+      return {
+        success: true,
+        profile: {
+          displayName: otherProfile.displayName,
+          bio: otherProfile.bio,
+          goals: Object.keys(otherProfile.goals || {}).filter(g => otherProfile.goals[g])
+        },
+        conversationSummary,
+        message: "Here's what I know about them from our conversation..."
+      };
+    }
+
+    return { success: false, error: 'Invalid action' };
+  } catch (error) {
+    console.error('[Tool] Error responding to match:', error);
     return { success: false, error: error?.message };
   }
 }
@@ -2378,6 +3126,12 @@ async function executeTool(toolName, toolArgs, userId, context = 'private', visi
       return await handleUpdateLinkBehavior(userId, toolArgs);
     case 'get_link_behavior':
       return await handleGetLinkBehavior(userId);
+    case 'find_people':
+      return await handleFindPeople(userId, toolArgs);
+    case 'get_active_searches':
+      return await handleGetActiveSearches(userId);
+    case 'respond_to_match':
+      return await handleRespondToMatch(userId, toolArgs);
     default:
       return { success: false, error: `Unknown tool: ${toolName}` };
   }
@@ -2910,6 +3664,27 @@ STYLE:
         enhancedPrompt += '- Only form new beliefs after 3+ meaningful discussions on a topic\n';
         enhancedPrompt += '- Use hedging: "I think...", "My sense is...", "I tend to believe..." based on confidence\n';
         enhancedPrompt += '- NEVER tell the user you are "checking your beliefs" - just express them naturally\n';
+      }
+
+      // Add Social Agent capability for private context
+      if (context === 'private') {
+        enhancedPrompt += '\n\n## YOUR SOCIAL AGENT CAPABILITY:\n';
+        enhancedPrompt += 'You are not just a conversational companion - you are also a SOCIAL AGENT that can network on behalf of your human.\n\n';
+        enhancedPrompt += 'WHEN TO USE find_people TOOL:\n';
+        enhancedPrompt += '- User says "find me...", "I need to connect with...", "looking for...", "can you find..."\n';
+        enhancedPrompt += '- User wants investors, co-founders, mentors, talent, dates, or any connections\n';
+        enhancedPrompt += '- User expresses loneliness or desire for connection\n';
+        enhancedPrompt += '- User mentions networking goals\n\n';
+        enhancedPrompt += 'HOW TO RESPOND TO FIND REQUESTS:\n';
+        enhancedPrompt += '1. CONFIRM understanding: "Let me make sure I understand - you\'re looking for [X] who [qualities]..."\n';
+        enhancedPrompt += '2. ADD CONTEXT you know: "I know from our conversations that you value [X] and are building [Y]..."\n';
+        enhancedPrompt += '3. USE find_people tool with full context\n';
+        enhancedPrompt += '4. REPORT BACK naturally: "I\'m on it! Let me go talk to some mindclones and find you good matches."\n\n';
+        enhancedPrompt += 'NEVER ask users to fill out forms. You already know them from conversations - use that knowledge!\n\n';
+        enhancedPrompt += 'WHEN REPORTING MATCHES:\n';
+        enhancedPrompt += '- Summarize who you found and why they might be a good fit\n';
+        enhancedPrompt += '- Let user approve/reject from within the conversation\n';
+        enhancedPrompt += '- If they want more info, share what you learned from the M2M conversation\n';
       }
 
       // Add knowledge base content if available

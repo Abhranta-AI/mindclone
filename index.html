@@ -7833,20 +7833,76 @@
                 <div class="panel-tab-content" id="matchingTab" style="display:none;color:#fff;overflow-y:auto;position:absolute;top:0;left:0;right:0;bottom:0;background:#1a1a1e;z-index:100">
                 <div class="matching-scroll-container" style="padding:8px 16px 16px 16px">
 
-                    <!-- YOUR MATCHES - Now at top! -->
-                    <div id="matchesList" style="display:none;flex-direction:column;gap:10px;margin-bottom:8px">
-                        <!-- Match cards will be inserted here -->
-                    </div>
-                    <div id="matchesEmpty" style="color:#666;font-size:13px;margin-bottom:8px">
-                        No matches yet
+                    <!-- CONVERSATIONAL MATCHING INTRO -->
+                    <div style="background:linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);border-radius:12px;padding:20px;margin-bottom:16px;text-align:center">
+                        <div style="font-size:32px;margin-bottom:8px">🔮</div>
+                        <h3 style="color:#fff;font-size:16px;font-weight:600;margin:0 0 8px 0">Your Social Agent</h3>
+                        <p style="color:rgba(255,255,255,0.9);font-size:13px;margin:0;line-height:1.5">
+                            Just tell your mindclone who you want to meet. No forms needed - they already know you!
+                        </p>
                     </div>
 
-                    <!-- MATCHING SETTINGS -->
+                    <!-- QUICK ACTIONS -->
+                    <div style="margin-bottom:16px">
+                        <h4 style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 10px 0">Quick Actions</h4>
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                            <button onclick="sendMatchingRequest('Find me investors who understand AI and are comfortable with early-stage startups')" style="background:#2a2a2e;border:1px solid #444;border-radius:8px;padding:12px;color:#fff;cursor:pointer;text-align:left;transition:all 0.2s">
+                                <span style="font-size:16px;margin-right:8px">💰</span>
+                                <span style="font-size:14px">Find investors for my startup</span>
+                            </button>
+                            <button onclick="sendMatchingRequest('Find me potential co-founders who complement my skills')" style="background:#2a2a2e;border:1px solid #444;border-radius:8px;padding:12px;color:#fff;cursor:pointer;text-align:left;transition:all 0.2s">
+                                <span style="font-size:16px;margin-right:8px">🤝</span>
+                                <span style="font-size:14px">Find a co-founder</span>
+                            </button>
+                            <button onclick="sendMatchingRequest('Find me people to network with in my industry')" style="background:#2a2a2e;border:1px solid #444;border-radius:8px;padding:12px;color:#fff;cursor:pointer;text-align:left;transition:all 0.2s">
+                                <span style="font-size:16px;margin-right:8px">🌐</span>
+                                <span style="font-size:14px">Expand my network</span>
+                            </button>
+                            <button onclick="sendMatchingRequest('Find me someone interesting to grab coffee with')" style="background:#2a2a2e;border:1px solid #444;border-radius:8px;padding:12px;color:#fff;cursor:pointer;text-align:left;transition:all 0.2s">
+                                <span style="font-size:16px;margin-right:8px">☕</span>
+                                <span style="font-size:14px">Find coffee buddy</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ACTIVE SEARCHES -->
+                    <div id="activeSearchesSection" style="margin-bottom:16px;display:none">
+                        <h4 style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 10px 0">Active Searches</h4>
+                        <div id="activeSearchesList" style="display:flex;flex-direction:column;gap:8px">
+                            <!-- Active searches will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- YOUR MATCHES -->
+                    <div id="matchesSectionNew" style="margin-bottom:16px">
+                        <h4 style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 10px 0">Pending Matches</h4>
+                        <div id="matchesListNew" style="display:flex;flex-direction:column;gap:8px">
+                            <!-- Match cards will be inserted here -->
+                        </div>
+                        <div id="matchesEmptyNew" style="color:#666;font-size:13px;text-align:center;padding:20px;background:#2a2a2e;border-radius:8px">
+                            <div style="font-size:24px;margin-bottom:8px">🔍</div>
+                            No pending matches yet. Ask your mindclone to find people for you!
+                        </div>
+                    </div>
+
+                    <!-- OR TYPE YOUR OWN -->
+                    <div style="background:#2a2a2e;border-radius:12px;padding:16px">
+                        <h4 style="color:#fff;font-size:14px;margin:0 0 12px 0">Or describe who you're looking for...</h4>
+                        <div style="display:flex;gap:8px">
+                            <input type="text" id="customMatchRequest" placeholder="e.g., 'Find me a mentor in AI who has built B2B products'" style="flex:1;background:#1a1a1a;border:1px solid #444;border-radius:8px;padding:12px;color:#fff;font-size:14px">
+                            <button onclick="sendCustomMatchRequest()" style="background:#8b5cf6;border:none;border-radius:8px;padding:12px 20px;color:#fff;cursor:pointer;font-size:14px;font-weight:500">
+                                🔮 Find
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- LEGACY MATCHING SETTINGS (hidden by default) -->
+                    <div id="legacyMatchingSettings" style="display:none;margin-top:16px">
                     <div style="background:#2a2a2e;border-radius:12px;padding:0;margin:0">
                         <div id="matchingSettingsHeader" onclick="toggleMatchingSettings()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:12px;background:#1a1a1a;border-radius:8px;border:1px solid #333">
                             <div>
-                                <h4 style="color:#fff;font-size:14px;font-weight:600;margin:0">⚙️ Matching Goals</h4>
-                                <p style="color:#666;font-size:12px;margin:4px 0 0 0">Configure what you're looking for</p>
+                                <h4 style="color:#fff;font-size:14px;font-weight:600;margin:0">⚙️ Advanced Settings</h4>
+                                <p style="color:#666;font-size:12px;margin:4px 0 0 0">Legacy profile configuration</p>
                             </div>
                             <div style="display:flex;align-items:center;gap:8px">
                                 <div id="matchingActiveStatus" style="display:none;color:#22c55e;font-size:12px;display:flex;align-items:center;gap:4px">
@@ -8004,9 +8060,11 @@
                             </div>
                         </div>
                     </div>
+                    </div> <!-- Close legacyMatchingSettings -->
                 </div>
             </div>
         </div>
+    </div>
     </div>
 
     <!-- IMMEDIATE Tab Visibility Fix -->
@@ -15448,6 +15506,182 @@ Is there anything else you'd like to configure?`;
                 chevron.style.transform = 'rotate(-90deg)';
             }
         }
+
+        // ==================== CONVERSATIONAL MATCHING ====================
+
+        // Send a pre-defined matching request to the mindclone
+        window.sendMatchingRequest = function(request) {
+            console.log('[Matching] Sending request:', request);
+
+            // Switch to the main chat
+            const chatInput = document.getElementById('userInput');
+            if (chatInput) {
+                chatInput.value = request;
+                // Trigger the send
+                const sendBtn = document.querySelector('.send-btn, #sendBtn');
+                if (sendBtn) {
+                    sendBtn.click();
+                } else {
+                    // Fallback: dispatch enter key
+                    const event = new KeyboardEvent('keydown', {
+                        key: 'Enter',
+                        keyCode: 13,
+                        bubbles: true
+                    });
+                    chatInput.dispatchEvent(event);
+                }
+            }
+
+            // Switch to the LIVE tab so user can see the conversation
+            switchPanelTab('activity');
+
+            // Show a toast
+            showPanelAlert('Sending request to your mindclone...', 'info');
+        };
+
+        // Send custom matching request
+        window.sendCustomMatchRequest = function() {
+            const input = document.getElementById('customMatchRequest');
+            if (input && input.value.trim()) {
+                sendMatchingRequest(input.value.trim());
+                input.value = '';
+            }
+        };
+
+        // Load and display active searches
+        async function loadActiveSearches() {
+            try {
+                if (!auth.currentUser) return;
+
+                const idToken = await auth.currentUser.getIdToken();
+                const response = await fetch('/api/matching/active-searches', {
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+                const data = await response.json();
+
+                const section = document.getElementById('activeSearchesSection');
+                const list = document.getElementById('activeSearchesList');
+
+                if (data.success && data.searches && data.searches.length > 0) {
+                    section.style.display = 'block';
+                    list.innerHTML = data.searches.map(search => `
+                        <div style="background:#2a2a2e;border-radius:8px;padding:12px;border-left:3px solid ${search.status === 'searching' ? '#8b5cf6' : '#22c55e'}">
+                            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+                                <div style="font-size:13px;color:#fff;flex:1">${search.intent}</div>
+                                <span style="font-size:11px;background:${search.status === 'searching' ? '#8b5cf6' : '#22c55e'};color:#fff;padding:2px 8px;border-radius:4px">${search.status}</span>
+                            </div>
+                            <div style="font-size:12px;color:#888">${search.matchCount} potential matches</div>
+                        </div>
+                    `).join('');
+                } else {
+                    section.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('[Matching] Error loading active searches:', error);
+            }
+        }
+
+        // Load and display pending matches (new conversational format)
+        async function loadPendingMatches() {
+            try {
+                if (!auth.currentUser) return;
+
+                const idToken = await auth.currentUser.getIdToken();
+                const response = await fetch('/api/matching/matches', {
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+                const data = await response.json();
+
+                const list = document.getElementById('matchesListNew');
+                const empty = document.getElementById('matchesEmptyNew');
+
+                if (data.success && data.matches && data.matches.length > 0) {
+                    empty.style.display = 'none';
+                    list.innerHTML = data.matches.map(match => `
+                        <div style="background:#2a2a2e;border-radius:8px;padding:14px;border:1px solid #444">
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                                <div style="width:40px;height:40px;background:linear-gradient(135deg,#8b5cf6,#6366f1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px">
+                                    ${match.photoURL ? `<img src="${match.photoURL}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : '👤'}
+                                </div>
+                                <div style="flex:1">
+                                    <div style="font-size:14px;font-weight:500;color:#fff">${match.displayName || 'Someone'}</div>
+                                    <div style="font-size:12px;color:#888">${match.matchReason || 'Potential match'}</div>
+                                </div>
+                                <div style="font-size:12px;color:#8b5cf6;font-weight:500">${match.compatibilityScore || 0}% match</div>
+                            </div>
+                            <div style="display:flex;gap:8px">
+                                <button onclick="approveMatch('${match.matchId}')" style="flex:1;background:#22c55e;border:none;border-radius:6px;padding:8px;color:#fff;cursor:pointer;font-size:13px">✓ Connect</button>
+                                <button onclick="rejectMatch('${match.matchId}')" style="flex:1;background:#444;border:none;border-radius:6px;padding:8px;color:#fff;cursor:pointer;font-size:13px">✗ Pass</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    empty.style.display = 'block';
+                    list.innerHTML = '';
+                }
+            } catch (error) {
+                console.error('[Matching] Error loading matches:', error);
+            }
+        }
+
+        // Approve a match
+        window.approveMatch = async function(matchId) {
+            try {
+                const idToken = await auth.currentUser.getIdToken();
+                const response = await fetch('/api/matching/matches', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${idToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ matchId, action: 'approve' })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.mutualMatch) {
+                        showPanelAlert('🎉 Mutual match! Check your messages for contact info.', 'success');
+                    } else {
+                        showPanelAlert('Interest recorded! Waiting for their response.', 'info');
+                    }
+                    loadPendingMatches();
+                }
+            } catch (error) {
+                console.error('[Matching] Error approving match:', error);
+                showPanelAlert('Error approving match', 'error');
+            }
+        };
+
+        // Reject a match
+        window.rejectMatch = async function(matchId) {
+            try {
+                const idToken = await auth.currentUser.getIdToken();
+                const response = await fetch('/api/matching/matches', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${idToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ matchId, action: 'reject' })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    showPanelAlert('Match passed. Looking for better fits!', 'info');
+                    loadPendingMatches();
+                }
+            } catch (error) {
+                console.error('[Matching] Error rejecting match:', error);
+            }
+        };
+
+        // Update loadMatchingData to use new functions
+        const originalLoadMatchingData = loadMatchingData;
+        loadMatchingData = async function() {
+            await originalLoadMatchingData();
+            await loadActiveSearches();
+            await loadPendingMatches();
+        };
 
         // Select Founder or Investor role - Make globally accessible
         window.selectInvestingRole = function(role) {
