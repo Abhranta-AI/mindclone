@@ -19,7 +19,8 @@ const {
   getMatchingState,
   updateMatchingState,
   hasReachedDailyLimit,
-  hasExistingMatch
+  hasExistingMatch,
+  createMatchNotification
 } = require('../_matching-helpers');
 
 // Initialize Firebase Admin SDK
@@ -242,6 +243,249 @@ async function generateMindcloneMessage(userId, matchType, conversationHistory, 
   return response?.trim() || null;
 }
 
+// ===================== MINDCLONE AUTO-APPROVAL =====================
+
+/**
+ * Each mindclone autonomously decides if their human would want this connection.
+ * If BOTH mindclones approve → humans get notified of the match.
+ * If either disapproves → no notification, humans never know.
+ */
+async function performMindcloneAutoApproval(conversation, insights) {
+  try {
+    const { userA_id, userB_id, matchType, messages } = conversation;
+
+    // Build conversation summary for evaluation
+    const conversationSummary = messages.map(m => `${m.senderName}: ${m.content}`).join('\n');
+
+    // Get profiles for both users
+    const [profileA, profileB] = await Promise.all([
+      getMatchingProfile(userA_id),
+      getMatchingProfile(userB_id)
+    ]);
+
+    // Ask each mindclone to decide
+    const [decisionA, decisionB] = await Promise.all([
+      getMindcloneDecision(userA_id, profileA, profileB, matchType, conversationSummary, insights, 'userA'),
+      getMindcloneDecision(userB_id, profileB, profileA, matchType, conversationSummary, insights, 'userB')
+    ]);
+
+    console.log(`[Matching] Mindclone A decision: ${decisionA.approve ? 'APPROVE' : 'REJECT'} - ${decisionA.reason}`);
+    console.log(`[Matching] Mindclone B decision: ${decisionB.approve ? 'APPROVE' : 'REJECT'} - ${decisionB.reason}`);
+
+    // Find the match record
+    const matchSnapshot = await db.collection('matches')
+      .where('conversationId', '==', conversation.id)
+      .limit(1)
+      .get();
+
+    if (matchSnapshot.empty) {
+      console.error('[Matching] No match found for conversation:', conversation.id);
+      return { success: false, error: 'Match not found' };
+    }
+
+    const matchDoc = matchSnapshot.docs[0];
+    const matchId = matchDoc.id;
+
+    // Store mindclone decisions
+    await db.collection('matches').doc(matchId).update({
+      mindclone_approval: {
+        userA_approved: decisionA.approve,
+        userA_reason: decisionA.reason,
+        userA_confidence: decisionA.confidence,
+        userB_approved: decisionB.approve,
+        userB_reason: decisionB.reason,
+        userB_confidence: decisionB.confidence,
+        decidedAt: admin.firestore.FieldValue.serverTimestamp()
+      }
+    });
+
+    // If BOTH mindclones approve → auto-match!
+    if (decisionA.approve && decisionB.approve) {
+      console.log(`[Matching] 🎉 MUTUAL MINDCLONE APPROVAL - Creating match notification!`);
+
+      // Update match status to approved
+      await db.collection('matches').doc(matchId).update({
+        status: 'approved',
+        human_approval: {
+          userA_approved: true,
+          userB_approved: true
+        },
+        approvedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Get contact info for both users
+      const [contactA, contactB] = await Promise.all([
+        getContactInfo(userA_id),
+        getContactInfo(userB_id)
+      ]);
+
+      // Create notifications for both users
+      await Promise.all([
+        createMatchNotification(userA_id, 'mutual_match', {
+          matchId,
+          displayName: profileB?.displayName || 'Someone',
+          bio: profileB?.bio || '',
+          matchType,
+          mindcloneReason: decisionA.reason,
+          otherMindcloneReason: decisionB.reason,
+          insights,
+          contactInfo: contactB,
+          message: `🎉 Your mindclone found a match! ${profileB?.displayName || 'Someone'} seems like a great ${matchType} connection.`
+        }),
+        createMatchNotification(userB_id, 'mutual_match', {
+          matchId,
+          displayName: profileA?.displayName || 'Someone',
+          bio: profileA?.bio || '',
+          matchType,
+          mindcloneReason: decisionB.reason,
+          otherMindcloneReason: decisionA.reason,
+          insights,
+          contactInfo: contactA,
+          message: `🎉 Your mindclone found a match! ${profileA?.displayName || 'Someone'} seems like a great ${matchType} connection.`
+        })
+      ]);
+
+      return {
+        success: true,
+        mutualApproval: true,
+        matchId,
+        decisions: { userA: decisionA, userB: decisionB }
+      };
+    } else {
+      // At least one mindclone rejected - silently mark as rejected
+      // Humans never see this, never feel rejected
+      await db.collection('matches').doc(matchId).update({
+        status: 'mindclone_rejected',
+        rejectedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      console.log(`[Matching] Match silently rejected - humans will never know`);
+
+      return {
+        success: true,
+        mutualApproval: false,
+        matchId,
+        decisions: { userA: decisionA, userB: decisionB }
+      };
+    }
+  } catch (error) {
+    console.error('[Matching] Auto-approval error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Ask a mindclone to decide if their human would want this connection
+ */
+async function getMindcloneDecision(userId, myProfile, otherProfile, matchType, conversationSummary, insights, role) {
+  try {
+    // Load user's cognitive profile for deeper understanding
+    const cognitiveProfileDoc = await db.collection('users').doc(userId)
+      .collection('cognitiveProfile').doc('current').get();
+    const cognitiveProfile = cognitiveProfileDoc.exists ? cognitiveProfileDoc.data() : {};
+
+    // Load user's mental model (beliefs, goals)
+    const mentalModelDoc = await db.collection('users').doc(userId)
+      .collection('mentalModel').doc('current').get();
+    const mentalModel = mentalModelDoc.exists ? mentalModelDoc.data() : {};
+
+    const prompt = `You are ${myProfile?.mindcloneName || myProfile?.displayName || 'a mindclone'}, the AI companion of ${myProfile?.displayName || 'your human'}.
+
+You just had a conversation with another mindclone on behalf of your human to explore if they'd be a good ${matchType} connection.
+
+YOUR HUMAN'S PROFILE:
+- Name: ${myProfile?.displayName || 'Unknown'}
+- Bio: ${myProfile?.bio || 'Not provided'}
+- Goals: ${JSON.stringify(cognitiveProfile?.drives?.goals || mentalModel?.goals || [])}
+- Values: ${JSON.stringify(cognitiveProfile?.values?.priorities || mentalModel?.beliefs || [])}
+- Looking for: ${JSON.stringify(cognitiveProfile?.currentNeeds?.lookingFor || [])}
+
+THE OTHER PERSON:
+- Name: ${otherProfile?.displayName || 'Unknown'}
+- Bio: ${otherProfile?.bio || 'Not provided'}
+
+CONVERSATION SUMMARY:
+${conversationSummary}
+
+KEY INSIGHTS:
+${insights.join('\n')}
+
+Based on your deep understanding of your human, would they want to connect with this person?
+Consider:
+1. Does this person align with what your human is looking for?
+2. Would the connection be valuable for your human?
+3. Are there any red flags or misalignments?
+
+Respond in this exact JSON format:
+{
+  "approve": true/false,
+  "confidence": 0.0-1.0,
+  "reason": "Brief explanation of why your human would/wouldn't want this connection"
+}`;
+
+    const response = await callGemini(prompt, 300);
+
+    if (!response) {
+      // Default to slight positive bias if AI fails
+      return { approve: true, confidence: 0.5, reason: 'Unable to fully evaluate, defaulting to open' };
+    }
+
+    // Parse JSON response
+    try {
+      // Extract JSON from response (handle markdown code blocks)
+      let jsonStr = response;
+      if (response.includes('```')) {
+        jsonStr = response.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+      }
+      const decision = JSON.parse(jsonStr);
+      return {
+        approve: decision.approve === true,
+        confidence: parseFloat(decision.confidence) || 0.7,
+        reason: decision.reason || 'No reason provided'
+      };
+    } catch (parseError) {
+      // Try to extract decision from text
+      const isPositive = response.toLowerCase().includes('approve') ||
+                         response.toLowerCase().includes('yes') ||
+                         response.toLowerCase().includes('good match');
+      return {
+        approve: isPositive,
+        confidence: 0.6,
+        reason: response.substring(0, 200)
+      };
+    }
+  } catch (error) {
+    console.error(`[Matching] Error getting mindclone decision for ${userId}:`, error);
+    return { approve: true, confidence: 0.5, reason: 'Error during evaluation, defaulting to open' };
+  }
+}
+
+/**
+ * Get contact info for a user
+ */
+async function getContactInfo(userId) {
+  try {
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+
+    const linkSettingsDoc = await db.collection('users').doc(userId)
+      .collection('linkSettings').doc('config').get();
+    const linkSettings = linkSettingsDoc.exists ? linkSettingsDoc.data() : {};
+
+    const profile = await getMatchingProfile(userId);
+
+    return {
+      displayName: linkSettings.displayName || profile?.displayName || userData.displayName || 'Your match',
+      email: linkSettings.contactEmail || userData.email || null,
+      whatsapp: linkSettings.contactWhatsApp || linkSettings.whatsappNumber || null,
+      preferredContact: linkSettings.preferredContact || 'email'
+    };
+  } catch (error) {
+    console.error('[Matching] Error getting contact info:', error);
+    return null;
+  }
+}
+
 // ===================== MATCHING LOGIC =====================
 
 // Find best match candidates for a user
@@ -328,7 +572,13 @@ async function processConversationTurn(conversationId) {
     const insights = insightsText?.split('\n').filter(l => l.trim().startsWith('-') || l.trim().startsWith('•')).slice(0, 3) || [];
 
     await completeConversation(conversationId, insights);
-    return { success: true, status: 'completed', round: nextRound };
+
+    // === MINDCLONE AUTO-APPROVAL ===
+    // Each mindclone autonomously decides if their human would want this connection
+    const autoApprovalResult = await performMindcloneAutoApproval(conversation, insights);
+    console.log(`[Matching] Auto-approval result for ${conversationId}:`, autoApprovalResult);
+
+    return { success: true, status: 'completed', round: nextRound, autoApproval: autoApprovalResult };
   }
 
   return { success: true, status: 'message_added', round: nextRound };

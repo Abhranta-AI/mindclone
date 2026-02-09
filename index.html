@@ -7873,15 +7873,16 @@
                         </div>
                     </div>
 
-                    <!-- YOUR MATCHES -->
+                    <!-- YOUR MATCHES (Mindclone-Approved) -->
                     <div id="matchesSectionNew" style="margin-bottom:16px">
-                        <h4 style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 10px 0">Pending Matches</h4>
+                        <h4 style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 10px 0">🎉 Your Matches</h4>
                         <div id="matchesListNew" style="display:flex;flex-direction:column;gap:8px">
                             <!-- Match cards will be inserted here -->
                         </div>
                         <div id="matchesEmptyNew" style="color:#666;font-size:13px;text-align:center;padding:20px;background:#2a2a2e;border-radius:8px">
-                            <div style="font-size:24px;margin-bottom:8px">🔍</div>
-                            No pending matches yet. Ask your mindclone to find people for you!
+                            <div style="font-size:24px;margin-bottom:8px">🔮</div>
+                            No matches yet. Your mindclone is out there networking for you!
+                            <div style="margin-top:8px;font-size:12px;color:#888">When your mindclone finds someone great, they'll appear here.</div>
                         </div>
                     </div>
 
@@ -15595,26 +15596,44 @@ Is there anything else you'd like to configure?`;
                 const list = document.getElementById('matchesListNew');
                 const empty = document.getElementById('matchesEmptyNew');
 
-                if (data.success && data.matches && data.matches.length > 0) {
+                // Only show approved matches (mindclones already decided)
+                const approvedMatches = data.matches?.filter(m => m.status === 'approved') || [];
+
+                if (data.success && approvedMatches.length > 0) {
                     empty.style.display = 'none';
-                    list.innerHTML = data.matches.map(match => `
-                        <div style="background:#2a2a2e;border-radius:8px;padding:14px;border:1px solid #444">
-                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-                                <div style="width:40px;height:40px;background:linear-gradient(135deg,#8b5cf6,#6366f1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px">
-                                    ${match.photoURL ? `<img src="${match.photoURL}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : '👤'}
+                    list.innerHTML = approvedMatches.map(match => {
+                        const otherUser = match.otherUser || {};
+                        const mindcloneReason = match.mindclone_approval?.userA_reason || match.mindclone_approval?.userB_reason || 'Great connection potential';
+                        return `
+                        <div style="background:linear-gradient(135deg,#1a1a2e 0%,#2a2a3e 100%);border-radius:12px;padding:16px;border:1px solid #8b5cf6;box-shadow:0 4px 12px rgba(139,92,246,0.1)">
+                            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+                                <div style="width:48px;height:48px;background:linear-gradient(135deg,#8b5cf6,#6366f1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 2px 8px rgba(139,92,246,0.3)">
+                                    ${otherUser.photoURL ? `<img src="${otherUser.photoURL}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : '👤'}
                                 </div>
                                 <div style="flex:1">
-                                    <div style="font-size:14px;font-weight:500;color:#fff">${match.displayName || 'Someone'}</div>
-                                    <div style="font-size:12px;color:#888">${match.matchReason || 'Potential match'}</div>
+                                    <div style="font-size:15px;font-weight:600;color:#fff">${otherUser.displayName || 'Your Match'}</div>
+                                    <div style="font-size:12px;color:#a78bfa">${match.matchType || 'networking'} connection</div>
                                 </div>
-                                <div style="font-size:12px;color:#8b5cf6;font-weight:500">${match.compatibilityScore || 0}% match</div>
+                                <div style="text-align:right">
+                                    <div style="font-size:11px;color:#22c55e;font-weight:600">🎉 MATCHED</div>
+                                    <div style="font-size:11px;color:#888">${match.compatibilityScore || 0}% fit</div>
+                                </div>
+                            </div>
+                            ${otherUser.bio ? `<div style="font-size:13px;color:#ccc;margin-bottom:12px;line-height:1.4">${otherUser.bio.substring(0, 120)}${otherUser.bio.length > 120 ? '...' : ''}</div>` : ''}
+                            <div style="background:#1a1a1a;border-radius:8px;padding:10px;margin-bottom:12px">
+                                <div style="font-size:11px;color:#888;margin-bottom:4px">🔮 Why your mindclone matched you:</div>
+                                <div style="font-size:12px;color:#e0e0e0">${mindcloneReason}</div>
                             </div>
                             <div style="display:flex;gap:8px">
-                                <button onclick="approveMatch('${match.matchId}')" style="flex:1;background:#22c55e;border:none;border-radius:6px;padding:8px;color:#fff;cursor:pointer;font-size:13px">✓ Connect</button>
-                                <button onclick="rejectMatch('${match.matchId}')" style="flex:1;background:#444;border:none;border-radius:6px;padding:8px;color:#fff;cursor:pointer;font-size:13px">✗ Pass</button>
+                                <button onclick="showContactInfo('${match.matchId || match.id}')" style="flex:1;background:#8b5cf6;border:none;border-radius:8px;padding:10px;color:#fff;cursor:pointer;font-size:13px;font-weight:500">
+                                    📧 View Contact Info
+                                </button>
+                                <button onclick="viewConversation('${match.conversationId}')" style="flex:1;background:#2a2a2e;border:1px solid #444;border-radius:8px;padding:10px;color:#fff;cursor:pointer;font-size:13px">
+                                    💬 View Chat
+                                </button>
                             </div>
                         </div>
-                    `).join('');
+                    `}).join('');
                 } else {
                     empty.style.display = 'block';
                     list.innerHTML = '';
@@ -15624,54 +15643,128 @@ Is there anything else you'd like to configure?`;
             }
         }
 
-        // Approve a match
-        window.approveMatch = async function(matchId) {
+        // Show contact info for a match (mindclones already approved)
+        window.showContactInfo = async function(matchId) {
             try {
                 const idToken = await auth.currentUser.getIdToken();
-                const response = await fetch('/api/matching/matches', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${idToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ matchId, action: 'approve' })
+                const response = await fetch(`/api/matching/matches?matchId=${matchId}`, {
+                    headers: { 'Authorization': `Bearer ${idToken}` }
                 });
                 const data = await response.json();
 
-                if (data.success) {
-                    if (data.mutualMatch) {
-                        showPanelAlert('🎉 Mutual match! Check your messages for contact info.', 'success');
-                    } else {
-                        showPanelAlert('Interest recorded! Waiting for their response.', 'info');
-                    }
-                    loadPendingMatches();
+                if (data.success && data.match) {
+                    const contact = data.match.contactInfo;
+                    const otherUser = data.match.myRole === 'userA' ? data.match.userB_profile : data.match.userA_profile;
+
+                    // Create contact info modal
+                    const modal = document.createElement('div');
+                    modal.id = 'contactInfoModal';
+                    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:9999';
+                    modal.innerHTML = `
+                        <div style="background:#1a1a1e;border-radius:16px;padding:24px;max-width:400px;width:90%;text-align:center;border:1px solid #333">
+                            <div style="font-size:48px;margin-bottom:12px">🎉</div>
+                            <h3 style="color:#fff;margin:0 0 8px 0;font-size:18px">Connect with ${contact?.displayName || otherUser?.displayName || 'Your Match'}</h3>
+                            <p style="color:#888;margin:0 0 20px 0;font-size:13px">Your mindclones decided you'd be a great match!</p>
+
+                            <div style="background:#2a2a2e;border-radius:8px;padding:16px;text-align:left;margin-bottom:16px">
+                                ${contact?.email ? `
+                                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                                        <span style="font-size:20px">📧</span>
+                                        <div>
+                                            <div style="color:#888;font-size:11px">Email</div>
+                                            <a href="mailto:${contact.email}" style="color:#8b5cf6;text-decoration:none;font-size:14px">${contact.email}</a>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${contact?.whatsapp ? `
+                                    <div style="display:flex;align-items:center;gap:10px">
+                                        <span style="font-size:20px">📱</span>
+                                        <div>
+                                            <div style="color:#888;font-size:11px">WhatsApp</div>
+                                            <a href="https://wa.me/${contact.whatsapp.replace(/[^0-9]/g, '')}" target="_blank" style="color:#22c55e;text-decoration:none;font-size:14px">${contact.whatsapp}</a>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${!contact?.email && !contact?.whatsapp ? '<div style="color:#888;font-size:13px">Contact info not available yet</div>' : ''}
+                            </div>
+
+                            ${contact?.preferredContact ? `<p style="color:#666;font-size:12px;margin:0 0 16px 0">Prefers: ${contact.preferredContact}</p>` : ''}
+
+                            <button onclick="document.getElementById('contactInfoModal').remove()" style="background:#8b5cf6;border:none;border-radius:8px;padding:12px 24px;color:#fff;cursor:pointer;font-size:14px;width:100%">
+                                Got it!
+                            </button>
+                        </div>
+                    `;
+                    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+                    document.body.appendChild(modal);
                 }
             } catch (error) {
-                console.error('[Matching] Error approving match:', error);
-                showPanelAlert('Error approving match', 'error');
+                console.error('[Matching] Error getting contact info:', error);
+                showPanelAlert('Error loading contact info', 'error');
             }
         };
 
-        // Reject a match
-        window.rejectMatch = async function(matchId) {
+        // View M2M conversation
+        window.viewConversation = async function(conversationId) {
+            if (!conversationId) {
+                showPanelAlert('Conversation not available', 'info');
+                return;
+            }
+
             try {
                 const idToken = await auth.currentUser.getIdToken();
-                const response = await fetch('/api/matching/matches', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${idToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ matchId, action: 'reject' })
+                const response = await fetch(`/api/matching/conversation?conversationId=${conversationId}`, {
+                    headers: { 'Authorization': `Bearer ${idToken}` }
                 });
                 const data = await response.json();
 
-                if (data.success) {
-                    showPanelAlert('Match passed. Looking for better fits!', 'info');
-                    loadPendingMatches();
+                if (data.success && data.conversation) {
+                    // Create conversation modal
+                    const modal = document.createElement('div');
+                    modal.id = 'conversationModal';
+                    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:9999';
+
+                    const messages = data.conversation.messages || [];
+                    const summary = data.conversation.summary;
+
+                    modal.innerHTML = `
+                        <div style="background:#1a1a1e;border-radius:16px;max-width:500px;width:90%;max-height:80vh;overflow:hidden;display:flex;flex-direction:column;border:1px solid #333">
+                            <div style="padding:16px;border-bottom:1px solid #333">
+                                <h3 style="color:#fff;margin:0;font-size:16px">🔮 Mindclone Conversation</h3>
+                                <p style="color:#888;margin:4px 0 0 0;font-size:12px">What your mindclones discussed</p>
+                            </div>
+
+                            ${summary ? `
+                                <div style="background:#2a2a2e;padding:12px 16px;border-bottom:1px solid #333">
+                                    <div style="color:#8b5cf6;font-size:11px;margin-bottom:4px">Summary</div>
+                                    <div style="color:#e0e0e0;font-size:13px;line-height:1.4">${summary}</div>
+                                </div>
+                            ` : ''}
+
+                            <div style="flex:1;overflow-y:auto;padding:16px">
+                                ${messages.map(msg => `
+                                    <div style="margin-bottom:12px;${msg.isMine ? 'text-align:right' : ''}">
+                                        <div style="font-size:11px;color:#888;margin-bottom:4px">${msg.senderProfile?.name || msg.sender}</div>
+                                        <div style="display:inline-block;background:${msg.isMine ? '#8b5cf6' : '#2a2a2e'};padding:10px 14px;border-radius:12px;max-width:80%;text-align:left">
+                                            <div style="color:#fff;font-size:13px;line-height:1.4">${msg.content}</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+
+                            <div style="padding:16px;border-top:1px solid #333">
+                                <button onclick="document.getElementById('conversationModal').remove()" style="background:#8b5cf6;border:none;border-radius:8px;padding:12px;color:#fff;cursor:pointer;font-size:14px;width:100%">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+                    document.body.appendChild(modal);
                 }
             } catch (error) {
-                console.error('[Matching] Error rejecting match:', error);
+                console.error('[Matching] Error loading conversation:', error);
+                showPanelAlert('Error loading conversation', 'error');
             }
         };
 
@@ -15824,12 +15917,18 @@ Is there anything else you'd like to configure?`;
                     rejected: '#ef4444'
                 };
                 const statusLabels = {
-                    active: 'Conversation in progress',
-                    pending_approval: 'Ready for review',
-                    completed: 'Ready for review',
-                    approved: 'Mutually approved!',
-                    rejected: 'Not a match'
+                    active: 'Mindclones chatting...',
+                    pending_approval: 'Mindclones evaluating...',
+                    completed: 'Mindclones evaluating...',
+                    approved: '🎉 Match found!',
+                    mindclone_rejected: 'Not a match'
                 };
+
+                // Only show approved matches and active conversations
+                // Mindclone-rejected matches are hidden (humans never see rejections)
+                if (match.status === 'mindclone_rejected' || match.status === 'rejected') {
+                    return ''; // Hide silently rejected matches
+                }
 
                 return `
                     <div class="match-card" style="background:#1a1a1e;border-radius:12px;padding:14px;cursor:pointer" onclick="viewMatchDetail('${match.id}')">
@@ -15849,10 +15948,10 @@ Is there anything else you'd like to configure?`;
                             <span style="background:rgba(168,85,247,0.1);color:#a855f7;padding:2px 8px;border-radius:8px;text-transform:capitalize">${match.matchType}</span>
                             <span style="color:#888">${match.compatibilityScore}% match</span>
                         </div>
-                        ${match.status === 'pending_approval' || match.status === 'completed' ? `
+                        ${match.status === 'approved' ? `
                             <div style="display:flex;gap:8px;margin-top:12px">
-                                <button onclick="event.stopPropagation(); approveMatch('${match.id}')" style="flex:1;background:#22c55e;color:white;border:none;padding:8px;border-radius:6px;cursor:pointer;font-size:13px">✓ Approve</button>
-                                <button onclick="event.stopPropagation(); rejectMatch('${match.id}')" style="flex:1;background:#333;color:white;border:none;padding:8px;border-radius:6px;cursor:pointer;font-size:13px">✗ Reject</button>
+                                <button onclick="event.stopPropagation(); showContactInfo('${match.id}')" style="flex:1;background:#8b5cf6;color:white;border:none;padding:8px;border-radius:6px;cursor:pointer;font-size:13px">📧 View Contact</button>
+                                <button onclick="event.stopPropagation(); viewConversation('${match.conversationId}')" style="flex:1;background:#333;color:white;border:none;padding:8px;border-radius:6px;cursor:pointer;font-size:13px">💬 View Chat</button>
                             </div>
                         ` : ''}
                     </div>
@@ -15860,17 +15959,18 @@ Is there anything else you'd like to configure?`;
             }).join('');
         }
 
-        // Update matching badge
+        // Update matching badge - only count approved matches (mindclones decide)
         function updateMatchingBadge() {
             const badge = document.getElementById('matchingBadge');
             if (!badge) return;
 
-            const pendingCount = matchingMatches.filter(m =>
-                m.status === 'pending_approval' || m.status === 'completed'
+            // Only show badge for approved matches (new matches found by mindclones!)
+            const approvedCount = matchingMatches.filter(m =>
+                m.status === 'approved'
             ).length;
 
-            if (pendingCount > 0) {
-                badge.textContent = pendingCount;
+            if (approvedCount > 0) {
+                badge.textContent = approvedCount;
                 badge.style.display = 'inline';
             } else {
                 badge.style.display = 'none';
@@ -15957,54 +16057,9 @@ Is there anything else you'd like to configure?`;
             }
         });
 
-        // Approve match
-        async function approveMatch(matchId) {
-            if (!auth.currentUser) return;
-
-            try {
-                const idToken = await auth.currentUser.getIdToken();
-                const response = await fetch('/api/matching/matches', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${idToken}`
-                    },
-                    body: JSON.stringify({ matchId, action: 'approve' })
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    alert(data.message || 'Match approved!');
-                    loadMatchingData(); // Refresh
-                }
-            } catch (error) {
-                console.error('[Matching] Approve error:', error);
-            }
-        }
-
-        // Reject match
-        async function rejectMatch(matchId) {
-            if (!auth.currentUser) return;
-
-            try {
-                const idToken = await auth.currentUser.getIdToken();
-                const response = await fetch('/api/matching/matches', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${idToken}`
-                    },
-                    body: JSON.stringify({ matchId, action: 'reject' })
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    loadMatchingData(); // Refresh
-                }
-            } catch (error) {
-                console.error('[Matching] Reject error:', error);
-            }
-        }
+        // NOTE: Manual approve/reject removed - mindclones now auto-approve matches!
+        // When both mindclones approve, humans are notified. If either mindclone rejects,
+        // the match is silently discarded and humans never feel rejected.
 
         // View match detail (opens conversation modal or new page)
         function viewMatchDetail(matchId) {
