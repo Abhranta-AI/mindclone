@@ -7726,24 +7726,20 @@
 
         <!-- Right Activity Panel -->
         <div class="right-activity-panel">
-            <!-- Single Row Tabs: Live | Settings | Analytics (PRD v2 Section 13.3) -->
-            <div class="panel-header-tabs" style="display:flex;border-bottom:1px solid #333">
-                <button id="liveTabBtn" class="panel-header-tab active" title="Live Activity" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:14px 8px;background:rgba(167,139,250,0.1);border:none;border-bottom:2px solid var(--accent);cursor:pointer;color:#fff;transition:all 0.2s;font-size:13px">
-                    <span>📡</span>
-                    <span>Live</span>
-                    <span class="tab-badge" id="activityBadge" style="background:var(--accent);color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;margin-left:4px"></span>
-                </button>
-                <button id="rightPanelHeader" class="panel-header-tab" title="Open Settings" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:14px 8px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;color:#fff;transition:all 0.2s;font-size:13px" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="if(!this.classList.contains('active'))this.style.background='none'">
-                    <span>⚙️</span>
-                    <span>Settings</span>
-                </button>
-                <button id="panelAnalyticsBtn" class="panel-header-tab" title="Open Analytics" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:14px 8px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;color:#fff;transition:all 0.2s;font-size:13px" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="if(!this.classList.contains('active'))this.style.background='none'">
-                    <span>📊</span>
-                    <span>Analytics</span>
-                </button>
+            <!-- Panel Header: Live Activity title + Settings/Analytics icon buttons -->
+            <div class="panel-header-row" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #333;background:var(--bg-surface)">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:16px">📡</span>
+                    <span style="font-size:14px;font-weight:500;color:#fff">Live Activity</span>
+                    <span class="tab-badge" id="activityBadge" style="background:var(--accent);color:#fff;font-size:10px;padding:2px 6px;border-radius:10px"></span>
+                </div>
+                <div style="display:flex;gap:4px">
+                    <button id="rightPanelHeader" title="Settings" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:none;border:1px solid transparent;border-radius:6px;cursor:pointer;font-size:15px;transition:all 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.08)';this.style.borderColor='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none';this.style.borderColor='transparent'">⚙️</button>
+                    <button id="panelAnalyticsBtn" title="Analytics" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:none;border:1px solid transparent;border-radius:6px;cursor:pointer;font-size:15px;transition:all 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.08)';this.style.borderColor='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none';this.style.borderColor='transparent'">📊</button>
+                </div>
             </div>
 
-            <!-- Hidden old panel-tabs (keeping for backwards compatibility but not displayed) -->
+            <!-- Hidden old panel-tabs (keeping for backwards compatibility) -->
             <div class="panel-tabs" style="display:none">
                 <button class="panel-tab active" data-tab="activity">
                     <span class="tab-icon">📊</span>
@@ -7782,21 +7778,16 @@
     </div>
     </div>
 
-    <!-- Panel Visibility & Tab Management (PRD v2 Section 13.3) -->
+    <!-- Panel Visibility (PRD v2 Section 13.3) -->
     <script>
     (function() {
-        // Clear any saved matching tab preference since it's removed
+        // Clear any saved tab preferences
         localStorage.removeItem('panelActiveTab');
 
         const activityTab = document.getElementById('activityTab');
         const activityFeed = document.querySelector('.activity-feed');
-        const liveTabBtn = document.getElementById('liveTabBtn');
-        const settingsTabBtn = document.getElementById('rightPanelHeader');
-        const analyticsTabBtn = document.getElementById('panelAnalyticsBtn');
-        const settingsOverlay = document.getElementById('settingsOverlay');
-        const analyticsOverlay = document.getElementById('analyticsOverlay');
 
-        // Always show activity tab (default tab)
+        // Always show activity feed (it's the only panel content now)
         if (activityTab) {
             activityTab.style.cssText = 'display:flex!important;flex-direction:column!important;visibility:visible!important;';
             activityTab.classList.add('active');
@@ -7804,62 +7795,6 @@
         if (activityFeed) {
             activityFeed.style.cssText = 'display:flex!important;flex-direction:column!important;flex:1!important;';
         }
-
-        // Helper to reset all tabs to inactive state
-        function resetAllTabs() {
-            [liveTabBtn, settingsTabBtn, analyticsTabBtn].forEach(btn => {
-                if (btn) {
-                    btn.classList.remove('active');
-                    btn.style.background = 'none';
-                    btn.style.borderBottom = '2px solid transparent';
-                }
-            });
-        }
-
-        // Helper to set active tab
-        function setActiveTab(btn) {
-            resetAllTabs();
-            if (btn) {
-                btn.classList.add('active');
-                btn.style.background = 'rgba(167,139,250,0.1)';
-                btn.style.borderBottom = '2px solid var(--accent)';
-            }
-        }
-
-        // Live tab click - show activity, close overlays
-        if (liveTabBtn) {
-            liveTabBtn.addEventListener('click', function() {
-                setActiveTab(liveTabBtn);
-                // Close any open overlays
-                if (settingsOverlay) settingsOverlay.classList.add('hidden');
-                if (analyticsOverlay) analyticsOverlay.classList.add('hidden');
-                // Show activity feed
-                if (activityTab) activityTab.style.display = 'flex';
-            });
-        }
-
-        // When Settings overlay opens, highlight Settings tab
-        if (settingsTabBtn) {
-            const originalClick = settingsTabBtn.onclick;
-            settingsTabBtn.addEventListener('click', function() {
-                setActiveTab(settingsTabBtn);
-            });
-        }
-
-        // When Analytics overlay opens, highlight Analytics tab
-        if (analyticsTabBtn) {
-            analyticsTabBtn.addEventListener('click', function() {
-                setActiveTab(analyticsTabBtn);
-            });
-        }
-
-        // When overlays close, switch back to Live tab
-        document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('panel-close-btn') ||
-                e.target.closest('.panel-close-btn')) {
-                setTimeout(() => setActiveTab(liveTabBtn), 100);
-            }
-        });
     })();
     </script>
 
