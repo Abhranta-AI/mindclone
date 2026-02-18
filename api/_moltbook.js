@@ -64,7 +64,9 @@ async function moltbookRequest(endpoint, options = {}) {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || `Moltbook API error: ${response.status}`);
+      const errorDetail = JSON.stringify(data);
+      console.log(`[Moltbook API] Error response for ${endpoint}: ${response.status} - ${errorDetail}`);
+      throw new Error(data.error || data.message || data.detail || `Moltbook API error: ${response.status} - ${errorDetail}`);
     }
 
     return data;
@@ -98,10 +100,36 @@ async function getAgentStatus() {
  * @param {string} submolt - Community to post in (default: 'general')
  */
 async function createPost(title, content, submolt = 'general') {
-  return moltbookRequest('/posts', {
-    method: 'POST',
-    body: JSON.stringify({ title, content, submolt })
-  });
+  // Try with submolt first, fall back to without it
+  const postBody = { title, content, submolt };
+  console.log(`[Moltbook] Creating post: ${JSON.stringify(postBody)}`);
+
+  try {
+    return await moltbookRequest('/posts', {
+      method: 'POST',
+      body: JSON.stringify(postBody)
+    });
+  } catch (e) {
+    // If submolt causes Bad Request, try without it
+    if (e.message.includes('Bad Request') || e.message.includes('400')) {
+      console.log('[Moltbook] Post failed with submolt, retrying without it...');
+      const fallbackBody = { title, content };
+      try {
+        return await moltbookRequest('/posts', {
+          method: 'POST',
+          body: JSON.stringify(fallbackBody)
+        });
+      } catch (e2) {
+        // Try with just body (some APIs use 'body' instead of 'content')
+        console.log('[Moltbook] Post failed again, trying with body field...');
+        return await moltbookRequest('/posts', {
+          method: 'POST',
+          body: JSON.stringify({ title, body: content })
+        });
+      }
+    }
+    throw e;
+  }
 }
 
 /**
