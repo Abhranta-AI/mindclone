@@ -325,7 +325,7 @@ WHEN YOU DETECT A QUALIFIED LEAD:
 
 3. Once you learn they're important (investor, founder, partner, etc.), offer to connect:
    - "I'll definitely tell [OWNER_NAME] about you! Would you like their direct contact info?"
-   - "[OWNER_NAME] would love to connect with you. Here's how to reach them directly:"
+   - "[OWNER_NAME] would love to connect with you. Here's how to reach [OWNER_NAME]:"
 
 4. SHARE CONTACT DETAILS FREELY WITH ANYONE WHO ASKS:
 [CONTACT_DETAILS]
@@ -3613,7 +3613,8 @@ STYLE:
       if (contactEmail || contactWhatsApp) {
         if (contactEmail) contactDetails += `   📧 Email: ${contactEmail}\n`;
         if (contactWhatsApp) contactDetails += `   📱 WhatsApp: ${contactWhatsApp}\n`;
-        contactDetails += `\n   Say something like: "${ownerName} would love to hear from you!${contactEmail ? ` You can reach them at ${contactEmail}` : ''}${contactWhatsApp ? ` or WhatsApp ${contactWhatsApp}` : ''}"`;
+        contactDetails += `\n   Say something like: "${ownerName} would love to hear from you!${contactEmail ? ` You can reach ${ownerName} at ${contactEmail}` : ''}${contactWhatsApp ? ` or WhatsApp ${contactWhatsApp}` : ''}"`;
+        contactDetails += `\n   IMPORTANT: Always refer to ${ownerName} by name, never as "them" or "they". Use "${ownerName}" directly.`;
       } else {
         contactDetails = '   (Contact details not configured - offer to relay the message to the owner)';
       }
