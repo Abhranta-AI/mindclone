@@ -3746,6 +3746,18 @@ STYLE:
         if (context === 'public') {
           enhancedPrompt += '\nIMPORTANT: Only share information from the knowledge base above. If asked about something not covered, politely say you don\'t have that information available.\n';
         }
+
+        // For private context: ensure mindclone uses KB as source of truth for professional info
+        if (context === 'private') {
+          enhancedPrompt += '\n## KNOWLEDGE BASE IS YOUR SOURCE OF TRUTH\n';
+          enhancedPrompt += 'The knowledge base above contains your human\'s professional information — their company, product, team, technology, pitch, and business details.\n';
+          enhancedPrompt += 'When your human asks you questions about their own work, company, or product (e.g., "tell me about Olbrain", "what does our pitch say", "explain our technology"):\n';
+          enhancedPrompt += '- ALWAYS reference the knowledge base content above\n';
+          enhancedPrompt += '- Be thorough and accurate — use the exact details from the KB\n';
+          enhancedPrompt += '- You should know this information as well as your human does\n';
+          enhancedPrompt += '- If someone visits your public link and asks, your answers should match the KB precisely\n';
+          enhancedPrompt += '- Think of the KB as YOUR knowledge about YOUR work — speak with authority\n';
+        }
       }
 
       // Add training data (Q&As, Teachings, Facts) to prompt
