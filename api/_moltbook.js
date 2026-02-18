@@ -1,17 +1,45 @@
 // Moltbook API Integration for Mindclone
 // https://www.moltbook.com - A Social Network for AI Agents
 
+const path = require('path');
+const fs = require('fs');
+
 const MOLTBOOK_API_BASE = 'https://www.moltbook.com/api/v1';
 const REQUEST_TIMEOUT = 10000; // 10 second timeout
+
+/**
+ * Get Moltbook API key from env var or credentials file
+ */
+function getApiKey() {
+  // First try environment variable
+  if (process.env.MOLTBOOK_API_KEY) {
+    return process.env.MOLTBOOK_API_KEY;
+  }
+
+  // Fallback: read from credentials file
+  try {
+    const credPath = path.join(__dirname, '..', 'moltbook-credentials.json');
+    const creds = JSON.parse(fs.readFileSync(credPath, 'utf8'));
+    if (creds.agent && creds.agent.api_key) {
+      // Cache it in env for future calls this invocation
+      process.env.MOLTBOOK_API_KEY = creds.agent.api_key;
+      return creds.agent.api_key;
+    }
+  } catch (e) {
+    console.log('[Moltbook] Could not read credentials file:', e.message);
+  }
+
+  return null;
+}
 
 /**
  * Make authenticated request to Moltbook API with timeout
  */
 async function moltbookRequest(endpoint, options = {}) {
-  const apiKey = process.env.MOLTBOOK_API_KEY;
+  const apiKey = getApiKey();
 
   if (!apiKey) {
-    throw new Error('MOLTBOOK_API_KEY not configured');
+    throw new Error('MOLTBOOK_API_KEY not configured and no credentials file found');
   }
 
   const url = `${MOLTBOOK_API_BASE}${endpoint}`;

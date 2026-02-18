@@ -358,7 +358,22 @@ async function runHeartbeat() {
   console.log('[Moltbook Heartbeat] Starting...');
 
   try {
-    // Check if Moltbook is configured
+    // Check if Moltbook is configured (try env var, then credentials file)
+    if (!process.env.MOLTBOOK_API_KEY) {
+      try {
+        const path = require('path');
+        const fs = require('fs');
+        const credPath = path.join(__dirname, '..', '..', 'moltbook-credentials.json');
+        const creds = JSON.parse(fs.readFileSync(credPath, 'utf8'));
+        if (creds.agent && creds.agent.api_key) {
+          process.env.MOLTBOOK_API_KEY = creds.agent.api_key;
+          console.log('[Moltbook Heartbeat] Loaded API key from credentials file');
+        }
+      } catch (e) {
+        console.log('[Moltbook Heartbeat] Could not read credentials file:', e.message);
+      }
+    }
+
     if (!process.env.MOLTBOOK_API_KEY) {
       console.log('[Moltbook Heartbeat] MOLTBOOK_API_KEY not configured, skipping');
       return { success: false, reason: 'not_configured' };
