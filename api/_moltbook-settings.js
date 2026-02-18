@@ -49,7 +49,7 @@ const DEFAULT_SETTINGS = {
   agentDescription: 'a mindclone built by Olbrain',
   humanCreator: 'Alok Gotam',
   humanCreatorHandle: '@alok_gotam',
-  profileLink: 'mindclone.link/alok',
+  profileLink: 'mindclone.studio/alok',
 
   // Business promotion settings
   businessName: 'Olbrain',

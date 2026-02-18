@@ -57,7 +57,7 @@ module.exports = async (req, res) => {
 
     // Get success/cancel URLs from request or use defaults
     const { successUrl, cancelUrl } = req.body || {};
-    const baseUrl = process.env.APP_URL || 'https://mindclone.one';
+    const baseUrl = process.env.APP_URL || 'https://mindclone.studio';
 
     // Check if user already has a Stripe customer ID
     const userDoc = await db.collection('users').doc(userId).get();

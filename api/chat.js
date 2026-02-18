@@ -1036,7 +1036,7 @@ async function handleGetLinkSettings(userId) {
       .collection('linkSettings').doc('config').get();
     const settingsData = settingsDoc.data() || {};
 
-    const publicLinkUrl = userData.username ? `https://mindclone.link/${userData.username}` : null;
+    const publicLinkUrl = userData.username ? `https://mindclone.studio/${userData.username}` : null;
 
     return {
       success: true,
@@ -2254,7 +2254,7 @@ async function handleBrowseUrl(params = {}) {
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; MindcloneBot/1.0; +https://mindclone.one)',
+        'User-Agent': 'Mozilla/5.0 (compatible; MindcloneBot/1.0; +https://mindclone.studio)',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5'
       }
@@ -2609,7 +2609,7 @@ async function handleCreatePdf(userId, params = {}) {
           try {
             const logoResponse = await fetch(logoUrl, {
               headers: {
-                'User-Agent': 'Mozilla/5.0 (compatible; MindcloneBot/1.0; +https://mindclone.one)'
+                'User-Agent': 'Mozilla/5.0 (compatible; MindcloneBot/1.0; +https://mindclone.studio)'
               }
             });
             if (logoResponse.ok) {
