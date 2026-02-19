@@ -1036,7 +1036,7 @@ async function handleGetLinkSettings(userId) {
       .collection('linkSettings').doc('config').get();
     const settingsData = settingsDoc.data() || {};
 
-    const publicLinkUrl = userData.username ? `https://mindclone.studio/${userData.username}` : null;
+    const publicLinkUrl = userData.username ? `https://mindclone.link/${userData.username}` : null;
 
     return {
       success: true,

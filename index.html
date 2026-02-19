@@ -7865,7 +7865,7 @@
                         <label class="panel-label">Handle</label>
                         <span class="panel-hint">3-20 chars: letters, numbers, underscores. Must start with a letter.</span>
                         <div class="username-input-group">
-                            <span class="username-prefix">mindclone.studio/</span>
+                            <span class="username-prefix">mindclone.link/</span>
                             <input type="text" id="panelUsernameInput" class="username-input" placeholder="yourusername" autocomplete="off">
                         </div>
                         <div id="panelUsernameStatus" class="username-status">
@@ -8072,7 +8072,7 @@
                             </div>
                             <div class="moltbook-control-row" style="flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px;">
                                 <div class="moltbook-control-label">Profile Link</div>
-                                <input type="text" id="moltbookProfileLink" class="panel-input" value="mindclone.studio/alok" style="width: 100%;">
+                                <input type="text" id="moltbookProfileLink" class="panel-input" value="mindclone.link/alok" style="width: 100%;">
                             </div>
                         </div>
 
@@ -9630,7 +9630,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
 
             // Copy link
             panelCopyLinkBtn.addEventListener('click', async () => {
-                const url = `https://mindclone.studio/${panelCurrentUsername}`;
+                const url = `https://mindclone.link/${panelCurrentUsername}`;
                 try {
                     await navigator.clipboard.writeText(url);
                     panelCopyLinkBtn.textContent = 'Copied!';
@@ -9663,7 +9663,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             // Update header link
             const panelHeaderLink = document.getElementById('panelHeaderLink');
             if (panelHeaderLink) {
-                panelHeaderLink.textContent = `mindclone.studio/${username}`;
+                panelHeaderLink.textContent = `mindclone.link/${username}`;
             }
         }
 
@@ -11177,14 +11177,14 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
 
                     if (settings.linkEnabled && settings.username) {
                         // Set the public link URL
-                        activityFeedLink.href = `https://mindclone.studio/${settings.username}`;
+                        activityFeedLink.href = `https://mindclone.link/${settings.username}`;
                         activityFeedLink.target = '_blank';
                         activityFeedLink.style.cursor = 'pointer';
                         activityFeedLink.style.opacity = '1';
 
                         // Also update right panel link
                         if (rightActivityFeedLink) {
-                            rightActivityFeedLink.href = `https://mindclone.studio/${settings.username}`;
+                            rightActivityFeedLink.href = `https://mindclone.link/${settings.username}`;
                             rightActivityFeedLink.target = '_blank';
                             rightActivityFeedLink.style.cursor = 'pointer';
                             rightActivityFeedLink.style.opacity = '1';

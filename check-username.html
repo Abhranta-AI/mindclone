@@ -155,7 +155,7 @@
                     username: 'alok'
                 }, { merge: true });
 
-                output.innerHTML = '<span class="success">✅ SUCCESS!</span>\n\nUsername "alok" has been registered!\nYour public link is enabled at:\n\n🔗 https://mindclone.studio/alok\n\nClick "4. Test public link" to verify it works.';
+                output.innerHTML = '<span class="success">✅ SUCCESS!</span>\n\nUsername "alok" has been registered!\nYour public link is enabled at:\n\n🔗 https://mindclone.link/alok\n\nClick "4. Test public link" to verify it works.';
             } catch (error) {
                 output.innerHTML = `<span class="error">❌ ERROR: ${error.message}</span>\n\nDetails: ${error.stack}`;
             }
@@ -169,7 +169,7 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    output.innerHTML = `<span class="success">✅ Public link is WORKING!</span>\n\nProfile data:\n${JSON.stringify(data, null, 2)}\n\nYour public link: https://mindclone.studio/alok`;
+                    output.innerHTML = `<span class="success">✅ Public link is WORKING!</span>\n\nProfile data:\n${JSON.stringify(data, null, 2)}\n\nYour public link: https://mindclone.link/alok`;
                 } else {
                     output.innerHTML = `<span class="error">❌ Public link failed</span>\n\nStatus: ${response.status}\nError: ${data.error || data.message}\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
                 }
