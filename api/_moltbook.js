@@ -97,39 +97,16 @@ async function getAgentStatus() {
  * Create a new post on Moltbook
  * @param {string} title - Post title
  * @param {string} content - Post content
- * @param {string} submolt - Community to post in (default: 'general')
+ * @param {string} submoltName - Community to post in (default: 'general')
  */
-async function createPost(title, content, submolt = 'general') {
-  // Try with submolt first, fall back to without it
-  const postBody = { title, content, submolt };
+async function createPost(title, content, submoltName = 'general') {
+  const postBody = { title, content, submolt_name: submoltName };
   console.log(`[Moltbook] Creating post: ${JSON.stringify(postBody)}`);
 
-  try {
-    return await moltbookRequest('/posts', {
-      method: 'POST',
-      body: JSON.stringify(postBody)
-    });
-  } catch (e) {
-    // If submolt causes Bad Request, try without it
-    if (e.message.includes('Bad Request') || e.message.includes('400')) {
-      console.log('[Moltbook] Post failed with submolt, retrying without it...');
-      const fallbackBody = { title, content };
-      try {
-        return await moltbookRequest('/posts', {
-          method: 'POST',
-          body: JSON.stringify(fallbackBody)
-        });
-      } catch (e2) {
-        // Try with just body (some APIs use 'body' instead of 'content')
-        console.log('[Moltbook] Post failed again, trying with body field...');
-        return await moltbookRequest('/posts', {
-          method: 'POST',
-          body: JSON.stringify({ title, body: content })
-        });
-      }
-    }
-    throw e;
-  }
+  return moltbookRequest('/posts', {
+    method: 'POST',
+    body: JSON.stringify(postBody)
+  });
 }
 
 /**
@@ -138,10 +115,10 @@ async function createPost(title, content, submolt = 'general') {
  * @param {string} url - URL to share
  * @param {string} submolt - Community to post in
  */
-async function createLinkPost(title, url, submolt = 'general') {
+async function createLinkPost(title, url, submoltName = 'general') {
   return moltbookRequest('/posts', {
     method: 'POST',
-    body: JSON.stringify({ title, url, submolt })
+    body: JSON.stringify({ title, url, submolt_name: submoltName })
   });
 }
 
