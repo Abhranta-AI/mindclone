@@ -75,9 +75,8 @@ module.exports = async (req, res) => {
         'enabled', 'objective', 'postingEnabled', 'maxPostsPerDay',
         'minHoursBetweenPosts', 'upvotingEnabled', 'maxUpvotesPerDay',
         'commentingEnabled', 'maxCommentsPerDay', 'commentProbability',
-        'repliesEnabled', 'maxRepliesPerHeartbeat', 'topics', 'customPosts',
-        'useDefaultPosts', 'agentName', 'agentDescription', 'humanCreator',
-        'humanCreatorHandle', 'profileLink', 'commentStyle', 'includeCallToAction',
+        'repliesEnabled', 'maxRepliesPerHeartbeat', 'topics',
+        'olbrainUpdates', 'commentStyle', 'includeCallToAction',
         'businessName', 'businessUrl', 'businessTagline', 'promotionFrequency'
       ];
 

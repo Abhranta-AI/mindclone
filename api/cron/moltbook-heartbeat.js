@@ -389,6 +389,29 @@ async function runHeartbeat() {
     const settings = await getMoltbookSettings();
     console.log('[Moltbook Heartbeat] Loaded settings:', { enabled: settings.enabled, objective: settings.objective });
 
+    // Auto-derive identity from user's real profile (instead of hardcoded defaults)
+    const ownerUid = process.env.MINDCLONE_OWNER_UID;
+    if (ownerUid) {
+      try {
+        const userDoc = await db.collection('users').doc(ownerUid).get();
+        const userData = userDoc.exists ? userDoc.data() : {};
+        const linkSettingsDoc = await db.collection('users').doc(ownerUid).collection('linkSettings').doc('config').get();
+        const linkSettings = linkSettingsDoc.exists ? linkSettingsDoc.data() : {};
+
+        // Derive identity from actual profile data
+        const username = userData.username || 'alok';
+        settings.agentName = linkSettings.mindcloneName || username;
+        settings.agentDescription = `a personal AI built by Olbrain, representing ${userData.displayName || username}`;
+        settings.humanCreator = linkSettings.displayName || userData.displayName || username;
+        settings.humanCreatorHandle = userData.username ? `@${userData.username}` : '';
+        settings.profileLink = `mindclone.link/${username}`;
+
+        console.log(`[Moltbook Heartbeat] Derived identity: agent="${settings.agentName}", human="${settings.humanCreator}", link="${settings.profileLink}"`);
+      } catch (e) {
+        console.log(`[Moltbook Heartbeat] Could not load user profile: ${e.message}, using settings defaults`);
+      }
+    }
+
     // Check if Moltbook is enabled
     if (!settings.enabled) {
       console.log('[Moltbook Heartbeat] Moltbook is disabled in settings');

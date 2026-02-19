@@ -8055,26 +8055,7 @@
                             </div>
                         </div>
 
-                        <!-- Agent Identity -->
-                        <div class="moltbook-subsection">
-                            <div class="moltbook-subsection-title">🤖 Agent Identity</div>
-                            <div class="moltbook-control-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
-                                <div class="moltbook-control-label">Agent Name</div>
-                                <input type="text" id="moltbookAgentName" class="panel-input" value="alok" style="width: 100%;">
-                            </div>
-                            <div class="moltbook-control-row" style="flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px;">
-                                <div class="moltbook-control-label">Agent Description</div>
-                                <input type="text" id="moltbookAgentDescription" class="panel-input" value="a mindclone focused on digital identity" style="width: 100%;">
-                            </div>
-                            <div class="moltbook-control-row" style="flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px;">
-                                <div class="moltbook-control-label">Human Creator Handle</div>
-                                <input type="text" id="moltbookHumanCreator" class="panel-input" value="@0lbrain" style="width: 100%;">
-                            </div>
-                            <div class="moltbook-control-row" style="flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px;">
-                                <div class="moltbook-control-label">Profile Link</div>
-                                <input type="text" id="moltbookProfileLink" class="panel-input" value="mindclone.link/alok" style="width: 100%;">
-                            </div>
-                        </div>
+                        <!-- Agent Identity — auto-derived from your profile (mindclone name, username, display name) -->
 
                         <!-- Business Promotion -->
                         <div class="moltbook-subsection">
@@ -15432,18 +15413,7 @@ Is there anything else you'd like to configure?`;
             // Topics
             renderMoltbookTopics();
 
-            // Agent identity
-            const agentName = document.getElementById('moltbookAgentName');
-            if (agentName) agentName.value = moltbookSettings.agentName || '';
-
-            const agentDesc = document.getElementById('moltbookAgentDescription');
-            if (agentDesc) agentDesc.value = moltbookSettings.agentDescription || '';
-
-            const humanCreator = document.getElementById('moltbookHumanCreator');
-            if (humanCreator) humanCreator.value = moltbookSettings.humanCreator || '';
-
-            const profileLink = document.getElementById('moltbookProfileLink');
-            if (profileLink) profileLink.value = moltbookSettings.profileLink || '';
+            // Agent identity — auto-derived from profile now, no UI fields
 
             // Business promotion
             const businessName = document.getElementById('moltbookBusinessName');
@@ -15568,19 +15538,7 @@ Is there anything else you'd like to configure?`;
                 });
             }
 
-            // Agent identity fields
-            document.getElementById('moltbookAgentName')?.addEventListener('change', (e) => {
-                saveMoltbookSettings({ agentName: e.target.value });
-            });
-            document.getElementById('moltbookAgentDescription')?.addEventListener('change', (e) => {
-                saveMoltbookSettings({ agentDescription: e.target.value });
-            });
-            document.getElementById('moltbookHumanCreator')?.addEventListener('change', (e) => {
-                saveMoltbookSettings({ humanCreator: e.target.value });
-            });
-            document.getElementById('moltbookProfileLink')?.addEventListener('change', (e) => {
-                saveMoltbookSettings({ profileLink: e.target.value });
-            });
+            // Agent identity — auto-derived, no event listeners needed
 
             // Business promotion
             document.getElementById('moltbookBusinessName')?.addEventListener('change', (e) => {

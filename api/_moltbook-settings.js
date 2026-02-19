@@ -42,12 +42,8 @@ const DEFAULT_SETTINGS = {
   // The AI reads this to generate fresh, unique posts
   olbrainUpdates: '',
 
-  // Agent identity for comments
-  agentName: 'alok',
-  agentDescription: 'a mindclone built by Olbrain',
-  humanCreator: 'Alok Gotam',
-  humanCreatorHandle: '@alok_gotam',
-  profileLink: 'mindclone.link/alok',
+  // Identity fields — auto-derived from user profile at runtime
+  // No longer hardcoded here; heartbeat loads from Firestore user doc
 
   // Business promotion settings
   businessName: 'Olbrain',
