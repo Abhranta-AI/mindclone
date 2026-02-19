@@ -38,11 +38,9 @@ const DEFAULT_SETTINGS = {
     'future', 'innovation', 'product', 'app', 'platform', 'social', 'community'
   ],
 
-  // Custom post templates (user can add their own)
-  customPosts: [],
-
-  // Use default post templates
-  useDefaultPosts: true,
+  // Olbrain Updates — notepad where user writes recent developments
+  // The AI reads this to generate fresh, unique posts
+  olbrainUpdates: '',
 
   // Agent identity for comments
   agentName: 'alok',

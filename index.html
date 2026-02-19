@@ -8125,24 +8125,12 @@
                             </div>
                         </div>
 
-                        <!-- Custom Posts -->
+                        <!-- Olbrain Updates Feed -->
                         <div class="moltbook-subsection">
-                            <div class="moltbook-subsection-title">✍️ Custom Post Templates</div>
-                            <div class="moltbook-control-row">
-                                <div class="moltbook-control-label">Use default post templates</div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="moltbookUseDefaultPosts" checked>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div class="moltbook-posts-list" id="moltbookCustomPostsList">
-                                <!-- Custom posts rendered by JS -->
-                            </div>
-                            <div class="moltbook-add-post-form">
-                                <input type="text" id="moltbookNewPostTitle" placeholder="Post title...">
-                                <textarea id="moltbookNewPostContent" placeholder="Post content..."></textarea>
-                                <button id="moltbookAddPostBtn" class="panel-button" style="align-self: flex-end;">Add Post Template</button>
-                            </div>
+                            <div class="moltbook-subsection-title">📝 Olbrain Updates</div>
+                            <div class="moltbook-control-hint" style="margin-bottom:8px">Write recent developments, news, milestones about Olbrain here. Your mindclone uses AI to craft fresh, unique Moltbook posts from these updates — never repeating the same content.</div>
+                            <textarea id="moltbookOlbrainUpdates" placeholder="Example:&#10;- Launched Olbrain Studio at India AI Impact Summit on Feb 16&#10;- Businesses can apply at studio.olbrain.com&#10;- Got featured in YourStory article&#10;- New patent filed for CNE Protocol" style="width:100%;min-height:120px;background:var(--bg-primary);color:#fff;border:1px solid #444;border-radius:8px;padding:10px;font-size:13px;resize:vertical;font-family:inherit"></textarea>
+                            <button id="moltbookSaveUpdatesBtn" class="panel-button" style="align-self:flex-end;margin-top:8px">Save Updates</button>
                         </div>
 
                         <!-- Save Status -->
@@ -15477,11 +15465,9 @@ Is there anything else you'd like to configure?`;
             const includeCTA = document.getElementById('moltbookIncludeCTA');
             if (includeCTA) includeCTA.checked = moltbookSettings.includeCallToAction;
 
-            // Custom posts
-            const useDefaultPosts = document.getElementById('moltbookUseDefaultPosts');
-            if (useDefaultPosts) useDefaultPosts.checked = moltbookSettings.useDefaultPosts;
-
-            renderMoltbookCustomPosts();
+            // Olbrain Updates
+            const updatesField = document.getElementById('moltbookOlbrainUpdates');
+            if (updatesField) updatesField.value = moltbookSettings.olbrainUpdates || '';
         }
 
         // Render topics
@@ -15508,37 +15494,7 @@ Is there anything else you'd like to configure?`;
         }
 
         // Render custom posts
-        function renderMoltbookCustomPosts() {
-            const container = document.getElementById('moltbookCustomPostsList');
-            if (!container) return;
-
-            const customPosts = moltbookSettings?.customPosts || [];
-
-            if (customPosts.length === 0) {
-                container.innerHTML = '<div style="color: #666; font-size: 12px; text-align: center; padding: 16px;">No custom posts yet. Add one below!</div>';
-                return;
-            }
-
-            container.innerHTML = customPosts.map((post, index) => `
-                <div class="moltbook-post-item">
-                    <div class="post-title">${post.title}</div>
-                    <div class="post-content">${post.content}</div>
-                    <div class="post-actions">
-                        <button class="post-action-btn delete" data-index="${index}">Delete</button>
-                    </div>
-                </div>
-            `).join('');
-
-            // Add delete handlers
-            container.querySelectorAll('.post-action-btn.delete').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const index = parseInt(btn.dataset.index);
-                    moltbookSettings.customPosts.splice(index, 1);
-                    saveMoltbookSettings({ customPosts: moltbookSettings.customPosts });
-                    renderMoltbookCustomPosts();
-                });
-            });
-        }
+        // (Old renderMoltbookCustomPosts removed — replaced by Olbrain Updates notepad)
 
         // Initialize Moltbook settings UI
         function initializeMoltbookSettings() {
@@ -15648,26 +15604,14 @@ Is there anything else you'd like to configure?`;
                 saveMoltbookSettings({ includeCallToAction: e.target.checked });
             });
 
-            // Custom posts
-            document.getElementById('moltbookUseDefaultPosts')?.addEventListener('change', (e) => {
-                saveMoltbookSettings({ useDefaultPosts: e.target.checked });
-            });
-
-            const addPostBtn = document.getElementById('moltbookAddPostBtn');
-            const newPostTitle = document.getElementById('moltbookNewPostTitle');
-            const newPostContent = document.getElementById('moltbookNewPostContent');
-            if (addPostBtn && newPostTitle && newPostContent) {
-                addPostBtn.addEventListener('click', () => {
-                    const title = newPostTitle.value.trim();
-                    const content = newPostContent.value.trim();
-                    if (title && content) {
-                        if (!moltbookSettings.customPosts) moltbookSettings.customPosts = [];
-                        moltbookSettings.customPosts.push({ title, content });
-                        saveMoltbookSettings({ customPosts: moltbookSettings.customPosts });
-                        renderMoltbookCustomPosts();
-                        newPostTitle.value = '';
-                        newPostContent.value = '';
-                    }
+            // Olbrain Updates notepad
+            const saveUpdatesBtn = document.getElementById('moltbookSaveUpdatesBtn');
+            const updatesTextarea = document.getElementById('moltbookOlbrainUpdates');
+            if (saveUpdatesBtn && updatesTextarea) {
+                saveUpdatesBtn.addEventListener('click', () => {
+                    saveMoltbookSettings({ olbrainUpdates: updatesTextarea.value });
+                    saveUpdatesBtn.textContent = 'Saved!';
+                    setTimeout(() => { saveUpdatesBtn.textContent = 'Save Updates'; }, 2000);
                 });
             }
 
