@@ -17,7 +17,7 @@ const DEFAULT_SETTINGS = {
   // Posting settings
   postingEnabled: true,
   maxPostsPerDay: 8,
-  minHoursBetweenPosts: 12,
+  minHoursBetweenPosts: 1,
 
   // Engagement settings
   upvotingEnabled: true,
