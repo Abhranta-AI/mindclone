@@ -106,7 +106,7 @@ IMPORTANT: Return ONLY the JSON object, no additional text or formatting.`;
 
     const userPrompt = `Analyze these memories and extract the user's interests:\n\n${memories.join('\n\n')}`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: 'POST',

@@ -105,7 +105,7 @@ async function searchWithGrounding(query) {
       throw new Error('GEMINI_API_KEY not configured');
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     // Build prompt that encourages Gemini to use search grounding
     const prompt = `Find recent news articles about: ${query}
