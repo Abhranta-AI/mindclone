@@ -15566,9 +15566,35 @@ Is there anything else you'd like to configure?`;
             const saveUpdatesBtn = document.getElementById('moltbookSaveUpdatesBtn');
             const updatesTextarea = document.getElementById('moltbookOlbrainUpdates');
             if (saveUpdatesBtn && updatesTextarea) {
-                saveUpdatesBtn.addEventListener('click', () => {
-                    saveMoltbookSettings({ olbrainUpdates: updatesTextarea.value });
-                    saveUpdatesBtn.textContent = 'Saved!';
+                saveUpdatesBtn.addEventListener('click', async () => {
+                    saveUpdatesBtn.textContent = 'Saving...';
+                    try {
+                        if (!auth.currentUser) {
+                            saveUpdatesBtn.textContent = 'Not logged in!';
+                            setTimeout(() => { saveUpdatesBtn.textContent = 'Save Updates'; }, 3000);
+                            return;
+                        }
+                        const idToken = await auth.currentUser.getIdToken();
+                        const response = await fetch('/api/moltbook-settings', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${idToken}`
+                            },
+                            body: JSON.stringify({ olbrainUpdates: updatesTextarea.value })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            moltbookSettings = data.settings;
+                            saveUpdatesBtn.textContent = 'Saved!';
+                        } else {
+                            console.error('[Moltbook] Save failed:', data);
+                            saveUpdatesBtn.textContent = 'Save failed!';
+                        }
+                    } catch (e) {
+                        console.error('[Moltbook] Save error:', e);
+                        saveUpdatesBtn.textContent = 'Error!';
+                    }
                     setTimeout(() => { saveUpdatesBtn.textContent = 'Save Updates'; }, 2000);
                 });
             }
