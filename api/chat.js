@@ -4095,8 +4095,8 @@ Use this to understand time references like "yesterday", "next week", "this mont
           data = await response.json();
 
           if (!response.ok) {
-            const errorMsg = data.error?.message || JSON.stringify(data.error) || '';
-            console.error(`[Chat] OpenAI API error: ${response.status} - ${errorMsg}`);
+            const errorMsg = data.error?.message || JSON.stringify(data.error) || JSON.stringify(data) || '';
+            console.error(`[Chat] Gemini API error: ${response.status} - ${errorMsg}`);
 
             // Check if retryable error
             if (response.status === 503 || response.status === 500 ||
@@ -4110,11 +4110,11 @@ Use this to understand time references like "yesterday", "next week", "this mont
               break; // Break retry loop, try next model
             }
 
-            throw new Error(errorMsg || 'Gemini API request failed');
+            throw new Error(`Gemini API error (${response.status}): ${errorMsg.substring(0, 200)}`);
           }
 
           apiCallSuccess = true;
-          console.log(`[Chat] Successfully using OpenAI model: ${currentModel} (attempt ${retryAttempt + 1})`);
+          console.log(`[Chat] Successfully using Gemini model: ${currentModel} (attempt ${retryAttempt + 1})`);
         } catch (fetchError) {
           console.error(`[Chat] Fetch error (attempt ${retryAttempt + 1}):`, fetchError.message);
           if (retryAttempt === MAX_RETRIES - 1) {
