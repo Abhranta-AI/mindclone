@@ -100,7 +100,7 @@ async function getAgentStatus() {
  * @param {string} submoltName - Community to post in (default: 'general')
  */
 async function createPost(title, content, submoltName = 'general') {
-  const postBody = { title, content, submolt_name: submoltName };
+  const postBody = { title, content, submolt: submoltName };
   console.log(`[Moltbook] Creating post: ${JSON.stringify(postBody)}`);
 
   return moltbookRequest('/posts', {
@@ -118,7 +118,7 @@ async function createPost(title, content, submoltName = 'general') {
 async function createLinkPost(title, url, submoltName = 'general') {
   return moltbookRequest('/posts', {
     method: 'POST',
-    body: JSON.stringify({ title, url, submolt_name: submoltName })
+    body: JSON.stringify({ title, url, submolt: submoltName })
   });
 }
 
