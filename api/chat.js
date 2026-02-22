@@ -4254,18 +4254,20 @@ Use this to understand time references like "yesterday", "next week", "this mont
     let lastMemorySearchResult = null; // Store memory search result for fallback responses
     let lastGeneratedImageId = null; // Track generated image ID for injection
 
-    // Helper functions for OpenAI format
+    // Helper functions - handle both full response {choices:[{message}]} and single choice {message}
     const getToolCall = (responseData) => {
-      const toolCalls = responseData?.choices?.[0]?.message?.tool_calls;
+      const message = responseData?.choices?.[0]?.message || responseData?.message;
+      const toolCalls = message?.tool_calls;
       if (toolCalls && toolCalls.length > 0) {
-        return toolCalls[0]; // Return first tool call
+        return toolCalls[0];
       }
       return null;
     };
     const getText = (responseData) => {
-      return responseData?.choices?.[0]?.message?.content || '';
+      const message = responseData?.choices?.[0]?.message || responseData?.message;
+      return message?.content || '';
     };
-    // OpenAI response is already in the right format
+    // Extract first choice from response
     let choice = data?.choices?.[0] || { message: { content: '', tool_calls: null } };
 
     // Sanitize response to remove leaked internal tool call patterns
