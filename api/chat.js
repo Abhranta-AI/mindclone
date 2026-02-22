@@ -2419,20 +2419,20 @@ async function handleAnalyzeImage(args) {
       mimeType = 'image/jpeg'; // Default
     }
 
-    // Call OpenAI vision API (GPT-4o has vision)
-    const apiKey = process.env.OPENAI_API_KEY;
+    // Call Gemini vision API (via OpenAI-compatible endpoint)
+    const apiKey = process.env.GEMINI_API_KEY;
     const prompt = question || 'Describe this image in detail. What do you see? Include any text, people, objects, and the overall scene.';
 
-    console.log(`[Vision] Using OpenAI gpt-4o`);
+    console.log(`[Vision] Using Gemini gemini-2.0-flash via OpenAI-compatible endpoint`);
 
-    const visionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    const visionResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gemini-2.0-flash',
         max_tokens: 1024,
         messages: [{
           role: 'user',
@@ -4002,10 +4002,10 @@ Use this to understand time references like "yesterday", "next week", "this mont
       };
     }
 
-    // === OPENAI MODEL CONFIGURATION ===
-    const OPENAI_MODELS = ['gpt-4o', 'gpt-4o-mini'];
+    // === GEMINI MODEL CONFIGURATION (OpenAI-compatible endpoint) ===
+    const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash'];
     let currentModelIndex = 0;
-    let currentModel = OPENAI_MODELS[0];
+    let currentModel = GEMINI_MODELS[0];
 
     // === TOOL FILTERING BASED ON CONTEXT ===
     let filteredToolsGemini = tools;
@@ -4038,7 +4038,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
       validMessages.push({ role: 'user', content: 'Hello' });
     }
 
-    console.log(`[Chat] OpenAI messages count: ${validMessages.length}`);
+    console.log(`[Chat] Messages count: ${validMessages.length}`);
 
     // Build OpenAI request
     const requestBody = {
@@ -4048,13 +4048,13 @@ Use this to understand time references like "yesterday", "next week", "this mont
       tools: openaiTools.length > 0 ? openaiTools : undefined
     };
 
-    // Get OpenAI API key
-    const openaiApiKey = process.env.OPENAI_API_KEY;
-    if (!openaiApiKey) {
-      console.error('[Chat] OPENAI_API_KEY is not set!');
-      throw new Error('OPENAI_API_KEY not configured');
+    // Get Gemini API key (using OpenAI-compatible endpoint)
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
+      console.error('[Chat] GEMINI_API_KEY is not set!');
+      throw new Error('GEMINI_API_KEY not configured');
     }
-    console.log(`[Chat] OpenAI API key present: ${openaiApiKey ? 'yes' : 'no'}, length: ${openaiApiKey?.length}`);
+    console.log(`[Chat] Gemini API key present: yes, length: ${geminiApiKey?.length}`);
 
     // Initial API call with model fallback AND retry logic
     let response, data;
@@ -4062,8 +4062,8 @@ Use this to understand time references like "yesterday", "next week", "this mont
     const MAX_RETRIES = 3;
     const RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
 
-    while (!apiCallSuccess && currentModelIndex < OPENAI_MODELS.length) {
-      currentModel = OPENAI_MODELS[currentModelIndex];
+    while (!apiCallSuccess && currentModelIndex < GEMINI_MODELS.length) {
+      currentModel = GEMINI_MODELS[currentModelIndex];
       requestBody.model = currentModel;
 
       // Retry loop for transient failures
@@ -4081,11 +4081,11 @@ Use this to understand time references like "yesterday", "next week", "this mont
         console.log(`[Chat] Tools count: ${requestBody.tools?.length || 0}`);
 
         try {
-          response = await fetch('https://api.openai.com/v1/chat/completions', {
+          response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${openaiApiKey}`
+              'Authorization': `Bearer ${geminiApiKey}`
             },
             body: JSON.stringify(requestBody)
           });
@@ -4110,7 +4110,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
               break; // Break retry loop, try next model
             }
 
-            throw new Error(errorMsg || 'OpenAI API request failed');
+            throw new Error(errorMsg || 'Gemini API request failed');
           }
 
           apiCallSuccess = true;
@@ -4130,7 +4130,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
     }
 
     if (!apiCallSuccess) {
-      throw new Error('All OpenAI models failed. Please try again later.');
+      throw new Error('All Gemini models failed. Please try again later.');
     }
 
     // Check if model wants to call a tool (OpenAI format)
@@ -4268,15 +4268,15 @@ Use this to understand time references like "yesterday", "next week", "this mont
       requestBody.messages = validMessages;
       let toolCallSuccess = false;
 
-      while (!toolCallSuccess && currentModelIndex < OPENAI_MODELS.length) {
-        currentModel = OPENAI_MODELS[currentModelIndex];
+      while (!toolCallSuccess && currentModelIndex < GEMINI_MODELS.length) {
+        currentModel = GEMINI_MODELS[currentModelIndex];
         requestBody.model = currentModel;
 
-        response = await fetch('https://api.openai.com/v1/chat/completions', {
+        response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${openaiApiKey}`
+            'Authorization': `Bearer ${geminiApiKey}`
           },
           body: JSON.stringify(requestBody)
         });
@@ -4291,14 +4291,14 @@ Use this to understand time references like "yesterday", "next week", "this mont
             continue;
           }
           console.log(`[Tool] API error after tool call: ${errorMsg}`);
-          throw new Error(errorMsg || 'OpenAI API request failed after tool call');
+          throw new Error(errorMsg || 'Gemini API request failed after tool call');
         }
 
         toolCallSuccess = true;
       }
 
       if (!toolCallSuccess) {
-        throw new Error('All OpenAI models failed during tool call');
+        throw new Error('All Gemini models failed during tool call');
       }
 
       // Update choice for new response (OpenAI format)
@@ -4365,13 +4365,13 @@ Use this to understand time references like "yesterday", "next week", "this mont
       let retryResponse, retryData;
       let retrySuccess = false;
 
-      for (let i = currentModelIndex; i < OPENAI_MODELS.length && !retrySuccess; i++) {
-        requestBody.model = OPENAI_MODELS[i];
-        retryResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      for (let i = currentModelIndex; i < GEMINI_MODELS.length && !retrySuccess; i++) {
+        requestBody.model = GEMINI_MODELS[i];
+        retryResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${openaiApiKey}`
+            'Authorization': `Bearer ${geminiApiKey}`
           },
           body: JSON.stringify(requestBody)
         });
@@ -4381,7 +4381,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
         if (retryResponse.ok) {
           retrySuccess = true;
         } else if (retryData.error?.message?.includes('rate') || retryResponse.status === 429) {
-          console.log(`[Auto-Retry] Model ${OPENAI_MODELS[i]} rate limited, trying next...`);
+          console.log(`[Auto-Retry] Model ${GEMINI_MODELS[i]} rate limited, trying next...`);
           continue;
         } else {
           break;
