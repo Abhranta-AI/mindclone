@@ -664,7 +664,23 @@ async function runHeartbeat() {
           actions.push({ type: 'post_error', title: postOpportunity.title, error: e.message });
         }
       } else {
-        actions.push({ type: 'post_skipped', reason: 'No posting opportunity (rate limited or no templates)' });
+        // Include diagnostic info in response so we can see why
+        const hoursSincePost = state.lastPostTime
+          ? ((Date.now() - new Date(state.lastPostTime).getTime()) / (1000 * 60 * 60)).toFixed(1)
+          : 'never';
+        actions.push({
+          type: 'post_skipped',
+          reason: 'checkForPostingOpportunity returned null',
+          debug: {
+            lastPostTime: state.lastPostTime || 'never',
+            hoursSinceLastPost: hoursSincePost,
+            minHoursBetweenPosts: settings.minHoursBetweenPosts ?? 1,
+            postsToday: state.postsToday,
+            maxPostsPerDay: settings.maxPostsPerDay || 8,
+            postingEnabled: settings.postingEnabled,
+            geminiKeySet: !!GEMINI_API_KEY
+          }
+        });
       }
     }
 
