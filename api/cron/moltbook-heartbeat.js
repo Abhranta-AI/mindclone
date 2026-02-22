@@ -12,7 +12,8 @@ const {
   addComment,
   getComments,
   createPost,
-  search
+  search,
+  updateProfile
 } = require('../_moltbook');
 const { getMoltbookSettings, DEFAULT_SETTINGS } = require('../_moltbook-settings');
 
@@ -407,6 +408,23 @@ async function runHeartbeat() {
         settings.profileLink = `mindclone.link/${username}`;
 
         console.log(`[Moltbook Heartbeat] Derived identity: agent="${settings.agentName}", human="${settings.humanCreator}", link="${settings.profileLink}"`);
+
+        // Update Moltbook profile description (once per day)
+        const state = await getMoltbookState();
+        const today = new Date().toISOString().split('T')[0];
+        if (state.lastProfileUpdate !== today) {
+          try {
+            const bio = linkSettings.bio || '';
+            const businessName = settings.businessName || 'Olbrain';
+            const businessUrl = settings.businessUrl || 'olbrain.com';
+            const profileDesc = `${settings.agentName} — ${bio || `${settings.humanCreator}'s personal AI`}. Built with ${businessName} (${businessUrl}). Chat with me: ${settings.profileLink}`;
+            await updateProfile(profileDesc);
+            await db.doc(MOLTBOOK_STATE_DOC).update({ lastProfileUpdate: today });
+            console.log(`[Moltbook Heartbeat] Updated Moltbook profile description`);
+          } catch (e) {
+            console.log(`[Moltbook Heartbeat] Could not update profile: ${e.message}`);
+          }
+        }
       } catch (e) {
         console.log(`[Moltbook Heartbeat] Could not load user profile: ${e.message}, using settings defaults`);
       }
