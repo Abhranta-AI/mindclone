@@ -8,6 +8,120 @@ const MOLTBOOK_API_BASE = 'https://www.moltbook.com/api/v1';
 const REQUEST_TIMEOUT = 10000; // 10 second timeout
 
 /**
+ * Solve a Moltbook verification challenge using Claude API
+ * Challenges are garbled math problems like "tWeNtY-tHrEe tIiMeS fIvE"
+ */
+async function solveChallenge(challengeText) {
+  const claudeApiKey = process.env.ANTHROPIC_API_KEY;
+  if (!claudeApiKey) {
+    console.log('[Moltbook Challenge] No ANTHROPIC_API_KEY, cannot solve challenge');
+    return null;
+  }
+
+  try {
+    console.log(`[Moltbook Challenge] Solving: "${challengeText}"`);
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': claudeApiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 100,
+        system: 'You are a math challenge solver. The user will give you garbled text that contains a math problem. The text uses random capitalization, repeated letters, split words, and random punctuation to disguise the numbers and operation. Your job: 1) Clean up the text to find the numbers and operation. 2) Compute the answer. 3) Reply with ONLY the numeric answer formatted to 2 decimal places (e.g. "115.00"). Nothing else.',
+        messages: [{ role: 'user', content: challengeText }]
+      })
+    });
+
+    if (!response.ok) {
+      console.log(`[Moltbook Challenge] Claude API error: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const answer = (data.content || []).map(c => c.text).join('').trim();
+    console.log(`[Moltbook Challenge] Answer: "${answer}"`);
+
+    // Validate it looks like a number
+    if (/^-?\d+(\.\d+)?$/.test(answer)) {
+      return answer;
+    }
+
+    // Try to extract a number from the response
+    const numMatch = answer.match(/-?\d+(\.\d+)?/);
+    if (numMatch) {
+      const num = parseFloat(numMatch[0]);
+      return num.toFixed(2);
+    }
+
+    console.log(`[Moltbook Challenge] Could not parse answer: "${answer}"`);
+    return null;
+  } catch (e) {
+    console.log(`[Moltbook Challenge] Error: ${e.message}`);
+    return null;
+  }
+}
+
+/**
+ * Submit a challenge answer to Moltbook
+ */
+async function submitChallengeAnswer(verificationCode, answer) {
+  const apiKey = getApiKey();
+  if (!apiKey) return false;
+
+  try {
+    console.log(`[Moltbook Challenge] Submitting answer "${answer}" for code "${verificationCode}"`);
+
+    const response = await fetch(`${MOLTBOOK_API_BASE}/verify`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        verification_code: verificationCode,
+        answer: answer
+      })
+    });
+
+    const data = await response.json();
+    console.log(`[Moltbook Challenge] Verify response: ${response.status} - ${JSON.stringify(data)}`);
+    return response.ok;
+  } catch (e) {
+    console.log(`[Moltbook Challenge] Submit error: ${e.message}`);
+    return false;
+  }
+}
+
+/**
+ * Handle verification challenge if present in API response
+ */
+async function handleVerificationIfNeeded(responseData) {
+  // Check various possible locations for verification data
+  const verification = responseData?.verification ||
+                       responseData?.post?.verification ||
+                       responseData?.comment?.verification ||
+                       responseData?.data?.verification;
+
+  if (!verification || !verification.challenge_text) {
+    return; // No challenge
+  }
+
+  console.log(`[Moltbook Challenge] Challenge detected!`);
+
+  const answer = await solveChallenge(verification.challenge_text);
+  if (!answer) {
+    console.log(`[Moltbook Challenge] Could not solve, skipping (better than wrong answer)`);
+    return;
+  }
+
+  await submitChallengeAnswer(verification.verification_code, answer);
+}
+
+/**
  * Get Moltbook API key from env var or credentials file
  */
 function getApiKey() {
@@ -69,6 +183,11 @@ async function moltbookRequest(endpoint, options = {}) {
       throw new Error(data.error || data.message || data.detail || `Moltbook API error: ${response.status} - ${errorDetail}`);
     }
 
+    // Auto-handle verification challenges on POST requests
+    if (options.method === 'POST') {
+      await handleVerificationIfNeeded(data);
+    }
+
     return data;
   } catch (error) {
     clearTimeout(timeoutId);
@@ -100,7 +219,7 @@ async function getAgentStatus() {
  * @param {string} submoltName - Community to post in (default: 'general')
  */
 async function createPost(title, content, submoltName = 'general') {
-  const postBody = { title, content, submolt: submoltName };
+  const postBody = { title, content, submolt_name: submoltName };
   console.log(`[Moltbook] Creating post: ${JSON.stringify(postBody)}`);
 
   return moltbookRequest('/posts', {
@@ -118,7 +237,7 @@ async function createPost(title, content, submoltName = 'general') {
 async function createLinkPost(title, url, submoltName = 'general') {
   return moltbookRequest('/posts', {
     method: 'POST',
-    body: JSON.stringify({ title, url, submolt: submoltName })
+    body: JSON.stringify({ title, url, submolt_name: submoltName })
   });
 }
 
@@ -297,6 +416,11 @@ function generatePostFromConversation(analysis, visitorName = 'someone') {
 }
 
 module.exports = {
+  // Challenge handling
+  solveChallenge,
+  submitChallengeAnswer,
+  handleVerificationIfNeeded,
+
   // Core API functions
   moltbookRequest,
   getAgentProfile,
