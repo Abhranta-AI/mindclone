@@ -340,21 +340,37 @@ Respond ONLY in this exact JSON format, nothing else:
  */
 async function checkForPostingOpportunity(state, settings) {
   // Check if posting is enabled
-  if (!settings.postingEnabled) return null;
+  if (!settings.postingEnabled) {
+    console.log('[Moltbook Heartbeat] Posting disabled in settings');
+    return null;
+  }
 
-  // Rate limit based on settings
-  const minHours = settings.minHoursBetweenPosts || 12;
+  // Rate limit based on settings (default 1 hour)
+  const minHours = settings.minHoursBetweenPosts ?? 1;
   if (state.lastPostTime) {
     const hoursSinceLastPost = (Date.now() - new Date(state.lastPostTime).getTime()) / (1000 * 60 * 60);
-    if (hoursSinceLastPost < minHours) return null;
+    console.log(`[Moltbook Heartbeat] Hours since last post: ${hoursSinceLastPost.toFixed(1)}, min required: ${minHours}`);
+    if (hoursSinceLastPost < minHours) {
+      console.log('[Moltbook Heartbeat] Rate limited — too soon since last post');
+      return null;
+    }
+  } else {
+    console.log('[Moltbook Heartbeat] No lastPostTime found — first post!');
   }
 
   // Max posts per day from settings
   const maxPosts = settings.maxPostsPerDay || 8;
-  if (state.postsToday >= maxPosts) return null;
+  if (state.postsToday >= maxPosts) {
+    console.log(`[Moltbook Heartbeat] Daily max reached: ${state.postsToday}/${maxPosts}`);
+    return null;
+  }
 
   // Generate a fresh post using AI
+  console.log('[Moltbook Heartbeat] Generating AI post...');
   const aiPost = await generateAIPost(settings, state);
+  if (!aiPost) {
+    console.log('[Moltbook Heartbeat] AI post generation returned null (check GEMINI_API_KEY)');
+  }
   return aiPost;
 }
 
@@ -621,14 +637,17 @@ async function runHeartbeat() {
       }
     }
 
-    // 3. Maybe create a post
-    if (Math.random() < postMultiplier) {
+    // 3. Maybe create a post (always try in growth mode)
+    const shouldTryPost = Math.random() < postMultiplier;
+    console.log(`[Moltbook Heartbeat] Post check: shouldTry=${shouldTryPost}, multiplier=${postMultiplier}, lastPostTime=${state.lastPostTime}, GEMINI_KEY=${!!GEMINI_API_KEY}`);
+    if (shouldTryPost) {
       const postOpportunity = await checkForPostingOpportunity(state, settings);
       if (postOpportunity) {
         try {
           console.log(`[Moltbook Heartbeat] Attempting to post: ${postOpportunity.title}`);
           const result = await createPost(postOpportunity.title, postOpportunity.content, 'general');
-          if (result.success) {
+          console.log(`[Moltbook Heartbeat] createPost result:`, JSON.stringify(result).substring(0, 300));
+          if (result.success || result.id || result.post) {
             state.postsToday++;
             state.lastPostTime = new Date().toISOString();
             // Track recent titles to avoid repetition (keep last 20)
