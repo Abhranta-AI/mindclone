@@ -7903,6 +7903,15 @@
                         <span id="panelMindcloneNameStatus" class="input-status"></span>
                     </div>
 
+                    <!-- Core Objective Function (CoF) -->
+                    <div class="panel-form-group" id="panelCoFGroup" style="display: none;">
+                        <label class="panel-label">Core Objective Function (CoF)</label>
+                        <span class="panel-hint">Your mindclone's fundamental purpose — the "why" it exists. Everything it learns, believes, and values will orbit around this. Only you can set this.</span>
+                        <textarea id="panelCoFInput" class="panel-input" placeholder="Example: Represent Alok's professional identity and help grow Olbrain by connecting with potential clients, investors, and partners." style="min-height:80px;resize:vertical;font-family:inherit;font-size:13px;"></textarea>
+                        <button id="panelSaveCoFBtn" class="panel-button-small" style="align-self:flex-end;margin-top:6px">Save CoF</button>
+                        <span id="panelCoFStatus" class="input-status"></span>
+                    </div>
+
                     <!-- Link Goal -->
                     <div class="panel-form-group" id="panelLinkGoalGroup" style="display: none;">
                         <label class="panel-label">Link Goal</label>
@@ -8417,6 +8426,7 @@
         const panelMindcloneNameInput = document.getElementById('panelMindcloneNameInput');
         const panelSaveMindcloneNameBtn = document.getElementById('panelSaveMindcloneNameBtn');
         const panelMindcloneNameStatus = document.getElementById('panelMindcloneNameStatus');
+        const panelCoFGroup = document.getElementById('panelCoFGroup');
         const panelLinkGoalGroup = document.getElementById('panelLinkGoalGroup');
         const panelLinkGoalSelect = document.getElementById('panelLinkGoalSelect');
         const panelLinkGoalStatus = document.getElementById('panelLinkGoalStatus');
@@ -9304,6 +9314,36 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 updateMindcloneNameStatus(savedMindcloneName, false);
             };
 
+            // Save Core Objective Function (CoF)
+            const panelSaveCoFBtn = document.getElementById('panelSaveCoFBtn');
+            const panelCoFInputEl = document.getElementById('panelCoFInput');
+            const panelCoFStatus = document.getElementById('panelCoFStatus');
+            if (panelSaveCoFBtn && panelCoFInputEl) {
+                panelSaveCoFBtn.addEventListener('click', async () => {
+                    if (!auth.currentUser) return;
+                    const cof = panelCoFInputEl.value.trim();
+                    try {
+                        panelSaveCoFBtn.disabled = true;
+                        panelSaveCoFBtn.textContent = 'Saving...';
+                        const linkSettingsRef = doc(db, 'users', auth.currentUser.uid, 'linkSettings', 'config');
+                        await setDoc(linkSettingsRef, {
+                            coreObjectiveFunction: cof,
+                            updatedAt: serverTimestamp()
+                        }, { merge: true });
+                        panelCoFStatus.textContent = '✓ CoF saved';
+                        panelCoFStatus.className = 'input-status success';
+                        panelSaveCoFBtn.textContent = 'Save CoF';
+                        panelSaveCoFBtn.disabled = false;
+                    } catch (error) {
+                        console.error('Error saving CoF:', error);
+                        panelCoFStatus.textContent = 'Failed to save';
+                        panelCoFStatus.className = 'input-status error';
+                        panelSaveCoFBtn.textContent = 'Save CoF';
+                        panelSaveCoFBtn.disabled = false;
+                    }
+                });
+            }
+
             // Save link goal when changed
             if (panelLinkGoalSelect) {
                 panelLinkGoalSelect.addEventListener('change', async () => {
@@ -9626,6 +9666,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             panelDeleteUsernameIcon.classList.remove('hidden'); // Show delete button
             panelEnableLinkGroup.style.display = 'block'; // Show enable toggle
             panelMindcloneNameGroup.style.display = 'block'; // Show mindclone name input
+            panelCoFGroup.style.display = 'block'; // Show Core Objective Function
             panelLinkGoalGroup.style.display = 'block'; // Show link goal selector
             panelContactDetailsGroup.style.display = 'block'; // Show contact details
             showPanelLinkPreview(username); // Show link preview
@@ -9649,6 +9690,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             panelDeleteUsernameIcon.classList.add('hidden'); // Hide delete button
             panelEnableLinkGroup.style.display = 'none'; // Hide enable toggle
             panelMindcloneNameGroup.style.display = 'none'; // Hide mindclone name input
+            panelCoFGroup.style.display = 'none'; // Hide Core Objective Function
             panelLinkGoalGroup.style.display = 'none'; // Hide link goal selector
             panelContactDetailsGroup.style.display = 'none'; // Hide contact details
             panelLinkPreviewSection.style.display = 'none'; // Hide link preview
@@ -9717,6 +9759,11 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                             if (panelContactStatus && (linkSettings.contactEmail || linkSettings.contactWhatsApp)) {
                                 panelContactStatus.textContent = '✓ Contact info saved';
                                 panelContactStatus.className = 'input-status success';
+                            }
+                            // Load Core Objective Function (CoF)
+                            const panelCoFInput = document.getElementById('panelCoFInput');
+                            if (panelCoFInput) {
+                                panelCoFInput.value = linkSettings.coreObjectiveFunction || '';
                             }
                         } else {
                             // No settings yet - show empty state

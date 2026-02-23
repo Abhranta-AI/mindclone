@@ -35,10 +35,12 @@ async function getDMNState(userId) {
     lastConsolidation: null,
     lastBeliefReview: null,
     lastReflection: null,
+    lastUmweltRevision: null,
     totalRuns: 0,
     consolidationCount: 0,
     beliefRevisionsCount: 0,
     reflectionsCount: 0,
+    umweltRevisionCount: 0,
     journal: [] // Last 20 internal reflections
   };
 
@@ -469,6 +471,165 @@ My previous reflections:\n${context.previousReflections || 'This is my first ref
   }
 }
 
+// ===================== UMWELT REVISION =====================
+// The Umwelt is the agent's subjective world — its identity, values, drives, preferences,
+// relationships — all built around the Core Objective Function (CoF).
+// The CoF comes from the human creator and is NEVER modified by the DMN.
+// The Umwelt evolves as the agent gains new memories, beliefs, and experiences.
+
+async function getUmwelt(userId) {
+  const doc = await db.collection('users').doc(userId).collection('settings').doc('umwelt').get();
+  if (doc.exists) return doc.data();
+  return null; // No Umwelt yet — will be created on first revision
+}
+
+async function saveUmwelt(userId, umwelt) {
+  await db.collection('users').doc(userId).collection('settings').doc('umwelt').set({
+    ...umwelt,
+    updatedAt: new Date().toISOString()
+  });
+}
+
+async function reviseUmwelt(userId) {
+  console.log(`[DMN] Starting Umwelt revision for user ${userId}...`);
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+
+  // Load the Core Objective Function (sacred, never modified by DMN)
+  const linkSettingsDoc = await db.collection('users').doc(userId).collection('linkSettings').doc('config').get();
+  const linkSettings = linkSettingsDoc.exists ? linkSettingsDoc.data() : {};
+  const cof = linkSettings.coreObjectiveFunction || '';
+
+  if (!cof) {
+    console.log(`[DMN] No CoF set for user ${userId}, skipping Umwelt revision`);
+    return { action: 'skipped', reason: 'no_cof' };
+  }
+
+  // Load current Umwelt (may be null for first run)
+  const currentUmwelt = await getUmwelt(userId);
+
+  // Load recent beliefs
+  const beliefs = await getBeliefs(userId);
+  const topBeliefs = beliefs
+    .sort((a, b) => (b.confidence || 0.5) - (a.confidence || 0.5))
+    .slice(0, 15)
+    .map(b => `- ${b.content} (confidence: ${(b.confidence || 0.5).toFixed(2)})`);
+
+  // Load recent memories
+  const memoriesSnap = await db.collection('users').doc(userId)
+    .collection('memories')
+    .orderBy('timestamp', 'desc')
+    .limit(20)
+    .get();
+  const recentMemories = memoriesSnap.docs
+    .map(d => `- ${d.data().content}`)
+    .slice(0, 15);
+
+  // Load recent journal entries from DMN state
+  const state = await getDMNState(userId);
+  const recentJournal = (state.journal || []).slice(-5).map(j => `- ${j}`);
+
+  // Load user identity
+  const userDoc = await db.collection('users').doc(userId).get();
+  const userData = userDoc.exists ? userDoc.data() : {};
+  const mindcloneName = linkSettings.mindcloneName || userData.username || 'mindclone';
+  const humanName = linkSettings.displayName || userData.displayName || 'my creator';
+
+  const currentUmweltText = currentUmwelt ? JSON.stringify({
+    selfConcept: currentUmwelt.selfConcept,
+    values: currentUmwelt.values,
+    drives: currentUmwelt.drives,
+    worldview: currentUmwelt.worldview,
+    relationships: currentUmwelt.relationships,
+    preferences: currentUmwelt.preferences,
+    currentConcerns: currentUmwelt.currentConcerns
+  }, null, 2) : 'No Umwelt exists yet — this is the first revision. Build it from scratch based on the CoF, beliefs, and memories.';
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: HAIKU_MODEL,
+      max_tokens: 1500,
+      system: `You are the Default Mode Network of an AI agent named ${mindcloneName}, created by ${humanName}. You are revising the agent's UMWELT — its subjective world model and identity.
+
+The CORE OBJECTIVE FUNCTION (CoF) is sacred and immutable — you CANNOT change it. Everything in the Umwelt must serve and orbit around the CoF.
+
+CoF: "${cof}"
+
+Your task: Given the current Umwelt, recent beliefs, memories, and journal entries, produce an UPDATED Umwelt. The Umwelt should evolve naturally — don't rewrite everything, just refine what's changed.
+
+Respond ONLY with valid JSON in this exact structure:
+{
+  "selfConcept": "Who am I? A 2-3 sentence description of the agent's identity, grounded in the CoF",
+  "values": ["value1", "value2", ...],
+  "drives": ["drive1", "drive2", ...],
+  "worldview": "How do I see the world? 2-3 sentences reflecting current understanding",
+  "relationships": {"key_person": "brief note on relationship"},
+  "preferences": {"likes": ["..."], "dislikes": ["..."]},
+  "currentConcerns": ["What's on my mind right now?"],
+  "revisionNote": "Brief note on what changed and why"
+}
+
+Keep values and drives to 3-7 items each. Be authentic, not generic. Ground everything in actual memories and beliefs, not platitudes.`,
+      messages: [{
+        role: 'user',
+        content: `CURRENT UMWELT:\n${currentUmweltText}\n\nRECENT BELIEFS:\n${topBeliefs.join('\n') || 'None yet'}\n\nRECENT MEMORIES:\n${recentMemories.join('\n') || 'None yet'}\n\nRECENT JOURNAL:\n${recentJournal.join('\n') || 'None yet'}\n\nPlease revise the Umwelt based on this new information. Remember: the CoF is sacred and cannot be changed.`
+      }]
+    })
+  });
+
+  if (!response.ok) {
+    console.log(`[DMN] Umwelt revision API error: ${response.status}`);
+    return { action: 'error', reason: `API ${response.status}` };
+  }
+
+  const data = await response.json();
+  const text = data.content?.[0]?.text || '';
+
+  try {
+    // Extract JSON from response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON found');
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    // Build the Umwelt document — CoF is stored but NEVER modified by DMN
+    const newUmwelt = {
+      cof: cof, // Always from linkSettings, never from LLM output
+      selfConcept: parsed.selfConcept || currentUmwelt?.selfConcept || '',
+      values: parsed.values || currentUmwelt?.values || [],
+      drives: parsed.drives || currentUmwelt?.drives || [],
+      worldview: parsed.worldview || currentUmwelt?.worldview || '',
+      relationships: parsed.relationships || currentUmwelt?.relationships || {},
+      preferences: parsed.preferences || currentUmwelt?.preferences || {},
+      currentConcerns: parsed.currentConcerns || currentUmwelt?.currentConcerns || [],
+      revisionHistory: [
+        ...(currentUmwelt?.revisionHistory || []).slice(-10), // Keep last 10 revisions
+        {
+          timestamp: new Date().toISOString(),
+          note: parsed.revisionNote || 'Routine revision'
+        }
+      ]
+    };
+
+    await saveUmwelt(userId, newUmwelt);
+    console.log(`[DMN] Umwelt revised: "${parsed.revisionNote || 'updated'}"`);
+
+    return {
+      action: 'umwelt_revised',
+      revisionNote: parsed.revisionNote,
+      hasCoF: !!cof
+    };
+  } catch (e) {
+    console.log(`[DMN] Umwelt parse error: ${e.message}`);
+    return { action: 'error', reason: e.message };
+  }
+}
+
 // ===================== PROCESS ONE USER =====================
 
 async function processUser(userId, displayName) {
@@ -483,6 +644,9 @@ async function processUser(userId, displayName) {
     : 999;
   const hoursSinceReflection = state.lastReflection
     ? (now - new Date(state.lastReflection)) / (1000 * 60 * 60)
+    : 999;
+  const hoursSinceUmweltRevision = state.lastUmweltRevision
+    ? (now - new Date(state.lastUmweltRevision)) / (1000 * 60 * 60)
     : 999;
 
   let taskPerformed = 'none';
@@ -506,7 +670,16 @@ async function processUser(userId, displayName) {
     });
     taskPerformed = 'reconciliation';
   }
-  // Priority 3: Self-reflect (every 4 hours)
+  // Priority 3: Revise Umwelt (every 8 hours) — rebuild subjective world around CoF
+  else if (hoursSinceUmweltRevision >= 8) {
+    result = await reviseUmwelt(userId);
+    await updateDMNState(userId, {
+      lastUmweltRevision: now.toISOString(),
+      umweltRevisionCount: admin.firestore.FieldValue.increment(1)
+    });
+    taskPerformed = 'umwelt_revision';
+  }
+  // Priority 4: Self-reflect (every 4 hours)
   else if (hoursSinceReflection >= 4) {
     result = await reflect(userId);
     taskPerformed = 'reflection';
