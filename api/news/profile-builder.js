@@ -1,26 +1,16 @@
-// Profile Builder - Extract user interests from Mem0 memories
-const { MemoryClient } = require('mem0ai');
+// Profile Builder - Extract user interests from Firestore memories
+// Previously used Mem0 — now reads directly from users/{userId}/memories collection
 const { initializeFirebaseAdmin, admin } = require('../_firebase-admin');
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
 const db = admin.firestore();
 
-// Memory client singleton
-let memoryClient = null;
-
-function getMemoryClient() {
-  if (!memoryClient && process.env.MEM0_API_KEY) {
-    memoryClient = new MemoryClient({ apiKey: process.env.MEM0_API_KEY });
-  }
-  return memoryClient;
-}
-
 // Profile cache TTL: 24 hours
 const PROFILE_CACHE_TTL = 24 * 60 * 60 * 1000;
 
 /**
- * Build user interest profile from Mem0 memories
+ * Build user interest profile from Firestore memories
  * Returns structured profile with topics, entities, industries, curiosities
  */
 async function buildUserInterestProfile(userId) {
@@ -34,23 +24,24 @@ async function buildUserInterestProfile(userId) {
       return cachedProfile;
     }
 
-    // Fetch memories from Mem0
-    const mem0 = getMemoryClient();
-    if (!mem0) {
-      console.warn(`[ProfileBuilder] Mem0 not configured, cannot build profile for ${userId}`);
-      return null;
-    }
+    // Fetch memories from Firestore (consolidated by DMN + saved by chat)
+    const memoriesSnap = await db.collection('users').doc(userId)
+      .collection('memories')
+      .orderBy('timestamp', 'desc')
+      .limit(50)
+      .get();
 
-    // Get all memories for user
-    const memoryResult = await mem0.getAll({ user_id: userId });
-
-    if (!memoryResult || !memoryResult.results || memoryResult.results.length === 0) {
+    if (memoriesSnap.empty) {
       console.log(`[ProfileBuilder] No memories found for ${userId}`);
       return null;
     }
 
-    const memories = memoryResult.results.map(m => m.memory);
+    const memories = memoriesSnap.docs.map(d => d.data().content).filter(Boolean);
     console.log(`[ProfileBuilder] Found ${memories.length} memories for ${userId}`);
+
+    if (memories.length === 0) {
+      return null;
+    }
 
     // Use Gemini to parse memories into structured profile
     const profile = await parseMemoriesWithGemini(memories, userId);
@@ -122,7 +113,7 @@ IMPORTANT: Return ONLY the JSON object, no additional text or formatting.`;
           parts: [{ text: systemPrompt }]
         },
         generationConfig: {
-          temperature: 0.3, // Lower temperature for more consistent JSON output
+          temperature: 0.3,
           maxOutputTokens: 2000
         }
       })
@@ -143,7 +134,6 @@ IMPORTANT: Return ONLY the JSON object, no additional text or formatting.`;
     // Parse JSON response
     let profile;
     try {
-      // Clean up response (remove markdown code blocks if present)
       const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       profile = JSON.parse(cleanText);
     } catch (parseError) {
@@ -152,20 +142,12 @@ IMPORTANT: Return ONLY the JSON object, no additional text or formatting.`;
     }
 
     // Validate structure
-    if (!profile.topics || !Array.isArray(profile.topics)) {
-      profile.topics = [];
-    }
-    if (!profile.entities || !Array.isArray(profile.entities)) {
-      profile.entities = [];
-    }
-    if (!profile.industries || !Array.isArray(profile.industries)) {
-      profile.industries = [];
-    }
-    if (!profile.curiosities || !Array.isArray(profile.curiosities)) {
-      profile.curiosities = [];
-    }
+    if (!profile.topics || !Array.isArray(profile.topics)) profile.topics = [];
+    if (!profile.entities || !Array.isArray(profile.entities)) profile.entities = [];
+    if (!profile.industries || !Array.isArray(profile.industries)) profile.industries = [];
+    if (!profile.curiosities || !Array.isArray(profile.curiosities)) profile.curiosities = [];
 
-    // Limit array sizes to avoid overly long profiles
+    // Limit array sizes
     profile.topics = profile.topics.slice(0, 15);
     profile.entities = profile.entities.slice(0, 15);
     profile.industries = profile.industries.slice(0, 10);
@@ -223,7 +205,6 @@ async function cacheProfile(userId, profile) {
     console.log(`[ProfileBuilder] Cached profile for ${userId}`);
   } catch (error) {
     console.error(`[ProfileBuilder] Error caching profile:`, error);
-    // Non-fatal, continue without caching
   }
 }
 

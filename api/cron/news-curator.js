@@ -94,7 +94,7 @@ async function curateNewsForUser(userId) {
   console.log(`[NewsCurator] Processing user ${userId}`);
 
   try {
-    // Step 1: Build interest profile from Mem0 memories
+    // Step 1: Build interest profile from Firestore memories
     console.log(`[NewsCurator] Building profile for ${userId}`);
     const profile = await buildUserInterestProfile(userId);
 
