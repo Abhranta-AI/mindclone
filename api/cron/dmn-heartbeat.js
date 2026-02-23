@@ -20,6 +20,10 @@ const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_PROCESSING_TIME = 50000; // 50s safety margin (Vercel 60s limit)
 const MAX_USERS_PER_RUN = 5; // Process up to 5 users per cron cycle
 
+// The universal Core Objective Function — hardcoded, same for every mindclone.
+// This is the DNA of what a mindclone IS. No user or DMN can change it.
+const MINDCLONE_COF = 'Absorb the core identity of your human — their knowledge, personality, values, and perspective — and interact with the digital world on their behalf.';
+
 // ===================== DMN STATE MANAGEMENT (per-user) =====================
 
 function getDMNStateDoc(userId) {
@@ -495,15 +499,12 @@ async function reviseUmwelt(userId) {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
-  // Load the Core Objective Function (sacred, never modified by DMN)
+  // The CoF is universal and hardcoded — same for every mindclone
+  const cof = MINDCLONE_COF;
+
+  // Load link settings for identity context
   const linkSettingsDoc = await db.collection('users').doc(userId).collection('linkSettings').doc('config').get();
   const linkSettings = linkSettingsDoc.exists ? linkSettingsDoc.data() : {};
-  const cof = linkSettings.coreObjectiveFunction || '';
-
-  if (!cof) {
-    console.log(`[DMN] No CoF set for user ${userId}, skipping Umwelt revision`);
-    return { action: 'skipped', reason: 'no_cof' };
-  }
 
   // Load current Umwelt (may be null for first run)
   const currentUmwelt = await getUmwelt(userId);
