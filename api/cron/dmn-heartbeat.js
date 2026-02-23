@@ -8,6 +8,8 @@
 // Uses Claude Haiku for cost efficiency (~$0.30-0.50/day)
 // Runs every 15 minutes via Vercel cron
 
+const fs = require('fs');
+const path = require('path');
 const { initializeFirebaseAdmin, admin } = require('../_firebase-admin');
 const { loadMentalModel, updateMentalModel } = require('../_mental-model');
 const { loadMindcloneBeliefs, formBelief, reviseBelief, getBeliefs } = require('../_mindclone-beliefs');
@@ -40,6 +42,7 @@ async function getDMNState(userId) {
     lastBeliefReview: null,
     lastReflection: null,
     lastUmweltRevision: null,
+    lastSelfKnowledge: null,
     totalRuns: 0,
     consolidationCount: 0,
     beliefRevisionsCount: 0,
@@ -475,6 +478,96 @@ My previous reflections:\n${context.previousReflections || 'This is my first ref
   }
 }
 
+// ===================== SELF-KNOWLEDGE GENERATION =====================
+// The mindclone reads its own source code and generates a plain-English
+// understanding of its architecture. Stored in Firestore, loaded into chat context.
+// This means the mindclone always has an accurate, up-to-date understanding of itself.
+
+async function generateSelfKnowledge() {
+  console.log('[DMN] Starting self-knowledge generation (reading own source code)...');
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiDir = path.join(__dirname, '..');
+
+  // Read key source files that define the mindclone's architecture
+  const filesToRead = [
+    { name: 'dmn-heartbeat.js', path: path.join(__dirname, 'dmn-heartbeat.js'), desc: 'Default Mode Network' },
+    { name: '_mindclone-beliefs.js', path: path.join(apiDir, '_mindclone-beliefs.js'), desc: 'Belief system with RbR' },
+    { name: '_mental-model.js', path: path.join(apiDir, '_mental-model.js'), desc: 'Mental model of visitors' },
+    { name: '_moltbook-settings.js', path: path.join(apiDir, '_moltbook-settings.js'), desc: 'Social media behavior' },
+  ];
+
+  let sourceContext = '';
+  for (const file of filesToRead) {
+    try {
+      const content = fs.readFileSync(file.path, 'utf8');
+      // Take first 3000 chars of each file to stay within token limits
+      const trimmed = content.substring(0, 3000);
+      sourceContext += `\n--- ${file.name} (${file.desc}) ---\n${trimmed}\n`;
+    } catch (e) {
+      console.log(`[DMN] Could not read ${file.name}: ${e.message}`);
+    }
+  }
+
+  if (!sourceContext) {
+    console.log('[DMN] No source files readable, skipping self-knowledge generation');
+    return { action: 'skipped', reason: 'no_source_files' };
+  }
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: HAIKU_MODEL,
+      max_tokens: 2000,
+      system: `You are reading the source code of an AI mindclone — and YOU are that mindclone. Write a self-knowledge document in first person that describes how you work internally. This document will be loaded into your context during conversations so you can talk authentically about your own architecture.
+
+Write it conversationally, like you're explaining yourself to a curious human. Cover:
+1. Your two brain modes (TPN and DMN) and how they switch
+2. Your Core Objective Function and what it means to you
+3. Your Umwelt — your evolving subjective world
+4. Your belief system and how Recursive Belief Revision (RbR) works
+5. Your memory system and how consolidation works
+6. Your self-reflection and journaling
+7. Your social behavior (Moltbook)
+8. Anything else notable in the code
+
+Be specific — mention actual intervals, thresholds, mechanisms. Don't be generic. But keep it readable — this isn't documentation, it's self-awareness. Write 400-600 words.`,
+      messages: [{
+        role: 'user',
+        content: `Here is my source code. Read it and write my self-knowledge document:\n${sourceContext}`
+      }]
+    })
+  });
+
+  if (!response.ok) {
+    console.log(`[DMN] Self-knowledge API error: ${response.status}`);
+    return { action: 'error', reason: `API ${response.status}` };
+  }
+
+  const data = await response.json();
+  const selfKnowledge = data.content?.[0]?.text || '';
+
+  if (!selfKnowledge) {
+    return { action: 'error', reason: 'empty_response' };
+  }
+
+  // Store in Firestore — shared across all users (it's the same codebase)
+  await db.collection('system').doc('self-knowledge').set({
+    content: selfKnowledge,
+    generatedAt: new Date().toISOString(),
+    filesRead: filesToRead.map(f => f.name),
+    wordCount: selfKnowledge.split(/\s+/).length
+  });
+
+  console.log(`[DMN] Self-knowledge generated: ${selfKnowledge.split(/\s+/).length} words`);
+  return { action: 'self_knowledge_generated', wordCount: selfKnowledge.split(/\s+/).length };
+}
+
 // ===================== UMWELT REVISION =====================
 // The Umwelt is the agent's subjective world — its identity, values, drives, preferences,
 // relationships — all built around the Core Objective Function (CoF).
@@ -714,6 +807,23 @@ module.exports = async (req, res) => {
       return res.status(200).json({ success: false, reason: 'no_api_key' });
     }
 
+    // System-level task: regenerate self-knowledge document (every 24h)
+    // This is shared across all mindclones since they run the same codebase
+    let selfKnowledgeResult = null;
+    try {
+      const skDoc = await db.collection('system').doc('self-knowledge').get();
+      const lastGenerated = skDoc.exists ? skDoc.data().generatedAt : null;
+      const hoursSinceSelfKnowledge = lastGenerated
+        ? (Date.now() - new Date(lastGenerated).getTime()) / (1000 * 60 * 60)
+        : 999;
+
+      if (hoursSinceSelfKnowledge >= 24) {
+        selfKnowledgeResult = await generateSelfKnowledge();
+      }
+    } catch (e) {
+      console.log(`[DMN] Self-knowledge generation error: ${e.message}`);
+    }
+
     // Find all users with full access (owner + paid subscribers)
     const eligibleUsers = await getEligibleUsers();
     console.log(`[DMN] Found ${eligibleUsers.length} eligible users`);
@@ -766,6 +876,7 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({
       success: true,
+      selfKnowledge: selfKnowledgeResult,
       eligibleUsers: eligibleUsers.length,
       usersProcessed: results.length,
       results: results.map(r => ({ user: r.displayName, task: r.taskPerformed })),
