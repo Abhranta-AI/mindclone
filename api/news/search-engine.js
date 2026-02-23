@@ -1,8 +1,11 @@
-// Search Engine - Use Gemini grounding with Google Search to find relevant news
+// Search Engine - Use Claude API with web search tool to find relevant news
+// Switched from Gemini grounding to Claude web search (uses Brave Search under the hood)
 const crypto = require('crypto');
 
+const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
+
 /**
- * Search for news using Gemini's Google Search grounding
+ * Search for news using Claude's web search tool
  * Returns array of articles with title, url, snippet, publishedDate, source
  */
 async function searchNewsWithGrounding(profile) {
@@ -19,31 +22,12 @@ async function searchNewsWithGrounding(profile) {
 
     console.log(`[SearchEngine] Generated ${queries.length} queries:`, queries);
 
-    // Execute searches and collect results
-    const allArticles = [];
-    const seenUrls = new Set(); // Deduplicate across queries
+    // Use Claude with web search to find articles for all queries at once
+    const articles = await searchWithClaude(queries, profile);
 
-    for (const query of queries) {
-      try {
-        const articles = await searchWithGrounding(query);
+    console.log(`[SearchEngine] Found ${articles.length} unique articles`);
 
-        // Deduplicate and add to results
-        for (const article of articles) {
-          if (!seenUrls.has(article.url)) {
-            seenUrls.add(article.url);
-            allArticles.push(article);
-          }
-        }
-
-      } catch (error) {
-        console.error(`[SearchEngine] Error searching for "${query}":`, error.message);
-        // Continue with other queries
-      }
-    }
-
-    console.log(`[SearchEngine] Found ${allArticles.length} unique articles across ${queries.length} queries`);
-
-    return allArticles;
+    return articles;
 
   } catch (error) {
     console.error(`[SearchEngine] Error in searchNewsWithGrounding:`, error);
@@ -57,7 +41,6 @@ async function searchNewsWithGrounding(profile) {
 function generateSearchQueries(profile) {
   const queries = [];
 
-  // Get current date for time-based queries
   const now = new Date();
   const monthNames = ["January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
@@ -67,7 +50,6 @@ function generateSearchQueries(profile) {
   // Strategy 1: Topic-based queries (limit to top 3 topics)
   const topTopics = profile.topics?.slice(0, 3) || [];
   for (const topic of topTopics) {
-    // Add temporal context to get recent news
     queries.push(`${topic} news ${currentMonth} ${currentYear}`);
   }
 
@@ -89,157 +71,136 @@ function generateSearchQueries(profile) {
     queries.push(`${topCuriosity} recent research ${currentYear}`);
   }
 
-  // Limit total queries to 5 to avoid rate limits and timeouts
-  const limitedQueries = queries.slice(0, 5);
-
-  return limitedQueries;
+  // Limit total queries to 5
+  return queries.slice(0, 5);
 }
 
 /**
- * Execute a single search query using Gemini grounding
+ * Use Claude with web search tool to find news articles
  */
-async function searchWithGrounding(query) {
+async function searchWithClaude(queries, profile) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY not configured');
+      throw new Error('ANTHROPIC_API_KEY not configured');
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const queriesList = queries.map((q, i) => `${i + 1}. ${q}`).join('\n');
 
-    // Build prompt that encourages Gemini to use search grounding
-    const prompt = `Find recent news articles about: ${query}
-
-List the most relevant and recent articles you find. For each article, provide:
-- Title
-- URL
-- Brief summary (1-2 sentences)
-- Source/publisher name
-- Publication date (if available)
-
-Focus on authoritative sources like news sites, research publications, and reputable blogs.`;
-
-    const response = await fetch(url, {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        contents: [{
-          role: 'user',
-          parts: [{ text: prompt }]
-        }],
+        model: HAIKU_MODEL,
+        max_tokens: 3000,
         tools: [{
-          google_search: {} // Enable Google Search grounding
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: 5
         }],
-        generationConfig: {
-          temperature: 0.5,
-          maxOutputTokens: 2000
-        }
+        system: `You are a news research assistant. Search the web for recent, relevant news articles based on the given queries.
+
+For each article you find, provide the information in a JSON array. Each article should have:
+- title: The article headline
+- url: The full URL
+- snippet: A 1-2 sentence summary
+- source: The publisher/website name
+- publishedDate: The publication date if available (ISO format), or null
+
+Focus on:
+- Recent articles (last 7 days preferred, last 30 days acceptable)
+- Authoritative sources (major news sites, tech publications, industry blogs)
+- Articles that are genuinely relevant to the topics
+
+Return ONLY a valid JSON array of articles. No other text. Example:
+[{"title": "...", "url": "...", "snippet": "...", "source": "...", "publishedDate": "..."}]
+
+If you find no relevant articles, return: []`,
+        messages: [{
+          role: 'user',
+          content: `Search for recent news articles matching these queries:\n${queriesList}\n\nUser interests for context: ${profile.topics?.join(', ') || 'general'}`
+        }]
       })
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Gemini API error: ${errorData.error?.message || response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Claude API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
 
-    // Parse grounding metadata to extract search results
-    const articles = parseGroundingMetadata(data, query);
+    // Extract the final text response (after web search tool use)
+    let responseText = '';
+    for (const block of (data.content || [])) {
+      if (block.type === 'text') {
+        responseText += block.text;
+      }
+    }
 
-    console.log(`[SearchEngine] Query "${query}" returned ${articles.length} articles`);
+    if (!responseText) {
+      console.log('[SearchEngine] No text response from Claude');
+      return [];
+    }
+
+    // Parse JSON from response
+    const articles = parseArticlesFromResponse(responseText, queries);
 
     return articles;
 
   } catch (error) {
-    console.error(`[SearchEngine] Error in searchWithGrounding for "${query}":`, error);
-    throw error;
+    console.error(`[SearchEngine] Error in searchWithClaude:`, error);
+    return [];
   }
 }
 
 /**
- * Parse Gemini response to extract article information from grounding metadata
+ * Parse article JSON from Claude's response
  */
-function parseGroundingMetadata(data, originalQuery) {
-  const articles = [];
-
+function parseArticlesFromResponse(responseText, queries) {
   try {
-    // Check if grounding metadata exists
-    const groundingMetadata = data.candidates?.[0]?.groundingMetadata;
-
-    if (!groundingMetadata) {
-      console.log(`[SearchEngine] No grounding metadata found for query`);
-      return articles;
+    // Try to extract JSON array from response
+    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.log('[SearchEngine] No JSON array found in response');
+      return [];
     }
 
-    // Extract search results from grounding chunks
-    const searchChunks = groundingMetadata.searchEntryPoint?.renderedContent ||
-                        groundingMetadata.groundingChunks ||
-                        groundingMetadata.webSearchQueries ||
-                        [];
+    const articles = JSON.parse(jsonMatch[0]);
 
-    // If groundingChunks exist, parse them
-    if (groundingMetadata.groundingChunks) {
-      for (const chunk of groundingMetadata.groundingChunks) {
-        if (chunk.web) {
-          const article = {
-            title: chunk.web.title || 'Untitled',
-            url: chunk.web.uri || '',
-            snippet: chunk.web.snippet || '',
-            source: extractDomain(chunk.web.uri || ''),
-            publishedDate: null, // Gemini doesn't provide this in chunks
-            query: originalQuery
-          };
-
-          if (article.url) {
-            articles.push(article);
-          }
-        }
-      }
+    if (!Array.isArray(articles)) {
+      console.log('[SearchEngine] Parsed result is not an array');
+      return [];
     }
 
-    // Also parse the text response for URLs if no chunks found
-    if (articles.length === 0) {
-      const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const urlRegex = /https?:\/\/[^\s\)]+/g;
-      const urls = responseText.match(urlRegex) || [];
-
-      for (const url of urls) {
-        // Extract title from surrounding text (heuristic)
-        const urlIndex = responseText.indexOf(url);
-        const beforeUrl = responseText.substring(Math.max(0, urlIndex - 100), urlIndex);
-        const titleMatch = beforeUrl.match(/["']([^"']{10,80})["']|(?:^|\n)([^\n]{10,80})$/);
-        const title = titleMatch?.[1] || titleMatch?.[2] || 'Article';
-
-        articles.push({
-          title: title.trim(),
-          url: url,
-          snippet: '',
-          source: extractDomain(url),
-          publishedDate: null,
-          query: originalQuery
-        });
-      }
-    }
-
-    // Deduplicate by URL
-    const uniqueArticles = [];
+    // Validate and clean articles
+    const validArticles = [];
     const seenUrls = new Set();
 
     for (const article of articles) {
-      if (!seenUrls.has(article.url)) {
-        seenUrls.add(article.url);
-        uniqueArticles.push(article);
-      }
+      if (!article.url || !article.title) continue;
+      if (seenUrls.has(article.url)) continue;
+
+      seenUrls.add(article.url);
+      validArticles.push({
+        title: article.title || 'Untitled',
+        url: article.url,
+        snippet: article.snippet || '',
+        source: article.source || extractDomain(article.url),
+        publishedDate: article.publishedDate || null,
+        query: queries[0] || ''
+      });
     }
 
-    return uniqueArticles;
+    return validArticles;
 
   } catch (error) {
-    console.error(`[SearchEngine] Error parsing grounding metadata:`, error);
-    return articles;
+    console.error(`[SearchEngine] Error parsing articles:`, error.message);
+    return [];
   }
 }
 

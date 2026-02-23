@@ -33,13 +33,17 @@ async function getUserBatch(batchSize = BATCH_SIZE) {
     // Get all users
     const usersSnapshot = await db.collection('users').get();
     const eligibleUsers = [];
+    const ownerUid = process.env.MINDCLONE_OWNER_UID;
 
     for (const userDoc of usersSnapshot.docs) {
       const userId = userDoc.id;
       const userData = userDoc.data();
 
-      // Skip if user has no lastActive timestamp or is too old
-      if (!userData.lastActive || userData.lastActive.toMillis() < inactivityThreshold) {
+      // Platform owner always gets news curation
+      const isOwner = ownerUid && userId === ownerUid;
+
+      // Skip non-owners if no lastActive timestamp or inactive for 7+ days
+      if (!isOwner && (!userData.lastActive || userData.lastActive.toMillis() < inactivityThreshold)) {
         continue;
       }
 

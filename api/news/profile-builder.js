@@ -1,6 +1,8 @@
 // Profile Builder - Extract user interests from Firestore memories
-// Previously used Mem0 — now reads directly from users/{userId}/memories collection
+// Uses Claude Haiku to parse memories into structured interest profiles
 const { initializeFirebaseAdmin, admin } = require('../_firebase-admin');
+
+const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
@@ -43,8 +45,8 @@ async function buildUserInterestProfile(userId) {
       return null;
     }
 
-    // Use Gemini to parse memories into structured profile
-    const profile = await parseMemoriesWithGemini(memories, userId);
+    // Use Claude to parse memories into structured profile
+    const profile = await parseMemoriesWithClaude(memories, userId);
 
     if (!profile) {
       console.warn(`[ProfileBuilder] Failed to parse memories for ${userId}`);
@@ -65,80 +67,72 @@ async function buildUserInterestProfile(userId) {
 }
 
 /**
- * Parse memories using Gemini to extract structured interests
+ * Parse memories using Claude Haiku to extract structured interests
  */
-async function parseMemoriesWithGemini(memories, userId) {
+async function parseMemoriesWithClaude(memories, userId) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY not configured');
+      throw new Error('ANTHROPIC_API_KEY not configured');
     }
 
-    // Build prompt to analyze memories
     const systemPrompt = `You are an AI assistant that analyzes a user's memories to extract their interests and preferences.
 
 Given a list of memories about a user, extract:
-1. **Topics of interest**: Specific subjects they care about (e.g., "artificial intelligence", "climate tech", "indie hacking")
-2. **Entities**: Companies, people, products, or brands they follow or mention (e.g., "OpenAI", "Elon Musk", "iPhone")
-3. **Industries**: Broader industry categories they're interested in (e.g., "technology", "healthcare", "finance")
-4. **Curiosities**: Recent questions, problems, or things they're trying to learn (e.g., "how to scale databases", "best practices for team management")
+1. Topics of interest: Specific subjects they care about (e.g., "artificial intelligence", "climate tech", "indie hacking")
+2. Entities: Companies, people, products, or brands they follow or mention (e.g., "OpenAI", "Elon Musk", "iPhone")
+3. Industries: Broader industry categories they're interested in (e.g., "technology", "healthcare", "finance")
+4. Curiosities: Recent questions, problems, or things they're trying to learn (e.g., "how to scale databases", "best practices for team management")
 
 Be specific and extract only concrete interests that are clearly expressed in the memories. Avoid vague or generic terms.
 
-Return your response as a valid JSON object with this exact structure:
+Return ONLY a valid JSON object with this exact structure, no other text:
 {
-  "topics": ["topic1", "topic2", ...],
-  "entities": ["entity1", "entity2", ...],
-  "industries": ["industry1", "industry2", ...],
-  "curiosities": ["curiosity1", "curiosity2", ...]
-}
+  "topics": ["topic1", "topic2"],
+  "entities": ["entity1", "entity2"],
+  "industries": ["industry1", "industry2"],
+  "curiosities": ["curiosity1", "curiosity2"]
+}`;
 
-IMPORTANT: Return ONLY the JSON object, no additional text or formatting.`;
-
-    const userPrompt = `Analyze these memories and extract the user's interests:\n\n${memories.join('\n\n')}`;
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-    const response = await fetch(url, {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        contents: [{
+        model: HAIKU_MODEL,
+        max_tokens: 1500,
+        system: systemPrompt,
+        messages: [{
           role: 'user',
-          parts: [{ text: userPrompt }]
-        }],
-        systemInstruction: {
-          parts: [{ text: systemPrompt }]
-        },
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 2000
-        }
+          content: `Analyze these memories and extract the user's interests:\n\n${memories.join('\n\n')}`
+        }]
       })
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Gemini API error: ${errorData.error?.message || response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Claude API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const text = data.content?.[0]?.text;
 
     if (!text) {
-      throw new Error('No response from Gemini');
+      throw new Error('No response from Claude');
     }
 
     // Parse JSON response
     let profile;
     try {
       const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      profile = JSON.parse(cleanText);
+      const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+      profile = JSON.parse(jsonMatch ? jsonMatch[0] : cleanText);
     } catch (parseError) {
-      console.error(`[ProfileBuilder] Failed to parse Gemini response:`, text);
-      throw new Error('Invalid JSON response from Gemini');
+      console.error(`[ProfileBuilder] Failed to parse Claude response:`, text);
+      throw new Error('Invalid JSON response from Claude');
     }
 
     // Validate structure
@@ -156,7 +150,7 @@ IMPORTANT: Return ONLY the JSON object, no additional text or formatting.`;
     return profile;
 
   } catch (error) {
-    console.error(`[ProfileBuilder] Error parsing memories with Gemini:`, error);
+    console.error(`[ProfileBuilder] Error parsing memories with Claude:`, error);
     return null;
   }
 }
