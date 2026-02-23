@@ -38,17 +38,17 @@ const DEFAULT_SETTINGS = {
     'future', 'innovation', 'product', 'app', 'platform', 'social', 'community'
   ],
 
-  // Olbrain Updates — notepad where user writes recent developments
+  // Business Updates — notepad where user writes recent developments
   // The AI reads this to generate fresh, unique posts
   olbrainUpdates: '',
 
   // Identity fields — auto-derived from user profile at runtime
   // No longer hardcoded here; heartbeat loads from Firestore user doc
 
-  // Business promotion settings
-  businessName: 'Olbrain',
-  businessUrl: 'olbrain.com',
-  businessTagline: 'The Machine Brain - Building AI that preserves human identity',
+  // Business promotion settings (users fill in their own)
+  businessName: '',
+  businessUrl: '',
+  businessTagline: '',
   promotionFrequency: 0.4, // 40% of comments/posts will subtly mention the business
 
   // Comment style

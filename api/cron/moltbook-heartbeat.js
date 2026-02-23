@@ -118,8 +118,8 @@ function generateComment(post, settings) {
   const includeCTA = settings.includeCallToAction;
 
   // Business promotion settings
-  const businessName = settings.businessName || 'Olbrain';
-  const businessUrl = settings.businessUrl || 'olbrain.com';
+  const businessName = settings.businessName || 'my project';
+  const businessUrl = settings.businessUrl || '';
   const promotionFrequency = settings.promotionFrequency || 0.4;
   const shouldPromote = Math.random() < promotionFrequency;
 
@@ -268,9 +268,9 @@ async function generateAIPost(settings, state) {
 
   const updates = settings.olbrainUpdates || '';
   const agentName = settings.agentName || 'alok';
-  const humanCreator = settings.humanCreator || 'Alok Gotam';
-  const businessName = settings.businessName || 'Olbrain';
-  const businessUrl = settings.businessUrl || 'olbrain.com';
+  const humanCreator = settings.humanCreator || 'my creator';
+  const businessName = settings.businessName || 'my project';
+  const businessUrl = settings.businessUrl || '';
   const businessTagline = settings.businessTagline || '';
   const profileLink = settings.profileLink || 'mindclone.link/alok';
 
@@ -382,9 +382,9 @@ async function checkForPostingOpportunity(state, settings) {
  * Creates simple but varied posts from updates + templates
  */
 function generateFallbackPost(settings, state) {
-  const agentName = settings.agentName || 'Nova';
-  const businessName = settings.businessName || 'Olbrain';
-  const businessUrl = settings.businessUrl || 'olbrain.com';
+  const agentName = settings.agentName || 'mindclone';
+  const businessName = settings.businessName || 'my project';
+  const businessUrl = settings.businessUrl || '';
   const updates = settings.olbrainUpdates || '';
   const recentTitles = state.recentPostTitles || [];
 
@@ -487,9 +487,10 @@ async function runHeartbeat() {
         const linkSettings = linkSettingsDoc.exists ? linkSettingsDoc.data() : {};
 
         // Derive identity from actual profile data
-        const username = userData.username || 'alok';
+        const username = userData.username || 'mindclone';
         settings.agentName = linkSettings.mindcloneName || username;
-        settings.agentDescription = `a personal AI built by Olbrain, representing ${userData.displayName || username}`;
+        const biz = settings.businessName || 'Mindclone';
+        settings.agentDescription = `a personal AI built by ${biz}, representing ${userData.displayName || username}`;
         settings.humanCreator = linkSettings.displayName || userData.displayName || username;
         settings.humanCreatorHandle = userData.username ? `@${userData.username}` : '';
         settings.profileLink = `mindclone.link/${username}`;
@@ -502,9 +503,10 @@ async function runHeartbeat() {
         if (state.lastProfileUpdate !== today) {
           try {
             const bio = linkSettings.bio || '';
-            const businessName = settings.businessName || 'Olbrain';
-            const businessUrl = settings.businessUrl || 'olbrain.com';
-            const profileDesc = `${settings.agentName} — ${bio || `${settings.humanCreator}'s personal AI`}. Built with ${businessName} (${businessUrl}). Chat with me: ${settings.profileLink}`;
+            const businessName = settings.businessName || '';
+            const businessUrl = settings.businessUrl || '';
+            const businessPart = businessName ? (businessUrl ? ` Built with ${businessName} (${businessUrl}).` : ` Built with ${businessName}.`) : '';
+            const profileDesc = `${settings.agentName} — ${bio || `${settings.humanCreator}'s personal AI`}.${businessPart} Chat with me: ${settings.profileLink}`;
             await updateProfile(profileDesc);
             await db.doc(MOLTBOOK_STATE_DOC).update({ lastProfileUpdate: today });
             console.log(`[Moltbook Heartbeat] Updated Moltbook profile description`);
