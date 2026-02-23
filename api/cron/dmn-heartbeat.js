@@ -1,7 +1,9 @@
 // Default Mode Network (DMN) Heartbeat
-// Inspired by the human brain's default mode network — the background process
-// that runs when no active task is happening, consolidating memories,
-// reconciling beliefs, and maintaining a coherent sense of identity.
+// The mindclone brain has two modes, like a human brain:
+//   TPN (Task Positive Network) = active chat/conversation (see chat.js)
+//   DMN (Default Mode Network) = background reflection when nobody's talking (this file)
+// When TPN is active, DMN is quiet. When nobody's around, DMN kicks in —
+// consolidating memories, reconciling beliefs, and maintaining a coherent sense of identity.
 //
 // Uses Claude Haiku for cost efficiency (~$0.30-0.50/day)
 // Runs every 15 minutes via Vercel cron
