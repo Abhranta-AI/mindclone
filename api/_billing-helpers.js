@@ -43,14 +43,19 @@ function computeAccessLevel(userData, userId = null) {
   const billing = userData.billing || {};
   const status = billing.subscriptionStatus;
 
-  // Active or trialing subscriptions have full access
-  if (['active', 'trialing'].includes(status)) {
+  // Active subscriptions have full access
+  if (status === 'active') {
     return 'full';
   }
 
-  // Check if in trial period (fallback for users without subscription yet)
+  // Trialing — only if trial hasn't expired yet
   const trialEnd = billing.trialEnd?.toDate?.() ||
                    (billing.trialEnd ? new Date(billing.trialEnd) : null);
+  if (status === 'trialing' && trialEnd && new Date() < trialEnd) {
+    return 'full';
+  }
+
+  // Check trial period even without 'trialing' status (fallback)
   if (trialEnd && new Date() < trialEnd) {
     return 'full';
   }
