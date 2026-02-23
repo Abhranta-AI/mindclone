@@ -884,7 +884,7 @@ module.exports = async (req, res) => {
       selfKnowledge: selfKnowledgeResult,
       eligibleUsers: eligibleUsers.length,
       usersProcessed: results.length,
-      results: results.map(r => ({ user: r.displayName, task: r.taskPerformed })),
+      results: results.map(r => ({ user: r.displayName, task: r.taskPerformed, ...(r.error && { error: r.error }) })),
       elapsed: `${elapsed}ms`
     });
 
