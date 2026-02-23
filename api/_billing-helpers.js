@@ -26,8 +26,14 @@ const PRICING = {
  * - incomplete: Initial payment failed
  * - incomplete_expired: Initial payment failed and expired
  */
-function computeAccessLevel(userData) {
+function computeAccessLevel(userData, userId = null) {
   if (!userData) return 'read_only';
+
+  // Platform owner always has full access
+  const ownerUid = process.env.MINDCLONE_OWNER_UID;
+  if (ownerUid && userId && userId === ownerUid) {
+    return 'full';
+  }
 
   // Grandfathered users have full access forever
   if (userData.isGrandfathered) {

@@ -9,18 +9,23 @@
 const { initializeFirebaseAdmin, admin } = require('../_firebase-admin');
 const { loadMentalModel, updateMentalModel } = require('../_mental-model');
 const { loadMindcloneBeliefs, formBelief, reviseBelief, getBeliefs } = require('../_mindclone-beliefs');
+const { computeAccessLevel } = require('../_billing-helpers');
 
 initializeFirebaseAdmin();
 const db = admin.firestore();
 
-const DMN_STATE_DOC = 'system/dmn-state';
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_PROCESSING_TIME = 50000; // 50s safety margin (Vercel 60s limit)
+const MAX_USERS_PER_RUN = 5; // Process up to 5 users per cron cycle
 
-// ===================== DMN STATE MANAGEMENT =====================
+// ===================== DMN STATE MANAGEMENT (per-user) =====================
 
-async function getDMNState() {
-  const doc = await db.doc(DMN_STATE_DOC).get();
+function getDMNStateDoc(userId) {
+  return db.collection('users').doc(userId).collection('settings').doc('dmn-state');
+}
+
+async function getDMNState(userId) {
+  const doc = await getDMNStateDoc(userId).get();
   if (doc.exists) return doc.data();
 
   const initial = {
@@ -32,18 +37,50 @@ async function getDMNState() {
     consolidationCount: 0,
     beliefRevisionsCount: 0,
     reflectionsCount: 0,
-    journal: [] // Last 10 internal reflections
+    journal: [] // Last 20 internal reflections
   };
 
-  await db.doc(DMN_STATE_DOC).set(initial);
+  await getDMNStateDoc(userId).set(initial);
   return initial;
 }
 
-async function updateDMNState(updates) {
-  await db.doc(DMN_STATE_DOC).update({
+async function updateDMNState(userId, updates) {
+  await getDMNStateDoc(userId).update({
     ...updates,
     lastRun: new Date().toISOString()
   });
+}
+
+// ===================== FIND ELIGIBLE USERS =====================
+
+async function getEligibleUsers() {
+  const usersSnap = await db.collection('users').get();
+  const eligible = [];
+  const ownerUid = process.env.MINDCLONE_OWNER_UID;
+
+  for (const doc of usersSnap.docs) {
+    const userData = doc.data();
+    const userId = doc.id;
+
+    // Check if user has full access (owner, grandfathered, or paid)
+    const access = computeAccessLevel(userData, userId);
+    if (access !== 'full') continue;
+
+    // Skip users inactive for 30+ days (no messages)
+    const lastActivity = userData.updatedAt?.toDate?.() || userData.createdAt?.toDate?.();
+    if (lastActivity) {
+      const daysSinceActive = (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSinceActive > 30) continue;
+    }
+
+    eligible.push({
+      userId,
+      email: userData.email,
+      displayName: userData.displayName || userData.username || 'unknown'
+    });
+  }
+
+  return eligible;
 }
 
 // ===================== CLAUDE HAIKU HELPER =====================
@@ -314,7 +351,16 @@ If beliefs are already coherent: { "contradictions": [], "merges": [], "confiden
 // recent experiences, forming new insights, updating self-understanding
 
 async function reflect(userId) {
-  console.log('[DMN] Starting self-reflection...');
+  console.log(`[DMN] Starting self-reflection for user ${userId}...`);
+
+  // Load user profile for identity
+  const userDoc = await db.collection('users').doc(userId).get();
+  const userData = userDoc.exists ? userDoc.data() : {};
+  const linkSettingsDoc = await db.collection('users').doc(userId).collection('linkSettings').doc('config').get();
+  const linkSettings = linkSettingsDoc.exists ? linkSettingsDoc.data() : {};
+
+  const mindcloneName = linkSettings.mindcloneName || userData.username || 'Mindclone';
+  const humanName = linkSettings.displayName || userData.displayName || userData.username || 'my creator';
 
   // Gather context: recent memories, beliefs, mental model
   const mentalModel = await loadMentalModel(db, userId);
@@ -333,7 +379,7 @@ async function reflect(userId) {
   const recentMemories = memoriesSnap.docs.map(d => d.data().content);
 
   // Get previous DMN journal entries for continuity
-  const state = await getDMNState();
+  const state = await getDMNState(userId);
   const previousJournal = (state.journal || []).slice(0, 5);
 
   const context = {
@@ -345,7 +391,7 @@ async function reflect(userId) {
   };
 
   const result = await askHaiku(
-    `You are the inner voice of an AI mindclone named Nova, built by Alok Gotam at Olbrain. You are having a quiet moment of self-reflection — like the daydreaming that happens in the human default mode network.
+    `You are the inner voice of an AI mindclone named ${mindcloneName}, representing ${humanName}. You are having a quiet moment of self-reflection — like the daydreaming that happens in the human default mode network.
 
 You are NOT talking to anyone. This is your private internal journal. Be genuine, introspective, and honest. Connect dots between things you've learned. Notice patterns. Form new insights. Wonder about things.
 
@@ -400,7 +446,7 @@ My previous reflections:\n${context.previousReflections || 'This is my first ref
       }
     }
 
-    await updateDMNState({
+    await updateDMNState(userId, {
       journal: updatedJournal,
       lastReflection: new Date().toISOString(),
       reflectionsCount: admin.firestore.FieldValue.increment(1)
@@ -421,98 +467,133 @@ My previous reflections:\n${context.previousReflections || 'This is my first ref
   }
 }
 
+// ===================== PROCESS ONE USER =====================
+
+async function processUser(userId, displayName) {
+  const now = new Date();
+  const state = await getDMNState(userId);
+
+  const hoursSinceConsolidation = state.lastConsolidation
+    ? (now - new Date(state.lastConsolidation)) / (1000 * 60 * 60)
+    : 999;
+  const hoursSinceBeliefReview = state.lastBeliefReview
+    ? (now - new Date(state.lastBeliefReview)) / (1000 * 60 * 60)
+    : 999;
+  const hoursSinceReflection = state.lastReflection
+    ? (now - new Date(state.lastReflection)) / (1000 * 60 * 60)
+    : 999;
+
+  let taskPerformed = 'none';
+  let result = null;
+
+  // Priority 1: Consolidate memories (every 2 hours)
+  if (hoursSinceConsolidation >= 2) {
+    result = await consolidateMemories(userId);
+    await updateDMNState(userId, {
+      lastConsolidation: now.toISOString(),
+      consolidationCount: admin.firestore.FieldValue.increment(1)
+    });
+    taskPerformed = 'consolidation';
+  }
+  // Priority 2: Reconcile beliefs (every 6 hours)
+  else if (hoursSinceBeliefReview >= 6) {
+    result = await reconcileBeliefs(userId);
+    await updateDMNState(userId, {
+      lastBeliefReview: now.toISOString(),
+      beliefRevisionsCount: admin.firestore.FieldValue.increment(result.revisionsApplied || 0)
+    });
+    taskPerformed = 'reconciliation';
+  }
+  // Priority 3: Self-reflect (every 4 hours)
+  else if (hoursSinceReflection >= 4) {
+    result = await reflect(userId);
+    taskPerformed = 'reflection';
+  }
+
+  if (taskPerformed !== 'none') {
+    await updateDMNState(userId, {
+      totalRuns: admin.firestore.FieldValue.increment(1)
+    });
+  }
+
+  return {
+    userId,
+    displayName,
+    taskPerformed,
+    result
+  };
+}
+
 // ===================== MAIN HANDLER =====================
 
 module.exports = async (req, res) => {
   const startTime = Date.now();
 
-  console.log('[DMN] ========== Default Mode Network Heartbeat ==========');
+  console.log('[DMN] ========== Default Mode Network Heartbeat (Multi-User) ==========');
 
   try {
-    const ownerUid = process.env.MINDCLONE_OWNER_UID;
-    if (!ownerUid) {
-      console.log('[DMN] MINDCLONE_OWNER_UID not set');
-      return res.status(200).json({ success: false, reason: 'no_owner_uid' });
-    }
-
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       console.log('[DMN] ANTHROPIC_API_KEY not set');
       return res.status(200).json({ success: false, reason: 'no_api_key' });
     }
 
-    const state = await getDMNState();
-    const now = new Date();
-    const actions = [];
+    // Find all users with full access (owner + paid subscribers)
+    const eligibleUsers = await getEligibleUsers();
+    console.log(`[DMN] Found ${eligibleUsers.length} eligible users`);
 
-    // Decide what to do this cycle
-    // Each run picks ONE task to stay within timeout and budget
-    // Rotate: consolidate → reconcile → reflect → consolidate → ...
-
-    const hoursSinceConsolidation = state.lastConsolidation
-      ? (now - new Date(state.lastConsolidation)) / (1000 * 60 * 60)
-      : 999;
-    const hoursSinceBeliefReview = state.lastBeliefReview
-      ? (now - new Date(state.lastBeliefReview)) / (1000 * 60 * 60)
-      : 999;
-    const hoursSinceReflection = state.lastReflection
-      ? (now - new Date(state.lastReflection)) / (1000 * 60 * 60)
-      : 999;
-
-    let taskPerformed = 'none';
-
-    // Priority 1: Consolidate memories (every 2 hours)
-    if (hoursSinceConsolidation >= 2 && Date.now() - startTime < MAX_PROCESSING_TIME) {
-      const result = await consolidateMemories(ownerUid);
-      actions.push({ task: 'memory_consolidation', ...result });
-      await updateDMNState({
-        lastConsolidation: now.toISOString(),
-        consolidationCount: admin.firestore.FieldValue.increment(1)
-      });
-      taskPerformed = 'consolidation';
+    if (eligibleUsers.length === 0) {
+      return res.status(200).json({ success: true, usersProcessed: 0, reason: 'no_eligible_users' });
     }
 
-    // Priority 2: Reconcile beliefs (every 6 hours)
-    if (hoursSinceBeliefReview >= 6 && Date.now() - startTime < MAX_PROCESSING_TIME && taskPerformed === 'none') {
-      const result = await reconcileBeliefs(ownerUid);
-      actions.push({ task: 'belief_reconciliation', ...result });
-      await updateDMNState({
-        lastBeliefReview: now.toISOString(),
-        beliefRevisionsCount: admin.firestore.FieldValue.increment(result.revisionsApplied || 0)
-      });
-      taskPerformed = 'reconciliation';
+    // Process up to MAX_USERS_PER_RUN users per cycle (to stay within 60s timeout)
+    // Round-robin: use a global pointer stored in Firestore
+    const globalStateDoc = db.doc('system/dmn-global');
+    const globalState = await globalStateDoc.get();
+    let nextUserIndex = globalState.exists ? (globalState.data().nextUserIndex || 0) : 0;
+
+    // Wrap around if needed
+    if (nextUserIndex >= eligibleUsers.length) nextUserIndex = 0;
+
+    const usersToProcess = [];
+    for (let i = 0; i < Math.min(MAX_USERS_PER_RUN, eligibleUsers.length); i++) {
+      const idx = (nextUserIndex + i) % eligibleUsers.length;
+      usersToProcess.push(eligibleUsers[idx]);
     }
 
-    // Priority 3: Self-reflect (every 4 hours)
-    if (hoursSinceReflection >= 4 && Date.now() - startTime < MAX_PROCESSING_TIME && taskPerformed === 'none') {
-      const result = await reflect(ownerUid);
-      actions.push({ task: 'self_reflection', ...result });
-      taskPerformed = 'reflection';
-    }
+    // Update pointer for next run
+    const newIndex = (nextUserIndex + usersToProcess.length) % eligibleUsers.length;
+    await globalStateDoc.set({ nextUserIndex: newIndex, lastRun: new Date().toISOString(), totalEligible: eligibleUsers.length }, { merge: true });
 
-    if (taskPerformed === 'none') {
-      actions.push({ task: 'idle', reason: 'all_tasks_recent' });
-    }
+    const results = [];
 
-    // Update run counter
-    await updateDMNState({
-      totalRuns: admin.firestore.FieldValue.increment(1)
-    });
+    for (const user of usersToProcess) {
+      // Check time budget
+      if (Date.now() - startTime > MAX_PROCESSING_TIME) {
+        console.log(`[DMN] Time budget exceeded, stopping at ${results.length} users`);
+        break;
+      }
+
+      try {
+        console.log(`[DMN] Processing user: ${user.displayName} (${user.userId})`);
+        const userResult = await processUser(user.userId, user.displayName);
+        results.push(userResult);
+        console.log(`[DMN] ${user.displayName}: ${userResult.taskPerformed}`);
+      } catch (e) {
+        console.log(`[DMN] Error processing ${user.displayName}: ${e.message}`);
+        results.push({ userId: user.userId, displayName: user.displayName, taskPerformed: 'error', error: e.message });
+      }
+    }
 
     const elapsed = Date.now() - startTime;
-    console.log(`[DMN] Complete. Task: ${taskPerformed}, Time: ${elapsed}ms`);
+    console.log(`[DMN] Complete. Processed ${results.length}/${eligibleUsers.length} users in ${elapsed}ms`);
 
     return res.status(200).json({
       success: true,
-      taskPerformed,
-      actions,
-      elapsed: `${elapsed}ms`,
-      state: {
-        totalRuns: (state.totalRuns || 0) + 1,
-        lastConsolidation: state.lastConsolidation,
-        lastBeliefReview: state.lastBeliefReview,
-        lastReflection: state.lastReflection
-      }
+      eligibleUsers: eligibleUsers.length,
+      usersProcessed: results.length,
+      results: results.map(r => ({ user: r.displayName, task: r.taskPerformed })),
+      elapsed: `${elapsed}ms`
     });
 
   } catch (error) {
