@@ -607,9 +607,9 @@ async function reviseUmwelt(userId) {
   // Load current Umwelt (may be null for first run)
   const currentUmwelt = await getUmwelt(userId);
 
-  // Load recent beliefs
-  const beliefs = await getBeliefs(userId);
-  const topBeliefs = beliefs
+  // Load recent beliefs (getBeliefs returns {success, beliefs[]}, needs db as first arg)
+  const beliefResult = await getBeliefs(db, userId);
+  const topBeliefs = (beliefResult?.beliefs || [])
     .sort((a, b) => (b.confidence || 0.5) - (a.confidence || 0.5))
     .slice(0, 15)
     .map(b => `- ${b.content} (confidence: ${(b.confidence || 0.5).toFixed(2)})`);
