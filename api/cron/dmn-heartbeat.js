@@ -73,15 +73,20 @@ async function getEligibleUsers() {
     const userData = doc.data();
     const userId = doc.id;
 
-    // Check if user has full access (owner, grandfathered, or paid)
-    const access = computeAccessLevel(userData, userId);
-    if (access !== 'full') continue;
+    // Platform owner ALWAYS gets DMN processing (they built the platform!)
+    const isOwner = ownerUid && userId === ownerUid;
 
-    // Skip users inactive for 30+ days (no messages)
-    const lastActivity = userData.updatedAt?.toDate?.() || userData.createdAt?.toDate?.();
-    if (lastActivity) {
-      const daysSinceActive = (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSinceActive > 30) continue;
+    if (!isOwner) {
+      // Non-owners need full access (paid subscription)
+      const access = computeAccessLevel(userData, userId);
+      if (access !== 'full') continue;
+
+      // Skip non-owner users inactive for 30+ days
+      const lastActivity = userData.updatedAt?.toDate?.() || userData.createdAt?.toDate?.();
+      if (lastActivity) {
+        const daysSinceActive = (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceActive > 30) continue;
+      }
     }
 
     eligible.push({
@@ -829,7 +834,7 @@ module.exports = async (req, res) => {
     console.log(`[DMN] Found ${eligibleUsers.length} eligible users`);
 
     if (eligibleUsers.length === 0) {
-      return res.status(200).json({ success: true, usersProcessed: 0, reason: 'no_eligible_users' });
+      return res.status(200).json({ success: true, usersProcessed: 0, reason: 'no_eligible_users', selfKnowledge: selfKnowledgeResult });
     }
 
     // Process up to MAX_USERS_PER_RUN users per cycle (to stay within 60s timeout)
