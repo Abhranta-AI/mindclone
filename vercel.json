@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/matching-heartbeat",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/dmn-heartbeat",
+      "schedule": "*/15 * * * *"
     }
   ],
   "routes": [
