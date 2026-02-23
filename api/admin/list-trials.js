@@ -19,23 +19,34 @@ module.exports = async (req, res) => {
       const trialEnd = billing.trialEnd?.toDate?.() ||
                        (billing.trialEnd ? new Date(billing.trialEnd) : null);
 
-      const isTrialing = status === 'trialing' || (trialEnd && now < trialEnd);
+      const isTrialing = trialEnd && now < trialEnd;
       const isExpired = trialEnd && now >= trialEnd && !data.isGrandfathered && status !== 'active';
+
+      // Auto-fix stale 'trialing' status in Firestore
+      if (status === 'trialing' && trialEnd && now >= trialEnd) {
+        try {
+          await doc.ref.update({ 'billing.subscriptionStatus': 'expired' });
+          console.log(`[List Trials] Fixed stale status for ${data.email}: trialing → expired`);
+        } catch (e) {
+          console.log(`[List Trials] Could not fix status for ${data.email}: ${e.message}`);
+        }
+      }
 
       if (trialEnd || status === 'trialing') {
         const daysRemaining = trialEnd ? Math.round((trialEnd - now) / (1000 * 60 * 60 * 24) * 10) / 10 : 'unknown';
+        const correctedStatus = (status === 'trialing' && isExpired) ? 'expired' : status;
 
         trials.push({
           email: data.email || 'no email',
           username: data.username || 'no username',
-          status: status || 'none',
+          status: correctedStatus || 'none',
           isGrandfathered: !!data.isGrandfathered,
           trialEnd: trialEnd?.toISOString() || 'not set',
           daysRemaining,
           state: data.isGrandfathered ? 'GRANDFATHERED' :
-                 status === 'active' ? 'PAID' :
+                 correctedStatus === 'active' ? 'PAID' :
                  isTrialing ? 'TRIAL ACTIVE' :
-                 isExpired ? 'EXPIRED' : status?.toUpperCase() || 'UNKNOWN'
+                 isExpired ? 'EXPIRED' : correctedStatus?.toUpperCase() || 'UNKNOWN'
         });
       }
     }

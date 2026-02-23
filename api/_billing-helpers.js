@@ -144,8 +144,14 @@ function getSubscriptionSummary(userData) {
   const trialEnd = billing.trialEnd?.toDate?.() ||
                    (billing.trialEnd ? new Date(billing.trialEnd) : null);
 
+  // Fix stale status: if status says 'trialing' but trial has expired, report as 'expired'
+  let reportedStatus = billing.subscriptionStatus || 'none';
+  if (reportedStatus === 'trialing' && trialEnd && new Date() >= trialEnd) {
+    reportedStatus = 'expired';
+  }
+
   return {
-    status: billing.subscriptionStatus || 'none',
+    status: reportedStatus,
     isGrandfathered: userData.isGrandfathered || false,
     trialDaysRemaining,
     trialHoursRemaining,
