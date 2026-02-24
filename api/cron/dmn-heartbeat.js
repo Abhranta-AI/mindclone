@@ -617,7 +617,7 @@ async function reviseUmwelt(userId) {
   // Load recent memories
   const memoriesSnap = await db.collection('users').doc(userId)
     .collection('memories')
-    .orderBy('timestamp', 'desc')
+    .orderBy('createdAt', 'desc')
     .limit(20)
     .get();
   const recentMemories = memoriesSnap.docs

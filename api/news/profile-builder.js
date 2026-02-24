@@ -29,7 +29,7 @@ async function buildUserInterestProfile(userId) {
     // Fetch memories from Firestore (consolidated by DMN + saved by chat)
     const memoriesSnap = await db.collection('users').doc(userId)
       .collection('memories')
-      .orderBy('timestamp', 'desc')
+      .orderBy('createdAt', 'desc')
       .limit(50)
       .get();
 
