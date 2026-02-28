@@ -14263,7 +14263,7 @@ Is there anything else you'd like to configure?`;
                                             fileUrl: fileUrl,
                                             fileType: file.type,
                                             userId: auth.currentUser.uid,
-                                            documentType: fileExt === 'pdf' ? 'pitch_deck' : 'financial_model'
+                                            fileName: file.name
                                         })
                                     });
 
@@ -14276,9 +14276,9 @@ Is there anything else you'd like to configure?`;
                                         const processData = await processResponse.json();
                                         console.log('[Upload] Document processed:', processData);
 
-                                        // Show visible confirmation message
-                                        const docType = processData.documentType === 'pitch_deck' ? 'Pitch Deck' : 'Financial Model';
-                                        let summaryMsg = `✅ **${docType} processed successfully!**\n\n`;
+                                        // Show visible confirmation message using actual filename
+                                        const displayName = processData.fileName || file.name || 'Document';
+                                        let summaryMsg = `✅ **${displayName}** added to your knowledge base.\n\n`;
 
                                         if (processData.summary) {
                                             if (processData.summary.pageCount) {
@@ -14295,7 +14295,10 @@ Is there anything else you'd like to configure?`;
                                             }
                                         }
 
-                                        summaryMsg += `\nThis content is now available in your public MindClone link's knowledge base.`;
+                                        // Refresh KB panel to show the new document
+                                        if (typeof loadKnowledgeBase === 'function') {
+                                            loadKnowledgeBase();
+                                        }
 
                                         // Add as system message to chat
                                         if (typeof addMessage === 'function') {

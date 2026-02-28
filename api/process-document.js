@@ -174,22 +174,53 @@ module.exports = async (req, res) => {
     const existingDoc = await kbDocRef.get();
     const existingData = existingDoc.exists ? existingDoc.data() : { documents: {} };
 
-    // Determine document key
-    const docKey = documentType || (extractedContent.type === 'pdf' ? 'pitch_deck' : 'financial_model');
+    // Determine document key from filename (not hardcoded type)
+    const fileName = req.body.fileName || '';
+    let docKey;
+    if (documentType && documentType !== 'pitch_deck' && documentType !== 'financial_model') {
+      // Use explicitly provided custom type
+      docKey = documentType;
+    } else if (fileName) {
+      // Generate key from filename (like upload-kb.js does)
+      const nameWithoutExt = fileName.replace(/\.[^.]+$/, '');
+      docKey = nameWithoutExt.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'document';
+    } else {
+      docKey = 'document_' + Date.now();
+    }
 
     existingData.documents[docKey] = {
       ...extractedContent,
+      fileName: fileName,
       fileUrl: fileUrl,
       uploadedAt: new Date().toISOString()
     };
 
     await kbDocRef.set(existingData, { merge: true });
 
+    // Also save to knowledgeBase collection (so it shows in KB panel)
+    const kbPanelRef = db.collection('users').doc(userId)
+      .collection('knowledgeBase').doc(String(Date.now()));
+
+    await kbPanelRef.set({
+      fileName: fileName || docKey,
+      type: extractedContent.type === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      size: 0,
+      url: fileUrl,
+      blobUrl: fileUrl,
+      docKey: docKey,
+      visibility: 'public',
+      uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
+      extractedText: extractedContent.text ? extractedContent.text.substring(0, 50000) : null,
+      textExtractionType: extractedContent.type,
+      pageCount: extractedContent.pageCount || null
+    });
+
     console.log('[ProcessDoc] Stored in Knowledge Base:', docKey);
 
     return res.status(200).json({
       success: true,
       documentType: docKey,
+      fileName: fileName,
       summary: {
         type: extractedContent.type,
         pageCount: extractedContent.pageCount,

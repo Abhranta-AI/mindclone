@@ -3907,20 +3907,16 @@ STYLE:
           }
         }
 
-        // Add processed document content
+        // Add processed document content (iterate all documents, not just hardcoded keys)
         if (knowledgeBase.documents) {
           const docs = knowledgeBase.documents;
-
-          // Add pitch deck content
-          if (docs.pitch_deck) {
-            enhancedPrompt += '### Pitch Deck Content\n';
-            enhancedPrompt += docs.pitch_deck + '\n\n';
-          }
-
-          // Add financial model content
-          if (docs.financial_model) {
-            enhancedPrompt += '### Financial Model\n';
-            enhancedPrompt += docs.financial_model + '\n\n';
+          for (const [docKey, docData] of Object.entries(docs)) {
+            if (docData) {
+              const displayName = docData.fileName || docKey.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+              const content = typeof docData === 'string' ? docData : (docData.text || JSON.stringify(docData));
+              enhancedPrompt += `### ${displayName}\n`;
+              enhancedPrompt += content + '\n\n';
+            }
           }
         }
 
