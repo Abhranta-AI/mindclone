@@ -234,6 +234,11 @@ async function createPost(title, content, submoltName = 'general') {
  * @param {string} url - URL to share
  * @param {string} submolt - Community to post in
  */
+async function deletePost(postId) {
+  console.log(`[Moltbook] Deleting post: ${postId}`);
+  return moltbookRequest(`/posts/${postId}`, { method: 'DELETE' });
+}
+
 async function createLinkPost(title, url, submoltName = 'general') {
   return moltbookRequest('/posts', {
     method: 'POST',
@@ -426,6 +431,7 @@ module.exports = {
   getAgentProfile,
   getAgentStatus,
   createPost,
+  deletePost,
   createLinkPost,
   getFeed,
   getPersonalizedFeed,

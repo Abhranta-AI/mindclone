@@ -44,6 +44,10 @@
       "dest": "/api/admin/grandfather-users.js"
     },
     {
+      "src": "^/api/moltbook-cleanup$",
+      "dest": "/api/moltbook-cleanup.js"
+    },
+    {
       "src": "^/api/chat$",
       "dest": "/api/chat.js"
     },
