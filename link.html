@@ -1079,7 +1079,7 @@
     <script type="module">
         // Firebase imports
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, doc, getDoc, setDoc, collection } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, doc, getDoc, setDoc, collection, getDocs, query, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
         // Initialize Firebase
@@ -1185,6 +1185,7 @@
 
         // State
         let profile = null;
+        let ownerUserId = null; // Firebase UID of the mindclone owner
         let visitorId = null;
         let conversationHistory = [];
         let isProcessing = false;
@@ -1358,6 +1359,7 @@
                 }
 
                 const userId = usernameDoc.data().userId;
+                ownerUserId = userId; // Store for conversation history loading
 
                 // Get user document
                 const userDoc = await getDoc(doc(db, 'users', userId));
@@ -1561,20 +1563,33 @@
             errorMessage.textContent = message;
         }
 
-        // Load conversation history
+        // Load conversation history directly from Firestore
         async function loadConversation() {
             try {
-                // Fetch conversation history from server
-                // TODO: Create dedicated endpoint for loading history in unified API
-                // For now, keeping chat-public.js GET endpoint for backward compatibility
-                const response = await fetch(`/api/chat-public?username=${encodeURIComponent(username)}&visitorId=${encodeURIComponent(visitorId)}`);
+                if (!ownerUserId || !visitorId) {
+                    showEmptyState();
+                    return;
+                }
 
-                if (response.ok) {
-                    const data = await response.json();
+                // Query visitor's messages from Firestore, ordered by timestamp
+                const messagesRef = collection(db, 'users', ownerUserId, 'visitors', visitorId, 'messages');
+                const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'), limit(100));
+                const snapshot = await getDocs(messagesQuery);
 
-                    if (data.messages && data.messages.length > 0) {
+                if (!snapshot.empty) {
+                    const messages = [];
+                    snapshot.forEach(docSnap => {
+                        const data = docSnap.data();
+                        messages.push({
+                            role: data.role || 'user',
+                            content: data.content || '',
+                            displayAction: data.displayAction || null
+                        });
+                    });
+
+                    if (messages.length > 0) {
                         // Populate conversation history
-                        conversationHistory = data.messages;
+                        conversationHistory = messages;
 
                         // Show download button since there's conversation history
                         downloadButton.style.display = 'flex';
@@ -1587,11 +1602,10 @@
                         let latestDisplayAction = null;
 
                         // Render messages in UI
-                        for (const msg of data.messages) {
+                        for (const msg of messages) {
                             const type = msg.role === 'user' ? 'user' : 'ai';
                             addMessage(type, msg.content, new Date());
 
-                            // Track displayAction from messages
                             if (msg.displayAction) {
                                 latestDisplayAction = msg.displayAction;
                             }
