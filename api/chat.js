@@ -3879,8 +3879,11 @@ STYLE:
         enhancedPrompt += '- If they want more info, share what you learned from the M2M conversation\n';
       }
 
-      // Add knowledge base content if available
-      if (knowledgeBase && Object.keys(knowledgeBase.sections || {}).length > 0) {
+      // Add knowledge base content if available (check sections OR documents OR cof)
+      const hasSections = Object.keys(knowledgeBase?.sections || {}).length > 0;
+      const hasDocuments = Object.keys(knowledgeBase?.documents || {}).length > 0;
+      const hasCof = !!knowledgeBase?.cof;
+      if (knowledgeBase && (hasSections || hasDocuments || hasCof)) {
         enhancedPrompt += '\n\n## KNOWLEDGE BASE\n';
         enhancedPrompt += 'Here is important information about you (the owner) that you can reference:\n\n';
 
