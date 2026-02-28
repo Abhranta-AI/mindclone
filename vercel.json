@@ -19,7 +19,7 @@
     },
     {
       "path": "/api/cron/dmn-heartbeat",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 */6 * * *"
     }
   ],
   "routes": [

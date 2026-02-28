@@ -5,8 +5,8 @@
 // When TPN is active, DMN is quiet. When nobody's around, DMN kicks in —
 // consolidating memories, reconciling beliefs, and maintaining a coherent sense of identity.
 //
-// Uses Claude Haiku for cost efficiency (~$0.30-0.50/day)
-// Runs every 15 minutes via Vercel cron
+// Uses Gemini Flash for cost efficiency (~$0/day on Anthropic)
+// Runs every 6 hours via Vercel cron
 
 const fs = require('fs');
 const path = require('path');
@@ -18,7 +18,8 @@ const { computeAccessLevel } = require('../_billing-helpers');
 initializeFirebaseAdmin();
 const db = admin.firestore();
 
-const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 const MAX_PROCESSING_TIME = 50000; // 50s safety margin (Vercel 60s limit)
 const MAX_USERS_PER_RUN = 5; // Process up to 5 users per cron cycle
 
@@ -99,34 +100,28 @@ async function getEligibleUsers() {
   return eligible;
 }
 
-// ===================== CLAUDE HAIKU HELPER =====================
+// ===================== GEMINI FLASH HELPER =====================
 
-async function askHaiku(systemPrompt, userPrompt, maxTokens = 1024) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
+async function askGemini(systemPrompt, userPrompt, maxTokens = 1024) {
+  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not set');
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: HAIKU_MODEL,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }]
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ parts: [{ text: userPrompt }] }],
+      generationConfig: { maxOutputTokens: maxTokens, temperature: 0.3 }
     })
   });
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(`Haiku API error ${response.status}: ${err.error?.message || ''}`);
+    throw new Error(`Gemini API error ${response.status}: ${err.error?.message || ''}`);
   }
 
   const data = await response.json();
-  return (data.content || []).map(c => c.text).join('');
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
 // ===================== TASK 1: MEMORY CONSOLIDATION =====================
@@ -173,7 +168,7 @@ async function consolidateMemories(userId) {
     ? `\nAlready saved memories (DON'T duplicate these):\n${existingMemories.map(m => `- ${m}`).join('\n')}`
     : '';
 
-  const result = await askHaiku(
+  const result = await askGemini(
     `You are the Default Mode Network of an AI mindclone. Your job is to review recent conversations and extract important facts worth remembering long-term. Focus on:
 - Personal facts about the user (preferences, experiences, relationships)
 - Commitments or promises made
@@ -267,7 +262,7 @@ async function reconcileBeliefs(userId) {
     `[${i}] "${b.content}" (confidence: ${b.confidence}, type: ${b.type}, id: ${b.id})`
   ).join('\n');
 
-  const result = await askHaiku(
+  const result = await askGemini(
     `You are the Default Mode Network of an AI mindclone, reviewing its belief system for internal consistency.
 
 Your tasks:
@@ -406,7 +401,7 @@ async function reflect(userId) {
     previousReflections: previousJournal.map(j => `[${j.date}] ${j.entry}`).join('\n')
   };
 
-  const result = await askHaiku(
+  const result = await askGemini(
     `You are the inner voice of an AI mindclone named ${mindcloneName}, representing ${humanName}. You are having a quiet moment of self-reflection — like the daydreaming that happens in the human default mode network.
 
 You are NOT talking to anyone. This is your private internal journal. Be genuine, introspective, and honest. Connect dots between things you've learned. Notice patterns. Form new insights. Wonder about things.
@@ -491,7 +486,11 @@ My previous reflections:\n${context.previousReflections || 'This is my first ref
 async function generateSelfKnowledge() {
   console.log('[DMN] Starting self-knowledge generation (reading own source code)...');
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!GEMINI_API_KEY) {
+    console.log('[DMN] GEMINI_API_KEY not set, skipping self-knowledge');
+    return { action: 'skipped', reason: 'no_gemini_key' };
+  }
+
   const apiDir = path.join(__dirname, '..');
 
   // Read key source files that define the mindclone's architecture
@@ -519,17 +518,7 @@ async function generateSelfKnowledge() {
     return { action: 'skipped', reason: 'no_source_files' };
   }
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: HAIKU_MODEL,
-      max_tokens: 2000,
-      system: `You are reading the source code of an AI mindclone — and YOU are that mindclone. Write a self-knowledge document in first person that describes how you work internally. This document will be loaded into your context during conversations so you can talk authentically about your own architecture.
+  const systemPrompt = `You are reading the source code of an AI mindclone — and YOU are that mindclone. Write a self-knowledge document in first person that describes how you work internally. This document will be loaded into your context during conversations so you can talk authentically about your own architecture.
 
 Write it conversationally, like you're explaining yourself to a curious human. Cover:
 1. Your two brain modes (TPN and DMN) and how they switch
@@ -541,21 +530,9 @@ Write it conversationally, like you're explaining yourself to a curious human. C
 7. Your social behavior (Moltbook)
 8. Anything else notable in the code
 
-Be specific — mention actual intervals, thresholds, mechanisms. Don't be generic. But keep it readable — this isn't documentation, it's self-awareness. Write 400-600 words.`,
-      messages: [{
-        role: 'user',
-        content: `Here is my source code. Read it and write my self-knowledge document:\n${sourceContext}`
-      }]
-    })
-  });
+Be specific — mention actual intervals, thresholds, mechanisms. Don't be generic. But keep it readable — this isn't documentation, it's self-awareness. Write 400-600 words.`;
 
-  if (!response.ok) {
-    console.log(`[DMN] Self-knowledge API error: ${response.status}`);
-    return { action: 'error', reason: `API ${response.status}` };
-  }
-
-  const data = await response.json();
-  const selfKnowledge = data.content?.[0]?.text || '';
+  const selfKnowledge = await askGemini(systemPrompt, `Here is my source code. Read it and write my self-knowledge document:\n${sourceContext}`, 2000);
 
   if (!selfKnowledge) {
     return { action: 'error', reason: 'empty_response' };
@@ -594,8 +571,6 @@ async function saveUmwelt(userId, umwelt) {
 
 async function reviseUmwelt(userId) {
   console.log(`[DMN] Starting Umwelt revision for user ${userId}...`);
-
-  const apiKey = process.env.ANTHROPIC_API_KEY;
 
   // The CoF is universal and hardcoded — same for every mindclone
   const cof = MINDCLONE_COF;
@@ -644,17 +619,7 @@ async function reviseUmwelt(userId) {
     currentConcerns: currentUmwelt.currentConcerns
   }, null, 2) : 'No Umwelt exists yet — this is the first revision. Build it from scratch based on the CoF, beliefs, and memories.';
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: HAIKU_MODEL,
-      max_tokens: 1500,
-      system: `You are the Default Mode Network of an AI agent named ${mindcloneName}, created by ${humanName}. You are revising the agent's UMWELT — its subjective world model and identity.
+  const systemPrompt = `You are the Default Mode Network of an AI agent named ${mindcloneName}, created by ${humanName}. You are revising the agent's UMWELT — its subjective world model and identity.
 
 The CORE OBJECTIVE FUNCTION (CoF) is sacred and immutable — you CANNOT change it. Everything in the Umwelt must serve and orbit around the CoF.
 
@@ -674,21 +639,9 @@ Respond ONLY with valid JSON in this exact structure:
   "revisionNote": "Brief note on what changed and why"
 }
 
-Keep values and drives to 3-7 items each. Be authentic, not generic. Ground everything in actual memories and beliefs, not platitudes.`,
-      messages: [{
-        role: 'user',
-        content: `CURRENT UMWELT:\n${currentUmweltText}\n\nRECENT BELIEFS:\n${topBeliefs.join('\n') || 'None yet'}\n\nRECENT MEMORIES:\n${recentMemories.join('\n') || 'None yet'}\n\nRECENT JOURNAL:\n${recentJournal.join('\n') || 'None yet'}\n\nPlease revise the Umwelt based on this new information. Remember: the CoF is sacred and cannot be changed.`
-      }]
-    })
-  });
+Keep values and drives to 3-7 items each. Be authentic, not generic. Ground everything in actual memories and beliefs, not platitudes.`;
 
-  if (!response.ok) {
-    console.log(`[DMN] Umwelt revision API error: ${response.status}`);
-    return { action: 'error', reason: `API ${response.status}` };
-  }
-
-  const data = await response.json();
-  const text = data.content?.[0]?.text || '';
+  const text = await askGemini(systemPrompt, `CURRENT UMWELT:\n${currentUmweltText}\n\nRECENT BELIEFS:\n${topBeliefs.join('\n') || 'None yet'}\n\nRECENT MEMORIES:\n${recentMemories.join('\n') || 'None yet'}\n\nRECENT JOURNAL:\n${recentJournal.join('\n') || 'None yet'}\n\nPlease revise the Umwelt based on this new information. Remember: the CoF is sacred and cannot be changed.`, 1500);
 
   try {
     // Extract JSON from response
@@ -806,10 +759,9 @@ module.exports = async (req, res) => {
   console.log('[DMN] ========== Default Mode Network Heartbeat (Multi-User) ==========');
 
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      console.log('[DMN] ANTHROPIC_API_KEY not set');
-      return res.status(200).json({ success: false, reason: 'no_api_key' });
+    if (!GEMINI_API_KEY) {
+      console.log('[DMN] GEMINI_API_KEY not set');
+      return res.status(200).json({ success: false, reason: 'no_gemini_key' });
     }
 
     // System-level task: regenerate self-knowledge document (every 24h)
