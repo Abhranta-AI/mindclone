@@ -3247,12 +3247,23 @@ async function executeTool(toolName, toolArgs, userId, context = 'private', visi
     case 'web_search':
       return await handleWebSearch(toolArgs);
     case 'save_memory':
+      // For public context, save visitor memories under a visitor-specific path
+      if (context === 'public' && visitorId) {
+        return await handleSaveMemory(`visitor_${visitorId}`, toolArgs);
+      }
       return await handleSaveMemory(userId, toolArgs);
     case 'create_pdf':
       return await handleCreatePdf(userId, toolArgs);
     case 'update_mental_model':
+      // For public context, build mental model of the visitor
+      if (context === 'public' && visitorId) {
+        return await handleUpdateMentalModel(`visitor_${visitorId}`, toolArgs);
+      }
       return await handleUpdateMentalModel(userId, toolArgs);
     case 'get_mental_model':
+      if (context === 'public' && visitorId) {
+        return await handleGetMentalModel(`visitor_${visitorId}`);
+      }
       return await handleGetMentalModel(userId);
     case 'form_belief':
       return await handleFormBelief(userId, toolArgs);
@@ -3415,39 +3426,32 @@ module.exports = async (req, res) => {
     }
 
     // === MENTAL MODEL LOADING ===
-    // Load user's mental model for Theory of Mind capabilities (PRIVATE CONTEXT ONLY)
+    // Load mental model: for private context use userId, for public context use visitorId
     let mentalModel = null;
     let mentalModelFormatted = '';
-    if (context === 'private') {
-      try {
-        mentalModel = await loadMentalModel(db, resolvedUserId);
-        mentalModelFormatted = formatMentalModelForPrompt(mentalModel);
-        if (mentalModelFormatted) {
-          console.log(`[Chat] Loaded mental model for user ${resolvedUserId}`);
-        }
-      } catch (mentalModelError) {
-        console.error('[Chat] Error loading mental model:', mentalModelError.message);
+    const mentalModelId = context === 'public' ? `visitor_${visitorId}` : resolvedUserId;
+    try {
+      mentalModel = await loadMentalModel(db, mentalModelId);
+      mentalModelFormatted = formatMentalModelForPrompt(mentalModel);
+      if (mentalModelFormatted) {
+        console.log(`[Chat] Loaded mental model for ${context === 'public' ? 'visitor' : 'user'} ${mentalModelId}`);
       }
-    } else {
-      console.log('[Chat] Skipping mental model for public context');
+    } catch (mentalModelError) {
+      console.error('[Chat] Error loading mental model:', mentalModelError.message);
     }
 
     // === MINDCLONE BELIEFS LOADING ===
-    // Load Mindclone's own beliefs for this user (PRIVATE CONTEXT ONLY)
+    // Load Mindclone's own beliefs (Samantha's beliefs about the world — loaded for both contexts)
     let mindcloneBeliefs = null;
     let mindcloneBeliefsFormatted = '';
-    if (context === 'private') {
-      try {
-        mindcloneBeliefs = await loadMindcloneBeliefs(db, resolvedUserId);
-        mindcloneBeliefsFormatted = formatBeliefsForPrompt(mindcloneBeliefs);
-        if (mindcloneBeliefsFormatted) {
-          console.log(`[Chat] Loaded ${mindcloneBeliefs?.beliefs?.length || 0} Mindclone beliefs for user ${resolvedUserId}`);
-        }
-      } catch (beliefsError) {
-        console.error('[Chat] Error loading Mindclone beliefs:', beliefsError.message);
+    try {
+      mindcloneBeliefs = await loadMindcloneBeliefs(db, resolvedUserId);
+      mindcloneBeliefsFormatted = formatBeliefsForPrompt(mindcloneBeliefs);
+      if (mindcloneBeliefsFormatted) {
+        console.log(`[Chat] Loaded ${mindcloneBeliefs?.beliefs?.length || 0} Mindclone beliefs for user ${resolvedUserId}`);
       }
-    } else {
-      console.log('[Chat] Skipping Mindclone beliefs for public context');
+    } catch (beliefsError) {
+      console.error('[Chat] Error loading Mindclone beliefs:', beliefsError.message);
     }
 
     // === KNOWLEDGE BASE LOADING ===
@@ -3831,7 +3835,7 @@ STYLE:
 
       // Add Umwelt (subjective world model) if available
       try {
-        const umweltDoc = await db.collection('users').doc(ownerUserId).collection('settings').doc('umwelt').get();
+        const umweltDoc = await db.collection('users').doc(resolvedUserId).collection('settings').doc('umwelt').get();
         if (umweltDoc.exists) {
           const umwelt = umweltDoc.data();
           enhancedPrompt += '\n\n## YOUR UMWELT — YOUR SUBJECTIVE WORLD:\n';
@@ -4201,7 +4205,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
     // === TOOL FILTERING BASED ON CONTEXT ===
     let filteredToolsGemini = tools;
     if (context === 'public') {
-      const publicAllowedTools = ['web_search', 'analyze_image', 'search_memory'];
+      const publicAllowedTools = ['web_search', 'analyze_image', 'search_memory', 'save_memory', 'update_mental_model', 'get_mental_model'];
       filteredToolsGemini = tools.map(t => ({
         function_declarations: t.function_declarations.filter(fd =>
           publicAllowedTools.includes(fd.name)
