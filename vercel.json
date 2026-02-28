@@ -10,10 +10,6 @@
       "schedule": "0 */6 * * *"
     },
     {
-      "path": "/api/cron/moltbook-heartbeat",
-      "schedule": "*/5 * * * *"
-    },
-    {
       "path": "/api/cron/matching-heartbeat",
       "schedule": "*/30 * * * *"
     },
@@ -42,10 +38,6 @@
     {
       "src": "^/api/admin/grandfather-users$",
       "dest": "/api/admin/grandfather-users.js"
-    },
-    {
-      "src": "^/api/moltbook-cleanup$",
-      "dest": "/api/moltbook-cleanup.js"
     },
     {
       "src": "^/api/chat$",
