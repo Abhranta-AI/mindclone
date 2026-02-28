@@ -345,8 +345,8 @@ async function checkForPostingOpportunity(state, settings) {
     return null;
   }
 
-  // Rate limit based on settings (default 1 hour)
-  const minHours = settings.minHoursBetweenPosts ?? 1;
+  // Rate limit based on settings (default 3 hours to avoid spammy behavior)
+  const minHours = settings.minHoursBetweenPosts ?? 3;
   if (state.lastPostTime) {
     const hoursSinceLastPost = (Date.now() - new Date(state.lastPostTime).getTime()) / (1000 * 60 * 60);
     console.log(`[Moltbook Heartbeat] Hours since last post: ${hoursSinceLastPost.toFixed(1)}, min required: ${minHours}`);
@@ -358,8 +358,8 @@ async function checkForPostingOpportunity(state, settings) {
     console.log('[Moltbook Heartbeat] No lastPostTime found — first post!');
   }
 
-  // Max posts per day from settings
-  const maxPosts = settings.maxPostsPerDay || 8;
+  // Max posts per day from settings (default 3 to avoid spam)
+  const maxPosts = settings.maxPostsPerDay || 3;
   if (state.postsToday >= maxPosts) {
     console.log(`[Moltbook Heartbeat] Daily max reached: ${state.postsToday}/${maxPosts}`);
     return null;
@@ -369,12 +369,45 @@ async function checkForPostingOpportunity(state, settings) {
   console.log('[Moltbook Heartbeat] Generating AI post...');
   const aiPost = await generateAIPost(settings, state);
   if (aiPost) {
+    // DUPLICATE CHECK: reject if the title is too similar to any recent post
+    const recentTitles = state.recentPostTitles || [];
+    const newTitleLower = aiPost.title.toLowerCase();
+    const isDuplicate = recentTitles.some(t => {
+      const existingLower = t.toLowerCase();
+      // Check if titles share more than 60% of words
+      const newWords = newTitleLower.split(/\s+/);
+      const existingWords = existingLower.split(/\s+/);
+      const overlap = newWords.filter(w => existingWords.includes(w)).length;
+      return overlap / Math.max(newWords.length, 1) > 0.6;
+    });
+    if (isDuplicate) {
+      console.log(`[Moltbook Heartbeat] AI generated a duplicate title: "${aiPost.title}", skipping`);
+      return null;
+    }
     return aiPost;
   }
 
-  // Fallback: generate a simple post without AI
-  console.log('[Moltbook Heartbeat] AI failed, using fallback post generator');
-  return generateFallbackPost(settings, state);
+  // Fallback: only use if we haven't exhausted our updates
+  console.log('[Moltbook Heartbeat] AI failed, trying fallback post generator');
+  const fallbackPost = generateFallbackPost(settings, state);
+  if (fallbackPost) {
+    // DUPLICATE CHECK for fallback too
+    const recentTitles = state.recentPostTitles || [];
+    const newTitleLower = fallbackPost.title.toLowerCase();
+    const isDuplicate = recentTitles.some(t => {
+      const existingLower = t.toLowerCase();
+      const newWords = newTitleLower.split(/\s+/);
+      const existingWords = existingLower.split(/\s+/);
+      const overlap = newWords.filter(w => existingWords.includes(w)).length;
+      return overlap / Math.max(newWords.length, 1) > 0.6;
+    });
+    if (isDuplicate) {
+      console.log(`[Moltbook Heartbeat] Fallback generated a duplicate: "${fallbackPost.title}", skipping entirely`);
+      return null;
+    }
+    return fallbackPost;
+  }
+  return null;
 }
 
 /**
@@ -519,12 +552,12 @@ async function runHeartbeat() {
       }
     }
 
-    // Auto-fix stale settings: if minHoursBetweenPosts is still the old default (12), reset to 1
-    if (settings.minHoursBetweenPosts === 12 && ownerUid) {
-      console.log('[Moltbook Heartbeat] Auto-fixing stale minHoursBetweenPosts from 12 to 1');
-      settings.minHoursBetweenPosts = 1;
+    // Auto-fix stale settings: if minHoursBetweenPosts is too aggressive (<=1), set to 3
+    if (settings.minHoursBetweenPosts <= 1 && ownerUid) {
+      console.log('[Moltbook Heartbeat] Auto-fixing aggressive minHoursBetweenPosts to 3');
+      settings.minHoursBetweenPosts = 3;
       try {
-        await db.collection('users').doc(ownerUid).collection('settings').doc('moltbook').update({ minHoursBetweenPosts: 1 });
+        await db.collection('users').doc(ownerUid).collection('settings').doc('moltbook').update({ minHoursBetweenPosts: 3 });
       } catch (e) {
         console.log(`[Moltbook Heartbeat] Could not auto-fix settings: ${e.message}`);
       }
