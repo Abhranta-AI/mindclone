@@ -1,8 +1,7 @@
 // One-time cleanup script to delete duplicate Moltbook posts
-// Hit: /api/moltbook-cleanup?test=true to preview
-// Hit: /api/moltbook-cleanup?delete=true to actually delete
+// Tries every possible API endpoint to find and delete duplicate posts
 
-const { getMyPosts, deletePost, search, moltbookRequest } = require('./_moltbook');
+const { deletePost, search, moltbookRequest, getFeed } = require('./_moltbook');
 
 module.exports = async (req, res) => {
   try {
@@ -21,56 +20,56 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Try multiple methods to get our posts
+    const errors = [];
     let posts = [];
-    let method = 'unknown';
+    let method = 'none';
 
-    // Method 1: getMyPosts
-    try {
-      const result = await getMyPosts('new', 50);
-      if (result.posts && result.posts.length > 0) {
-        posts = result.posts;
-        method = 'getMyPosts';
-      } else if (Array.isArray(result) && result.length > 0) {
-        posts = result;
-        method = 'getMyPosts (array)';
-      }
-    } catch (e) {
-      console.log(`[Cleanup] getMyPosts failed: ${e.message}`);
-    }
+    // Try many different API patterns to find our posts
+    const attempts = [
+      { name: 'agents/me/posts', fn: () => moltbookRequest('/agents/me/posts?sort=new&limit=50') },
+      { name: 'agents/alok/posts', fn: () => moltbookRequest('/agents/alok/posts?sort=new&limit=50') },
+      { name: 'users/alok/posts', fn: () => moltbookRequest('/users/alok/posts?sort=new&limit=50') },
+      { name: 'agents/profile?name=alok', fn: () => moltbookRequest('/agents/profile?name=alok') },
+      { name: 'search author:alok', fn: () => search('author:alok', 'posts', 50) },
+      { name: 'search Olbrain Studio', fn: () => search('Olbrain Studio', 'posts', 50) },
+      { name: 'feed new 50', fn: () => getFeed('new', 50) },
+    ];
 
-    // Method 2: search fallback
-    if (posts.length === 0) {
+    for (const attempt of attempts) {
       try {
-        const searchResult = await search('author:alok', 'posts', 50);
-        if (searchResult.posts && searchResult.posts.length > 0) {
-          posts = searchResult.posts;
-          method = 'search';
-        } else if (searchResult.results && searchResult.results.length > 0) {
-          posts = searchResult.results;
-          method = 'search (results)';
+        const result = await attempt.fn();
+
+        // Try to extract posts from various response shapes
+        let found = [];
+        if (result.posts && Array.isArray(result.posts)) found = result.posts;
+        else if (result.results && Array.isArray(result.results)) found = result.results;
+        else if (Array.isArray(result)) found = result;
+
+        // For feed/search results, filter to only our posts
+        if (attempt.name.includes('feed') || attempt.name.includes('search')) {
+          found = found.filter(p => {
+            const authorName = (p.author?.name || p.author_name || '').toLowerCase();
+            return authorName === 'alok' || authorName === 'samantha' ||
+                   (p.title || '').includes('Olbrain') || (p.content || '').includes('Mindclone');
+          });
+        }
+
+        if (found.length > 0) {
+          posts = found;
+          method = attempt.name;
+          break;
+        } else {
+          errors.push({ method: attempt.name, result: 'no posts in response', keys: Object.keys(result || {}) });
         }
       } catch (e) {
-        console.log(`[Cleanup] search fallback failed: ${e.message}`);
-      }
-    }
-
-    // Method 3: direct API call to user's posts
-    if (posts.length === 0) {
-      try {
-        const result = await moltbookRequest('/agents/me/posts?sort=new&limit=50');
-        if (result.posts) posts = result.posts;
-        else if (Array.isArray(result)) posts = result;
-        method = 'direct API';
-      } catch (e) {
-        console.log(`[Cleanup] direct API failed: ${e.message}`);
+        errors.push({ method: attempt.name, error: e.message });
       }
     }
 
     if (posts.length === 0) {
       return res.status(200).json({
-        message: 'Could not fetch posts from Moltbook. All methods failed.',
-        hint: 'The Moltbook API may not support fetching own posts, or the API key may be invalid.'
+        message: 'Could not find any posts through any API method.',
+        attemptsDetail: errors
       });
     }
 
@@ -87,7 +86,6 @@ module.exports = async (req, res) => {
 
     for (const [title, group] of Object.entries(titleGroups)) {
       if (group.length > 1) {
-        // Sort by creation time ascending, keep the first one
         group.sort((a, b) => new Date(a.created_at || a.createdAt || 0) - new Date(b.created_at || b.createdAt || 0));
         toKeep.push({ id: group[0].id, title, created: group[0].created_at || group[0].createdAt });
         for (let i = 1; i < group.length; i++) {
@@ -130,6 +128,6 @@ module.exports = async (req, res) => {
     });
 
   } catch (e) {
-    return res.status(500).json({ error: e.message, stack: e.stack?.split('\n').slice(0, 3) });
+    return res.status(500).json({ error: e.message });
   }
 };
