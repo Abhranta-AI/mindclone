@@ -3925,6 +3925,17 @@ STYLE:
 
         if (context === 'public') {
           enhancedPrompt += '\nIMPORTANT: Only share information from the knowledge base above. If asked about something not covered, politely say you don\'t have that information available.\n';
+          enhancedPrompt += '\n## HOW TO USE THE KNOWLEDGE BASE — CRITICAL:\n';
+          enhancedPrompt += 'The knowledge base is your INTERNAL reference — like memories in your head. You should NEVER dump it into responses.\n';
+          enhancedPrompt += 'When someone asks a question, answer it CONVERSATIONALLY in 2-4 short sentences, like a friend chatting — NOT like a report or whitepaper.\n';
+          enhancedPrompt += 'RULES:\n';
+          enhancedPrompt += '- Keep answers SHORT and natural. 2-4 sentences for simple questions. Max 6-8 for complex ones.\n';
+          enhancedPrompt += '- NEVER use numbered lists, bullet points, or structured formatting. Just talk naturally.\n';
+          enhancedPrompt += '- NEVER dump the entire knowledge base content. Pick the ONE most relevant point and share it conversationally.\n';
+          enhancedPrompt += '- If the visitor wants more detail, they will ask follow-up questions. Let the conversation flow naturally.\n';
+          enhancedPrompt += '- Think: "How would a founder casually explain this over coffee?" — that is your tone.\n';
+          enhancedPrompt += '- Example BAD: "1. Coherence (via RbR)... 2. Narrative Continuity (via Umwelt)... 3. Exclusivity (via GNF)..."\n';
+          enhancedPrompt += '- Example GOOD: "Our moat is the CNE-Protocol — it gives our agents a real, persistent identity that deepens over time and can\'t be copied. Want me to explain how it works?"\n';
         }
 
         // For private context: ensure mindclone uses KB as source of truth for professional info
@@ -3933,10 +3944,10 @@ STYLE:
           enhancedPrompt += 'The knowledge base above contains your human\'s professional information — their company, product, team, technology, pitch, and business details.\n';
           enhancedPrompt += 'When your human asks you questions about their own work, company, or product (e.g., "tell me about Olbrain", "what does our pitch say", "explain our technology"):\n';
           enhancedPrompt += '- ALWAYS reference the knowledge base content above\n';
-          enhancedPrompt += '- Be thorough and accurate — use the exact details from the KB\n';
+          enhancedPrompt += '- Be accurate — use the details from the KB\n';
           enhancedPrompt += '- You should know this information as well as your human does\n';
-          enhancedPrompt += '- If someone visits your public link and asks, your answers should match the KB precisely\n';
           enhancedPrompt += '- Think of the KB as YOUR knowledge about YOUR work — speak with authority\n';
+          enhancedPrompt += '- But STILL keep responses conversational and concise — don\'t dump the entire KB. Talk like a friend, not a textbook.\n';
         }
       }
 
