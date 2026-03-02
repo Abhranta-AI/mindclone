@@ -1,6 +1,6 @@
 // One-time admin endpoint to set publicName for the owner
 // DELETE THIS FILE AFTER USE
-const { initializeFirebaseAdmin, admin } = require('../_firebase-admin');
+const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
 
 initializeFirebaseAdmin();
 const db = admin.firestore();
