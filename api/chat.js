@@ -277,32 +277,21 @@ async function callGeminiFlashAPI(openaiRequestBody, geminiApiKey) {
   const nonSystemMsgs = openaiRequestBody.messages.filter(m => m.role !== 'system');
 
   // Convert OpenAI messages to Gemini format
+  // Since we run Gemini in text-only mode (no tool calling), convert tool messages to plain text
   const geminiContents = [];
   for (const msg of nonSystemMsgs) {
     if (msg.role === 'tool') {
-      // Tool result → Gemini uses role: 'user' with functionResponse part
-      geminiContents.push({
-        role: 'user',
-        parts: [{
-          functionResponse: {
-            name: msg._toolName || 'unknown',
-            response: { result: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content) }
-          }
-        }]
-      });
+      // Tool result → convert to plain text (no functionResponse since tools disabled)
+      // Skip tool results entirely — they're not useful without the tool context
+      continue;
     } else if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
-      // Assistant with tool calls → Gemini uses role: 'model' with functionCall part
-      const parts = [];
-      if (msg.content) parts.push({ text: msg.content });
-      for (const tc of msg.tool_calls) {
-        parts.push({
-          functionCall: {
-            name: tc.function.name,
-            args: JSON.parse(tc.function.arguments || '{}')
-          }
-        });
+      // Assistant with tool calls → just keep the text part, skip the tool call
+      const textContent = msg.content || '';
+      if (textContent.trim()) {
+        geminiContents.push({ role: 'model', parts: [{ text: textContent }] });
       }
-      geminiContents.push({ role: 'model', parts });
+      // Skip the tool_calls part entirely
+      continue;
     } else if (msg.role === 'assistant') {
       geminiContents.push({ role: 'model', parts: [{ text: msg.content || '' }] });
     } else {
