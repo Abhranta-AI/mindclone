@@ -349,13 +349,34 @@ async function callGeminiFlashAPI(openaiRequestBody, geminiApiKey) {
   }
 
   // Convert OpenAI tools to Gemini tool format
+  // Gemini is strict about parameter schema — clean up OpenAI-specific quirks
+  const cleanParamsForGemini = (params) => {
+    if (!params || typeof params !== 'object') return { type: 'object', properties: {} };
+    const cleaned = { ...params };
+    // Gemini doesn't like empty required arrays
+    if (Array.isArray(cleaned.required) && cleaned.required.length === 0) {
+      delete cleaned.required;
+    }
+    // Ensure type is set
+    if (!cleaned.type) cleaned.type = 'object';
+    // Ensure properties exists
+    if (!cleaned.properties) cleaned.properties = {};
+    // Clean nested enum arrays — Gemini doesn't accept empty enums
+    for (const [key, prop] of Object.entries(cleaned.properties)) {
+      if (prop.enum && Array.isArray(prop.enum) && prop.enum.length === 0) {
+        delete cleaned.properties[key].enum;
+      }
+    }
+    return cleaned;
+  };
+
   const geminiTools = [];
   const openaiTools = openaiRequestBody.tools || [];
   if (openaiTools.length > 0) {
     const functionDeclarations = openaiTools.map(t => ({
       name: t.function.name,
-      description: t.function.description,
-      parameters: t.function.parameters
+      description: (t.function.description || '').substring(0, 512),
+      parameters: cleanParamsForGemini(t.function.parameters)
     }));
     geminiTools.push({ functionDeclarations });
   }
@@ -389,7 +410,14 @@ async function callGeminiFlashAPI(openaiRequestBody, geminiApiKey) {
       body: JSON.stringify(requestBody)
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error(`[Gemini API] Failed to parse response: ${responseText.substring(0, 500)}`);
+      return { ok: false, status: response.status, data: { error: { message: `Invalid JSON response: ${responseText.substring(0, 200)}` } } };
+    }
 
     if (!response.ok) {
       const errorMsg = data.error?.message || JSON.stringify(data.error) || JSON.stringify(data);
@@ -4543,7 +4571,17 @@ Use this to understand time references like "yesterday", "next week", "this mont
     const openaiMessages = convertMessagesToOpenAI(contents, systemPromptText);
 
     // Ensure we have valid messages
-    let validMessages = openaiMessages.filter(m => m.content && m.content.trim());
+    let validMessages = openaiMessages.filter(m => {
+      // Keep messages with string content
+      if (typeof m.content === 'string' && m.content.trim()) return true;
+      // Keep messages with array content (e.g., image blocks)
+      if (Array.isArray(m.content) && m.content.length > 0) return true;
+      // Keep assistant messages with tool_calls even if content is null
+      if (m.role === 'assistant' && m.tool_calls) return true;
+      // Keep tool result messages
+      if (m.role === 'tool') return true;
+      return false;
+    });
 
     // If no user messages, add a default
     if (!validMessages.some(m => m.role === 'user')) {
