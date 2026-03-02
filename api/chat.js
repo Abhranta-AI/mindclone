@@ -3513,8 +3513,7 @@ module.exports = async (req, res) => {
       if (keywords.length > 0) {
         const allMemoriesSnap = await memoryCollection
           .orderBy('createdAt', 'desc')
-          .limit(200) // Scan up to 200 memories
-          .get();
+          .get(); // Load ALL memories — keyword matching is instant in JS
 
         const recentIds = new Set(recentMemories.map(m => m.id));
 
