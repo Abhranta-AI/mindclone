@@ -4572,141 +4572,105 @@ Use this to understand time references like "yesterday", "next week", "this mont
       console.log(`[Chat] Private context - all tools available`);
     }
 
-    // Convert to OpenAI format
-    const openaiTools = convertToolsToOpenAI(filteredToolsGemini);
-
-    // Extract system prompt text
-    const systemPromptText = systemInstruction?.parts?.[0]?.text || null;
-
-    // Convert messages to OpenAI format
-    const openaiMessages = convertMessagesToOpenAI(contents, systemPromptText);
-
-    // Ensure we have valid messages
-    let validMessages = openaiMessages.filter(m => {
-      // Keep messages with string content
-      if (typeof m.content === 'string' && m.content.trim()) return true;
-      // Keep messages with array content (e.g., image blocks)
-      if (Array.isArray(m.content) && m.content.length > 0) return true;
-      // Keep assistant messages with tool_calls even if content is null
-      if (m.role === 'assistant' && m.tool_calls) return true;
-      // Keep tool result messages
-      if (m.role === 'tool') return true;
-      return false;
-    });
-
-    // If no user messages, add a default
-    if (!validMessages.some(m => m.role === 'user')) {
-      validMessages.push({ role: 'user', content: 'Hello' });
+    // Get API key
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
+      console.error('[Chat] GEMINI_API_KEY is not set!');
+      throw new Error('GEMINI_API_KEY not configured');
     }
 
-    // Fetch and embed images in user messages (for both Gemini and Claude)
-    for (const msg of validMessages) {
-      if (msg.role === 'user' && typeof msg.content === 'string') {
-        const imageBlock = await fetchImagesFromText(msg.content);
-        if (imageBlock) {
-          const cleanText = msg.content
-            .replace(/\[Image:[^\]]*\]\s*/g, '')
-            .replace(/Image URL:\s*https?:\/\/[^\s\n]+/gi, '')
-            .trim();
-          msg.content = [
-            imageBlock,
-            { type: 'text', text: cleanText || 'What do you see in this image?' }
-          ];
-          console.log(`[Chat] Embedded image in message for vision`);
-        }
+    // Clean contents for Gemini — strip any tool-related messages (functionCall/functionResponse)
+    const cleanContents = [];
+    for (const msg of contents) {
+      if (!msg || !msg.parts) continue;
+      const role = msg.role === 'assistant' ? 'model' : (msg.role === 'model' ? 'model' : 'user');
+
+      // Filter out functionCall and functionResponse parts
+      const cleanParts = (msg.parts || []).filter(p => !p.functionCall && !p.functionResponse);
+
+      // Only keep messages that have actual text content
+      if (cleanParts.length > 0 && cleanParts.some(p => p.text && p.text.trim())) {
+        cleanContents.push({ role, parts: cleanParts });
       }
     }
 
-    console.log(`[Chat] Messages count: ${validMessages.length}`);
+    // Merge consecutive same-role messages
+    const mergedContents = [];
+    for (const msg of cleanContents) {
+      const prev = mergedContents[mergedContents.length - 1];
+      if (prev && prev.role === msg.role) {
+        prev.parts = [...prev.parts, ...msg.parts];
+      } else {
+        mergedContents.push({ ...msg });
+      }
+    }
 
-    // Build OpenAI request
-    const requestBody = {
-      model: currentModel,
-      max_tokens: 4096,
-      messages: validMessages,
-      tools: openaiTools.length > 0 ? openaiTools : undefined
+    // Ensure first message is from user
+    if (mergedContents.length === 0 || mergedContents[0].role !== 'user') {
+      mergedContents.unshift({ role: 'user', parts: [{ text: 'Hello' }] });
+    }
+
+    console.log(`[Chat] Messages count: ${mergedContents.length} (cleaned for Gemini)`);
+
+    // === DIRECT GEMINI API CALL (simple, like DMN heartbeat) ===
+    const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+
+    const geminiRequestBody = {
+      contents: mergedContents,
+      generationConfig: {
+        maxOutputTokens: 4096,
+        temperature: 0.7
+      }
     };
 
-    // Get API keys
-    const geminiApiKey = process.env.GEMINI_API_KEY;
-    const claudeApiKey = process.env.ANTHROPIC_API_KEY;
-    if (!geminiApiKey && !claudeApiKey) {
-      console.error('[Chat] Neither GEMINI_API_KEY nor ANTHROPIC_API_KEY is set!');
-      throw new Error('No AI API key configured');
+    // Add system instruction
+    const sysText = systemInstruction?.parts?.[0]?.text;
+    if (sysText) {
+      geminiRequestBody.systemInstruction = { parts: [{ text: sysText }] };
     }
-    console.log(`[Chat] API keys: Gemini=${geminiApiKey ? 'yes' : 'no'}, Claude=${claudeApiKey ? 'yes' : 'no'}`);
 
-    // Initial API call with model fallback AND retry logic
-    let response, data;
+    console.log(`[Chat] Calling Gemini Flash directly with ${mergedContents.length} messages`);
+
+    let data;
     let apiCallSuccess = false;
-    const MAX_RETRIES = 3;
-    const RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
 
-    while (!apiCallSuccess && currentModelIndex < AI_MODELS.length) {
-      currentModel = AI_MODELS[currentModelIndex];
-      requestBody.model = currentModel;
-
-      // Retry loop for transient failures
-      for (let retryAttempt = 0; retryAttempt < MAX_RETRIES && !apiCallSuccess; retryAttempt++) {
-        if (retryAttempt > 0) {
-          const delay = RETRY_DELAYS[retryAttempt - 1] || 4000;
-          console.log(`[Chat] Retry attempt ${retryAttempt}/${MAX_RETRIES - 1} after ${delay}ms delay...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-
-        // DETAILED LOGGING FOR DEBUGGING
-        console.log(`[Chat] ========== AI API REQUEST (attempt ${retryAttempt + 1}) ==========`);
-        console.log(`[Chat] Model: ${currentModel}`);
-        console.log(`[Chat] Messages count: ${requestBody.messages?.length}`);
-        console.log(`[Chat] Tools count: ${requestBody.tools?.length || 0}`);
-
-        try {
-          // Call the appropriate API based on current model
-          let apiResult;
-          if (useGemini() && geminiApiKey) {
-            apiResult = await callGeminiFlashAPI(requestBody, geminiApiKey);
-          } else if (claudeApiKey) {
-            apiResult = await callClaudeAPI(requestBody, claudeApiKey);
-          } else {
-            throw new Error('No API key available for current model');
-          }
-
-          console.log(`[Chat] Response status: ${apiResult.status}`);
-
-          data = apiResult.data;
-
-          if (!apiResult.ok) {
-            const errorMsg = data.error?.message || JSON.stringify(data.error) || '';
-            console.error(`[Chat] AI API error: ${apiResult.status} - ${errorMsg}`);
-
-            // Check if retryable error
-            if (apiResult.status === 529 || apiResult.status === 503 || apiResult.status === 500 ||
-                errorMsg.includes('overloaded') || errorMsg.includes('temporarily')) {
-              console.log(`[Chat] Retryable error, will retry...`);
-              continue; // Retry
-            }
-
-            if (errorMsg.includes('quota') || errorMsg.includes('rate') || apiResult.status === 429) {
-              console.log(`[Chat] Model ${currentModel} rate limited, trying next model...`);
-              break; // Break retry loop, try next model
-            }
-
-            throw new Error(`AI API error (${apiResult.status}): ${errorMsg.substring(0, 200)}`);
-          }
-
-          apiCallSuccess = true;
-          console.log(`[Chat] Successfully using model: ${currentModel} (attempt ${retryAttempt + 1})`);
-        } catch (fetchError) {
-          console.error(`[Chat] Fetch error (attempt ${retryAttempt + 1}):`, fetchError.message);
-          if (retryAttempt === MAX_RETRIES - 1) {
-            throw fetchError; // Last retry failed, throw error
-          }
-          // Otherwise continue to next retry
-        }
+    for (let attempt = 0; attempt < 3 && !apiCallSuccess; attempt++) {
+      if (attempt > 0) {
+        await new Promise(r => setTimeout(r, attempt * 2000));
+        console.log(`[Chat] Retry attempt ${attempt + 1}/3...`);
       }
 
-      if (!apiCallSuccess) {
-        currentModelIndex++; // Try next model
+      try {
+        const geminiResponse = await fetch(geminiApiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(geminiRequestBody)
+        });
+
+        const responseText = await geminiResponse.text();
+
+        if (!geminiResponse.ok) {
+          console.error(`[Chat] Gemini error ${geminiResponse.status}: ${responseText.substring(0, 500)}`);
+          if (geminiResponse.status === 503 || geminiResponse.status === 429) continue; // Retry
+          throw new Error(`Gemini API error ${geminiResponse.status}: ${responseText.substring(0, 200)}`);
+        }
+
+        const geminiData = JSON.parse(responseText);
+        const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+        // Convert to OpenAI-compatible format for the rest of the code
+        data = {
+          choices: [{
+            message: { content: text, tool_calls: null },
+            finish_reason: 'stop'
+          }]
+        };
+
+        apiCallSuccess = true;
+        console.log(`[Chat] Gemini response received (${text.length} chars)`);
+      } catch (err) {
+        console.error(`[Chat] Gemini attempt ${attempt + 1} failed: ${err.message}`);
+        if (attempt === 2) throw err;
       }
     }
 
