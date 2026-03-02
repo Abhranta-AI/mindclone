@@ -3502,7 +3502,14 @@ module.exports = async (req, res) => {
       const userQuery = (latestUserMsg?.role === 'user' ? latestUserMsg.content : '') || '';
 
       // Extract meaningful keywords (skip common/stop words)
-      const stopWords = new Set(['i', 'me', 'my', 'you', 'your', 'we', 'our', 'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'can', 'may', 'might', 'shall', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into', 'about', 'that', 'this', 'it', 'its', 'and', 'or', 'but', 'not', 'no', 'so', 'if', 'then', 'than', 'what', 'when', 'where', 'how', 'who', 'which', 'why', 'there', 'here', 'all', 'each', 'any', 'some', 'just', 'also', 'very', 'too', 'much', 'more', 'most', 'really', 'know', 'think', 'tell', 'say', 'said', 'like', 'get', 'got', 'go', 'going', 'went', 'come', 'make', 'made', 'take', 'see', 'look', 'want', 'give', 'use', 'find', 'thing', 'something', 'anything', 'right', 'good', 'new', 'hey', 'hi', 'hello', 'please', 'thanks', 'okay', 'ok', 'yes', 'yeah', 'sure', 'remember', 'recall', 'about']);
+      const stopWords = new Set(['i', 'me', 'my', 'you', 'your', 'we', 'our', 'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'can', 'may', 'might', 'shall', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into', 'about', 'that', 'this', 'it', 'its', 'and', 'or', 'but', 'not', 'no', 'so', 'if', 'then', 'than', 'what', 'when', 'where', 'how', 'who', 'which', 'why', 'there', 'here', 'all', 'each', 'any', 'some', 'just', 'also', 'very', 'too', 'much', 'more', 'most', 'really', 'know', 'think', 'tell', 'say', 'said', 'like', 'get', 'got', 'go', 'going', 'went', 'come', 'make', 'made', 'take', 'see', 'look', 'want', 'give', 'use', 'find', 'thing', 'something', 'anything', 'right', 'good', 'new', 'hey', 'hi', 'hello', 'please', 'thanks', 'okay', 'ok', 'yes', 'yeah', 'sure', 'remember', 'recall', 'about',
+        // Domain-common words that match too many memories and cause false relevance
+        'whatsapp', 'agent', 'agents', 'business', 'customer', 'customers', 'beta', 'demo',
+        'email', 'website', 'contact', 'number', 'phone', 'message', 'chat', 'bot',
+        'olbrain', 'mindclone', 'studio', 'platform', 'startup', 'company', 'team',
+        'build', 'building', 'built', 'product', 'feature', 'features', 'data',
+        'user', 'users', 'people', 'person', 'someone', 'somehow', 'don']);
+      // Extract keywords: only specific, distinctive words — not generic domain terms
       const keywords = userQuery.toLowerCase()
         .replace(/[^a-z0-9\s]/g, ' ')
         .split(/\s+/)
