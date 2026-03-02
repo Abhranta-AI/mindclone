@@ -76,6 +76,59 @@ function convertMessagesToClaude(geminiContents, systemPrompt = null) {
   return { system: systemPrompt, messages };
 }
 
+// ===================== IMAGE URL EXTRACTION & FETCHING =====================
+// Detects image URLs in message text and fetches them as base64 for Claude vision
+async function fetchImagesFromText(text) {
+  if (!text || typeof text !== 'string') return null;
+
+  // Match "Image URL: https://..." patterns (from file uploads)
+  const imageUrlMatch = text.match(/Image URL:\s*(https?:\/\/[^\s\n]+)/i);
+  if (!imageUrlMatch) return null;
+
+  const imageUrl = imageUrlMatch[1];
+  console.log(`[Image] Found image URL in message: ${imageUrl}`);
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const response = await fetch(imageUrl, {
+      signal: controller.signal,
+      headers: { 'Accept': 'image/*' }
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      console.log(`[Image] Failed to fetch: HTTP ${response.status}`);
+      return null;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.startsWith('image/')) {
+      console.log(`[Image] Not an image: ${contentType}`);
+      return null;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
+    const mimeType = contentType.split(';')[0].trim() || 'image/jpeg';
+
+    console.log(`[Image] Fetched successfully: ${mimeType}, ${Math.round(base64.length / 1024)}KB`);
+
+    return {
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: mimeType,
+        data: base64
+      }
+    };
+  } catch (err) {
+    console.log(`[Image] Fetch error: ${err.message}`);
+    return null;
+  }
+}
+
 // ===================== CLAUDE API ADAPTER =====================
 // Calls Anthropic Claude API using OpenAI-format request/response for minimal code changes
 async function callClaudeAPI(openaiRequestBody, claudeApiKey) {
@@ -108,8 +161,31 @@ async function callClaudeAPI(openaiRequestBody, claudeApiKey) {
     } else if (msg.role === 'assistant') {
       claudeMessages.push({ role: 'assistant', content: msg.content || '' });
     } else {
-      // User message
-      claudeMessages.push({ role: 'user', content: msg.content || '' });
+      // User message — check for embedded image URLs and fetch them for vision
+      const msgText = typeof msg.content === 'string' ? msg.content : (msg.content || '');
+      claudeMessages.push({ role: 'user', content: msgText, _needsImageCheck: true });
+    }
+  }
+
+  // Fetch images from user messages that contain image URLs
+  for (const msg of claudeMessages) {
+    if (msg._needsImageCheck && typeof msg.content === 'string') {
+      const imageBlock = await fetchImagesFromText(msg.content);
+      if (imageBlock) {
+        // Convert to multipart content: image + text
+        const cleanText = msg.content
+          .replace(/\[Image:[^\]]*\]\s*/g, '')
+          .replace(/Image URL:\s*https?:\/\/[^\s\n]+/gi, '')
+          .trim();
+        msg.content = [
+          imageBlock,
+          { type: 'text', text: cleanText || 'What do you see in this image?' }
+        ];
+        console.log(`[Image] Embedded image directly in Claude message`);
+      }
+      delete msg._needsImageCheck;
+    } else {
+      delete msg._needsImageCheck;
     }
   }
 
