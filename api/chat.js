@@ -1202,11 +1202,23 @@ async function saveMessage(userId, role, content, context = 'private', visitorId
 
       const visitorDoc = await visitorRef.get();
       if (!visitorDoc.exists) {
-        // First visit
+        // First visit — notify owner via WhatsApp
         await visitorRef.set({
           firstVisit: admin.firestore.FieldValue.serverTimestamp(),
           lastVisit: admin.firestore.FieldValue.serverTimestamp()
         });
+
+        // Send WhatsApp notification for new visitor (non-blocking)
+        if (role === 'user' && content) {
+          try {
+            const { queueWhatsApp } = require('./_whatsapp');
+            const preview = (typeof content === 'string' ? content : '').substring(0, 100);
+            const msg = `New visitor on your Mindclone link!\n\nThey said: "${preview}${preview.length >= 100 ? '...' : ''}"\n\nOpen mindclone.one to see the full conversation.`;
+            await queueWhatsApp(userId, msg, 'visitors');
+          } catch (waErr) {
+            console.log(`[Chat] WhatsApp visitor notification failed (non-fatal): ${waErr.message}`);
+          }
+        }
       } else {
         // Update last visit
         await visitorRef.update({

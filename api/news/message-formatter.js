@@ -1,5 +1,6 @@
 // Message Formatter - Format articles into natural language and inject to Firestore
 const { initializeFirebaseAdmin, admin } = require('../_firebase-admin');
+const { queueWhatsApp } = require('../_whatsapp');
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
@@ -168,6 +169,16 @@ async function injectMessage(userId, content, articles = []) {
       .collection('messages').add(messageData);
 
     console.log(`[MessageFormatter] Message injected successfully: ${messageRef.id}`);
+
+    // Queue WhatsApp notification with article summary
+    try {
+      const titles = articles.map(a => a.title).filter(Boolean).slice(0, 3);
+      const whatsappMsg = `Hey! Samantha found ${articles.length} article${articles.length > 1 ? 's' : ''} for you:\n\n${titles.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nCheck your Mindclone chat for the full digest!`;
+      await queueWhatsApp(userId, whatsappMsg, 'news');
+    } catch (waErr) {
+      // Don't fail the whole operation if WhatsApp queuing fails
+      console.log(`[MessageFormatter] WhatsApp queue failed (non-fatal): ${waErr.message}`);
+    }
 
     return messageRef.id;
 
