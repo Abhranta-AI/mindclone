@@ -3482,91 +3482,14 @@ module.exports = async (req, res) => {
       console.error('[Chat] Error loading knowledge base:', kbError.message);
     }
 
-    // === SMART MEMORY RETRIEVAL ===
-    // Two-pronged approach: recent memories (continuity) + keyword-matched memories (relevance)
+    // === MEMORY RETRIEVAL ===
+    // Memories are accessed via the recall_memory tool when the AI needs them.
+    // We do NOT proactively inject memories into the system prompt because
+    // it causes severe hallucinations — the AI trusts injected memories over
+    // what it can actually see (screenshots, current messages), leading to
+    // confabulation where it makes up details from old memories.
+    // TODO: Revisit with embeddings/vector search for proper semantic retrieval.
     let relevantMemories = [];
-    try {
-      const memoryCollection = (context === 'public' && visitorId)
-        ? db.collection('users').doc(resolvedUserId).collection('visitors').doc(visitorId).collection('memories')
-        : db.collection('users').doc(resolvedUserId).collection('memories');
-
-      // 1. Always load the 10 most recent memories (conversational continuity)
-      const recentSnap = await memoryCollection
-        .orderBy('createdAt', 'desc')
-        .limit(10)
-        .get();
-      const recentMemories = recentSnap.docs.map(d => ({ content: d.data().content, id: d.id })).filter(m => m.content);
-
-      // 2. Extract keywords from the user's latest message for relevance search
-      const latestUserMsg = messages[messages.length - 1];
-      const userQuery = (latestUserMsg?.role === 'user' ? latestUserMsg.content : '') || '';
-
-      // Extract meaningful keywords (skip common/stop words)
-      const stopWords = new Set(['i', 'me', 'my', 'you', 'your', 'we', 'our', 'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'can', 'may', 'might', 'shall', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into', 'about', 'that', 'this', 'it', 'its', 'and', 'or', 'but', 'not', 'no', 'so', 'if', 'then', 'than', 'what', 'when', 'where', 'how', 'who', 'which', 'why', 'there', 'here', 'all', 'each', 'any', 'some', 'just', 'also', 'very', 'too', 'much', 'more', 'most', 'really', 'know', 'think', 'tell', 'say', 'said', 'like', 'get', 'got', 'go', 'going', 'went', 'come', 'make', 'made', 'take', 'see', 'look', 'want', 'give', 'use', 'find', 'thing', 'something', 'anything', 'right', 'good', 'new', 'hey', 'hi', 'hello', 'please', 'thanks', 'okay', 'ok', 'yes', 'yeah', 'sure', 'remember', 'recall', 'about',
-        // Domain-common words that match too many memories and cause false relevance
-        'whatsapp', 'agent', 'agents', 'business', 'customer', 'customers', 'beta', 'demo',
-        'email', 'website', 'contact', 'number', 'phone', 'message', 'chat', 'bot',
-        'olbrain', 'mindclone', 'studio', 'platform', 'startup', 'company', 'team',
-        'build', 'building', 'built', 'product', 'feature', 'features', 'data',
-        'user', 'users', 'people', 'person', 'someone', 'somehow', 'don']);
-      // Extract keywords: only specific, distinctive words — not generic domain terms
-      const keywords = userQuery.toLowerCase()
-        .replace(/[^a-z0-9\s]/g, ' ')
-        .split(/\s+/)
-        .filter(w => w.length > 2 && !stopWords.has(w));
-
-      // 3. Search ALL memories for keyword matches (if we have keywords)
-      let matchedMemories = [];
-      if (keywords.length > 0) {
-        const allMemoriesSnap = await memoryCollection
-          .orderBy('createdAt', 'desc')
-          .get(); // Load ALL memories — keyword matching is instant in JS
-
-        const recentIds = new Set(recentMemories.map(m => m.id));
-
-        allMemoriesSnap.docs.forEach(doc => {
-          if (recentIds.has(doc.id)) return; // Already in recent, skip
-
-          const content = (doc.data().content || '').toLowerCase();
-          // Count how many keywords match
-          const matchCount = keywords.filter(kw => content.includes(kw)).length;
-          const score = matchCount / keywords.length;
-          // Only include if at least 30% of keywords match (avoid weak/misleading matches)
-          if (matchCount >= 2 && score >= 0.3) {
-            matchedMemories.push({
-              content: doc.data().content,
-              score,
-              id: doc.id
-            });
-          }
-        });
-
-        // Sort by relevance score, take top 10 (quality over quantity)
-        matchedMemories.sort((a, b) => b.score - a.score);
-        matchedMemories = matchedMemories.slice(0, 10);
-      }
-
-      // 4. Combine: recent memories first, then relevant ones
-      const seen = new Set();
-      relevantMemories = [];
-
-      for (const m of recentMemories) {
-        if (!seen.has(m.content)) {
-          relevantMemories.push(m.content);
-          seen.add(m.content);
-        }
-      }
-      for (const m of matchedMemories) {
-        if (!seen.has(m.content)) {
-          relevantMemories.push(m.content);
-          seen.add(m.content);
-        }
-      }
-
-      console.log(`[Chat] Memory retrieval: ${recentMemories.length} recent + ${matchedMemories.length} keyword-matched (keywords: ${keywords.slice(0, 5).join(', ')})`);
-    } catch (memErr) {
-      console.log(`[Chat] Could not load memories: ${memErr.message}`);
-    }
     let contextWindow = messages.slice(-200); // Use last 200 messages
 
     // Convert conversation history to Gemini format
