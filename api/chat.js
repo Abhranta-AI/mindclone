@@ -4492,6 +4492,14 @@ CRITICAL: Never show tool names, brackets, or "[silently call...]" in your respo
       // Add style guide
       enhancedPrompt += `\n\n${CONNOISSEUR_STYLE_GUIDE}`;
 
+      // Compact formatting — no excessive whitespace
+      enhancedPrompt += `\n\n## FORMATTING RULES:
+- NEVER add extra blank lines between paragraphs or bullet points. Keep responses compact.
+- Use single line breaks only. No double blank lines anywhere.
+- Keep bullet points tight — no blank line between bullets.
+- Responses should be concise and scannable without excessive scrolling.
+- Prefer short paragraphs (2-3 sentences max) over long blocks of text.`;
+
       // Add current date/time context for time awareness
       const currentDate = new Date();
       enhancedPrompt += `\n\n## CURRENT DATE/TIME:
@@ -4700,8 +4708,10 @@ Use this to understand time references like "yesterday", "next week", "this mont
       // Remove "tool_code" prefix without print
       text = text.replace(/tool_code\s+/g, '');
 
-      // Remove multiple consecutive newlines that result from removals
-      text = text.replace(/\n{3,}/g, '\n\n');
+      // Collapse all multiple newlines to single newline (compact formatting)
+      text = text.replace(/\n\s*\n\s*\n/g, '\n\n'); // 3+ blank lines → 1 blank line
+      text = text.replace(/\n\n(?=[-•*]\s)/g, '\n'); // Remove blank line before bullet points
+      text = text.replace(/(?<=[-•*]\s[^\n]+)\n\n(?=[-•*]\s)/g, '\n'); // Remove blank lines between bullets
 
       // Trim whitespace
       text = text.trim();
