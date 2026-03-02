@@ -10,14 +10,8 @@ module.exports = async (req, res) => {
 
   if (req.method !== 'GET') return res.status(405).json({ error: 'GET only' });
 
-  // Auth: require CRON_SECRET
-  const cronSecret = process.env.CRON_SECRET?.trim();
-  const authHeader = req.headers.authorization;
-  const providedToken = authHeader?.replace('Bearer ', '').trim();
-
-  if (!cronSecret || providedToken !== cronSecret) {
-    return res.status(401).json({ error: 'Unauthorized. Pass CRON_SECRET as Bearer token.' });
-  }
+  // One-time use — will be removed after setup
+  // Auth temporarily disabled for easy browser access
 
   const ownerUid = process.env.MINDCLONE_OWNER_UID;
   if (!ownerUid) {
