@@ -3797,11 +3797,22 @@ module.exports = async (req, res) => {
     let relevantMemories = [];
     let contextWindow = messages.slice(-200); // Use last 200 messages
 
-    // Convert conversation history to Gemini format
-    const contents = contextWindow.map(msg => ({
-      role: msg?.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg?.content }]
-    }));
+    // Convert conversation history to Gemini format (text-only, skip empty/invalid)
+    const contents = [];
+    for (const msg of contextWindow) {
+      // Skip system and tool messages — they don't belong in Gemini contents
+      if (!msg || !msg.role || msg.role === 'system' || msg.role === 'tool') continue;
+      const role = msg.role === 'assistant' ? 'model' : 'user';
+      let text = '';
+      if (typeof msg.content === 'string') {
+        text = msg.content;
+      } else if (msg.content) {
+        text = JSON.stringify(msg.content);
+      }
+      if (text && text.trim()) {
+        contents.push({ role, parts: [{ text }] });
+      }
+    }
 
     // === SYSTEM PROMPT BUILDING ===
     // For public context, build system prompt automatically if not provided
@@ -4792,63 +4803,48 @@ Use this to understand time references like "yesterday", "next week", "this mont
         console.log(`[Image] Stored generated image ID: ${lastGeneratedImageId}`);
       }
 
-      // Add assistant's tool call to messages (OpenAI format)
-      validMessages.push({
-        role: 'assistant',
-        content: choice.message.content || null,
-        tool_calls: [{
-          id: toolCall.id,
-          type: 'function',
-          function: {
-            name: funcName,
-            arguments: toolCall.function?.arguments || '{}'
-          }
-        }]
-      });
+      // Add tool call context to mergedContents for follow-up Gemini call
+      mergedContents.push({ role: 'model', parts: [{ text: choice.message?.content || `I'll use the ${funcName} tool to help with this.` }] });
+      mergedContents.push({ role: 'user', parts: [{ text: `Tool result for ${funcName}: ${JSON.stringify(toolResult)}` }] });
 
-      // Add tool response (OpenAI format + _toolName for Gemini)
-      validMessages.push({
-        role: 'tool',
-        tool_call_id: toolCall.id,
-        _toolName: funcName,
-        content: JSON.stringify(toolResult)
-      });
-
-      // Call API again with tool result
-      requestBody.messages = validMessages;
+      // Call Gemini again with tool result included in conversation
       let toolCallSuccess = false;
-
-      while (!toolCallSuccess && currentModelIndex < AI_MODELS.length) {
-        currentModel = AI_MODELS[currentModelIndex];
-        requestBody.model = currentModel;
-
-        let toolApiResult;
-        if (useGemini() && geminiApiKey) {
-          toolApiResult = await callGeminiFlashAPI(requestBody, geminiApiKey);
-        } else if (claudeApiKey) {
-          toolApiResult = await callClaudeAPI(requestBody, claudeApiKey);
-        } else {
-          throw new Error('No API key for tool call');
-        }
-
-        data = toolApiResult.data;
-
-        if (!toolApiResult.ok) {
-          const errorMsg = data.error?.message || data.error || '';
-          if (errorMsg.includes('quota') || errorMsg.includes('rate') || toolApiResult.status === 429 || errorMsg.includes('overloaded')) {
-            console.log(`[Tool] Model ${currentModel} rate limited, trying next...`);
-            currentModelIndex++;
-            continue;
+      for (let attempt = 0; attempt < 2 && !toolCallSuccess; attempt++) {
+        try {
+          const toolGeminiBody = {
+            contents: mergedContents,
+            generationConfig: { maxOutputTokens: 4096, temperature: 0.7 }
+          };
+          if (sysText) {
+            toolGeminiBody.systemInstruction = { parts: [{ text: sysText }] };
           }
-          console.log(`[Tool] API error after tool call: ${errorMsg}`);
-          throw new Error(errorMsg || 'AI API request failed after tool call');
-        }
 
-        toolCallSuccess = true;
+          const toolResponse = await fetch(geminiApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(toolGeminiBody)
+          });
+
+          const toolRespText = await toolResponse.text();
+          if (!toolResponse.ok) {
+            console.error(`[Tool] Gemini error after tool call: ${toolRespText.substring(0, 300)}`);
+            if (attempt === 0) continue;
+            throw new Error(`Gemini API error after tool call: ${toolResponse.status}`);
+          }
+
+          const toolData = JSON.parse(toolRespText);
+          const toolText = toolData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          data = { choices: [{ message: { content: toolText, tool_calls: null }, finish_reason: 'stop' }] };
+          toolCallSuccess = true;
+          console.log(`[Tool] Post-tool Gemini response: ${toolText.length} chars`);
+        } catch (err) {
+          console.error(`[Tool] Gemini post-tool attempt ${attempt + 1} failed: ${err.message}`);
+          if (attempt === 1) throw err;
+        }
       }
 
       if (!toolCallSuccess) {
-        throw new Error('All AI models failed during tool call');
+        throw new Error('Gemini failed during tool call');
       }
 
       // Update choice for new response (OpenAI format)
@@ -4901,55 +4897,46 @@ Use this to understand time references like "yesterday", "next week", "this mont
     if (isFailedResponse) {
       console.log(`[Auto-Retry] Detected failed/empty response (toolCallCount: ${toolCallCount}), attempting silent retry...`);
 
-      // Use different nudge based on whether tools were called
+      // Add nudge to conversation and retry with direct Gemini call
+      const retryContents = [...mergedContents];
       if (toolCallCount > 0) {
-        validMessages.push({ role: 'assistant', content: 'Let me formulate a response based on what I found.' });
-        validMessages.push({ role: 'user', content: 'Yes, please share what you found.' });
+        retryContents.push({ role: 'model', parts: [{ text: 'Let me formulate a response based on what I found.' }] });
+        retryContents.push({ role: 'user', parts: [{ text: 'Yes, please share what you found.' }] });
       } else {
-        validMessages.push({ role: 'assistant', content: 'Let me think about this more carefully.' });
-        validMessages.push({ role: 'user', content: 'Please continue with your thoughts.' });
+        retryContents.push({ role: 'model', parts: [{ text: 'Let me think about this more carefully.' }] });
+        retryContents.push({ role: 'user', parts: [{ text: 'Please continue with your thoughts.' }] });
       }
 
-      // Retry the API call (with model fallback)
-      requestBody.messages = validMessages;
-      let retryResponse, retryData;
-      let retrySuccess = false;
-
-      for (let i = currentModelIndex; i < AI_MODELS.length && !retrySuccess; i++) {
-        requestBody.model = AI_MODELS[i];
-        const isGeminiModel = AI_MODELS[i].startsWith('gemini');
-        let retryApiResult;
-        if (isGeminiModel && geminiApiKey) {
-          retryApiResult = await callGeminiFlashAPI(requestBody, geminiApiKey);
-        } else if (claudeApiKey) {
-          retryApiResult = await callClaudeAPI(requestBody, claudeApiKey);
-        } else {
-          break;
+      try {
+        const retryBody = {
+          contents: retryContents,
+          generationConfig: { maxOutputTokens: 4096, temperature: 0.7 }
+        };
+        if (sysText) {
+          retryBody.systemInstruction = { parts: [{ text: sysText }] };
         }
 
-        retryData = retryApiResult.data;
+        const retryResponse = await fetch(geminiApiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(retryBody)
+        });
 
-        if (retryApiResult.ok) {
-          retrySuccess = true;
-        } else if (retryData.error?.message?.includes('rate') || retryApiResult.status === 429) {
-          console.log(`[Auto-Retry] Model ${AI_MODELS[i]} rate limited, trying next...`);
-          continue;
+        if (retryResponse.ok) {
+          const retryData = JSON.parse(await retryResponse.text());
+          const retryText = sanitizeResponse(retryData.candidates?.[0]?.content?.parts?.[0]?.text || '');
+
+          if (retryText && retryText.trim().length > 5 && !retryText.includes('unable to generate')) {
+            console.log('[Auto-Retry] Retry successful, using new response');
+            text = retryText;
+          } else {
+            console.log('[Auto-Retry] Retry also returned empty/failed response');
+          }
         } else {
-          break;
+          console.log(`[Auto-Retry] Retry request failed: ${retryResponse.status}`);
         }
-      }
-
-      if (retrySuccess) {
-        const retryText = sanitizeResponse(getText(retryData) || '');
-
-        if (retryText && retryText.trim().length > 5 && !retryText.includes('unable to generate')) {
-          console.log('[Auto-Retry] Retry successful, using new response');
-          text = retryText;
-        } else {
-          console.log('[Auto-Retry] Retry also failed, will use fallback');
-        }
-      } else {
-        console.log('[Auto-Retry] Retry request failed:', retryData?.error);
+      } catch (retryErr) {
+        console.log('[Auto-Retry] Retry error:', retryErr.message);
       }
     }
 
