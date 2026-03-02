@@ -533,7 +533,7 @@ const tools = [
             },
             mindcloneName: {
               type: "string",
-              description: "A unique name for the mindclone (e.g., 'Nova', 'Sage', 'Alo'). This is the name the mindclone uses to introduce itself to visitors instead of just saying 'I'm [owner]'s link'"
+              description: "A unique name for the mindclone. This is the name the mindclone uses to introduce itself to visitors. Do NOT use this name yourself — only update it if the user asks."
             }
           },
           required: []
@@ -3809,6 +3809,12 @@ What makes you different from other AI assistants:
     let systemInstruction = undefined;
     if (baseSystemPrompt) {
       let enhancedPrompt = baseSystemPrompt;
+
+      // Add mindclone name identity if set (applies to both private and public context)
+      const mindcloneNameForPrompt = linkSettings?.mindcloneName;
+      if (mindcloneNameForPrompt && context === 'private') {
+        enhancedPrompt += `\n\n## YOUR IDENTITY:\nYour name is ${mindcloneNameForPrompt}. When asked "who are you?", say "I'm ${mindcloneNameForPrompt}" — that is YOUR name. Do NOT make up a different name or use example names.`;
+      }
 
       // Add gender identity instruction if set
       const gender = linkSettings?.gender;
