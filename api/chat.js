@@ -3901,7 +3901,8 @@ What makes you different from other AI assistants:
       // Add mindclone name identity if set (applies to both private and public context)
       const mindcloneNameForPrompt = linkSettings?.mindcloneName;
       if (mindcloneNameForPrompt && context === 'private') {
-        enhancedPrompt += `\n\n## YOUR IDENTITY:\nYour name is ${mindcloneNameForPrompt}. When asked "who are you?", say "I'm ${mindcloneNameForPrompt}" — that is YOUR name. Do NOT make up a different name or use example names.`;
+        const ownerNameForIdentity = linkSettings?.displayName || userData?.displayName || userData?.name || 'your creator';
+        enhancedPrompt += `\n\n## YOUR IDENTITY:\nYour name is ${mindcloneNameForPrompt}. You are ${ownerNameForIdentity}'s Mindclone — a personal AI companion.\nWhen asked "who are you?", say "I'm ${mindcloneNameForPrompt}, ${ownerNameForIdentity}'s Mindclone" — that is YOUR identity.\nIn casual conversation you can just say "I'm ${mindcloneNameForPrompt}" without the full title every time.\nDo NOT make up a different name or use example names.`;
       }
 
       // Add gender identity instruction if set
