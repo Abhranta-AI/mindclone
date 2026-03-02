@@ -3483,8 +3483,26 @@ module.exports = async (req, res) => {
     }
 
     // === MEMORY RETRIEVAL ===
-    // Memory is handled via search_memory tool - AI searches when needed
+    // Proactively load recent and important memories so the mindclone has context
     let relevantMemories = [];
+    try {
+      const memoryUserId = (context === 'public' && visitorId) ? visitorId : resolvedUserId;
+      const memoryCollection = (context === 'public' && visitorId)
+        ? db.collection('users').doc(resolvedUserId).collection('visitors').doc(visitorId).collection('memories')
+        : db.collection('users').doc(resolvedUserId).collection('memories');
+
+      const recentMemories = await memoryCollection
+        .orderBy('createdAt', 'desc')
+        .limit(30)
+        .get();
+
+      if (!recentMemories.empty) {
+        relevantMemories = recentMemories.docs.map(d => d.data().content).filter(Boolean);
+        console.log(`[Chat] Loaded ${relevantMemories.length} memories into context`);
+      }
+    } catch (memErr) {
+      console.log(`[Chat] Could not load memories: ${memErr.message}`);
+    }
     let contextWindow = messages.slice(-200); // Use last 200 messages
 
     // Convert conversation history to Gemini format
