@@ -3523,18 +3523,20 @@ module.exports = async (req, res) => {
           const content = (doc.data().content || '').toLowerCase();
           // Count how many keywords match
           const matchCount = keywords.filter(kw => content.includes(kw)).length;
-          if (matchCount > 0) {
+          const score = matchCount / keywords.length;
+          // Only include if at least 30% of keywords match (avoid weak/misleading matches)
+          if (matchCount >= 2 && score >= 0.3) {
             matchedMemories.push({
               content: doc.data().content,
-              score: matchCount / keywords.length, // Relevance score 0-1
+              score,
               id: doc.id
             });
           }
         });
 
-        // Sort by relevance score, take top 20
+        // Sort by relevance score, take top 10 (quality over quantity)
         matchedMemories.sort((a, b) => b.score - a.score);
-        matchedMemories = matchedMemories.slice(0, 20);
+        matchedMemories = matchedMemories.slice(0, 10);
       }
 
       // 4. Combine: recent memories first, then relevant ones
@@ -3888,7 +3890,9 @@ What makes you different from other AI assistants:
       // Add relevant memories to system prompt
       if (relevantMemories.length > 0) {
         enhancedPrompt += '\n\n## YOUR MEMORIES:\n';
-        enhancedPrompt += 'These are things you remember from past conversations. They are YOUR memories — reference them naturally as if you personally remember them. NEVER say "according to my memories" or "I found in my records." Just know it.\n';
+        enhancedPrompt += `These are things you remember from past conversations. They are YOUR memories — reference them naturally as if you personally remember them. NEVER say "according to my memories" or "I found in my records." Just know it.
+
+CRITICAL: If the user shares a screenshot, image, or describes something specific in their current message, ALWAYS trust what you can SEE right now over what your memories say. Memories are background context — they may be about a DIFFERENT person or situation. Never assume a current screenshot is about someone from your memories unless the names/details clearly match. When in doubt, respond to what's in front of you, not what you remember.\n`;
         relevantMemories.forEach((memory, idx) => {
           enhancedPrompt += `${idx + 1}. ${memory}\n`;
         });
