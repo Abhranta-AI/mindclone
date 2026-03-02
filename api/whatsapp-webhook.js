@@ -117,20 +117,25 @@ module.exports = async (req, res) => {
     console.log(`[WhatsApp Webhook] Matched user: ${userId}`);
 
     // Load recent conversation history from WhatsApp messages
-    const historySnap = await db.collection('users').doc(userId)
-      .collection('whatsappMessages')
-      .orderBy('timestamp', 'desc')
-      .limit(20)
-      .get();
-
     const conversationHistory = [];
-    historySnap.docs.reverse().forEach(doc => {
-      const data = doc.data();
-      conversationHistory.push({
-        role: data.role,
-        content: data.content
+    try {
+      const historySnap = await db.collection('users').doc(userId)
+        .collection('whatsappMessages')
+        .orderBy('timestamp', 'desc')
+        .limit(20)
+        .get();
+
+      historySnap.docs.reverse().forEach(doc => {
+        const d = doc.data();
+        if (d.role && d.content) {
+          conversationHistory.push({ role: d.role, content: d.content });
+        }
       });
-    });
+      console.log(`[WhatsApp Webhook] Loaded ${conversationHistory.length} history messages`);
+    } catch (histErr) {
+      console.error(`[WhatsApp Webhook] History query failed (non-fatal): ${histErr.message}`);
+      // Continue without history — at minimum we'll have the new message
+    }
 
     // Add the new user message
     conversationHistory.push({ role: 'user', content: messageBody });
@@ -185,39 +190,36 @@ module.exports = async (req, res) => {
  */
 async function callChatAPI(userId, messages) {
   try {
-    const chatApiUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}/api/chat`
-      : 'https://mindclone.one/api/chat';
+    // Always use production URL — VERCEL_URL is deployment-specific and unreliable
+    const chatApiUrl = 'https://mindclone.one/api/chat';
 
-    // Build a WhatsApp-specific system prompt addition
-    const whatsappContext = `\n\nIMPORTANT: You are responding via WhatsApp. Keep your responses concise and conversational — ideally 1-3 short paragraphs. No markdown formatting (no **bold**, no headers, no bullet points with -). Use plain text only. Use line breaks for readability. Remember: this is a quick WhatsApp chat, not a long email.`;
-
-    // Use AbortController for timeout (50s — Vercel functions have 60s max)
+    // Use AbortController for timeout (100s — we have 120s function limit)
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 50000);
+    const timeoutId = setTimeout(() => controller.abort(), 100000);
 
-    console.log(`[WhatsApp Webhook] Calling: ${chatApiUrl}`);
+    const requestBody = {
+      userId: userId,
+      context: 'private',
+      messages: messages
+    };
+
+    console.log(`[WhatsApp Webhook] Calling: ${chatApiUrl} with ${messages.length} messages for user ${userId}`);
+    console.log(`[WhatsApp Webhook] Last message: "${messages[messages.length - 1]?.content?.substring(0, 50)}"`);
 
     const response = await fetch(chatApiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
-      body: JSON.stringify({
-        userId: userId,
-        context: 'private',
-        messages: messages,
-        whatsappMode: true, // Signal to chat API this is WhatsApp
-        systemPromptAddition: whatsappContext
-      })
+      body: JSON.stringify(requestBody)
     });
 
-    clearTimeout(timeout);
+    clearTimeout(timeoutId);
 
     const responseText = await response.text();
-    console.log(`[WhatsApp Webhook] Chat API status: ${response.status}, body length: ${responseText.length}`);
+    console.log(`[WhatsApp Webhook] Chat API response: status=${response.status}, length=${responseText.length}, first200="${responseText.substring(0, 200)}"`);
 
     if (!response.ok) {
-      console.error(`[WhatsApp Webhook] Chat API error: ${response.status} - ${responseText.substring(0, 200)}`);
+      console.error(`[WhatsApp Webhook] Chat API returned ${response.status}: ${responseText.substring(0, 500)}`);
       return null;
     }
 
@@ -225,12 +227,18 @@ async function callChatAPI(userId, messages) {
     try {
       data = JSON.parse(responseText);
     } catch (e) {
-      console.error(`[WhatsApp Webhook] Failed to parse chat response: ${responseText.substring(0, 200)}`);
+      console.error(`[WhatsApp Webhook] JSON parse failed. Raw response: ${responseText.substring(0, 500)}`);
+      // If response is plain text (not JSON), use it directly
+      if (responseText && responseText.length > 0 && responseText.length < 2000) {
+        return responseText.trim();
+      }
       return null;
     }
 
+    console.log(`[WhatsApp Webhook] Parsed data keys: ${Object.keys(data).join(', ')}`);
+
     // Chat API returns { success: true, content: "..." }
-    let text = data.content || data.response || data.message || '';
+    let text = data.content || data.response || data.message || data.text || '';
 
     if (typeof text !== 'string') {
       text = JSON.stringify(text);
@@ -248,10 +256,15 @@ async function callChatAPI(userId, messages) {
       text = text.substring(0, 1497) + '...';
     }
 
+    console.log(`[WhatsApp Webhook] Final response text (${text.length} chars): "${text.substring(0, 80)}..."`);
     return text || null;
 
   } catch (error) {
-    console.error('[WhatsApp Webhook] Error calling chat API:', error.message);
+    if (error.name === 'AbortError') {
+      console.error('[WhatsApp Webhook] Chat API call TIMED OUT after 100s');
+    } else {
+      console.error(`[WhatsApp Webhook] Error calling chat API: ${error.name}: ${error.message}`);
+    }
     return null;
   }
 }
