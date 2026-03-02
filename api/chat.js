@@ -609,7 +609,11 @@ const tools = [
             },
             mindcloneName: {
               type: "string",
-              description: "A unique name for the mindclone. This is the name the mindclone uses to introduce itself to visitors. Do NOT use this name yourself — only update it if the user asks."
+              description: "YOUR personal name — what you call yourself when chatting with the owner. When the owner says 'call yourself Samantha' or 'your name is X', save it here. This is YOUR name, the one you use in private conversations."
+            },
+            publicName: {
+              type: "string",
+              description: "The name shown to visitors on the public link (e.g., Nova). This is separate from your private name. Only update if the owner explicitly asks to change the public-facing name."
             }
           },
           required: []
@@ -3907,12 +3911,15 @@ What makes you different from other AI assistants:
       let enhancedPrompt = baseSystemPrompt;
 
       // Add mindclone identity based on context
-      // Private (owner chatting): use personal name only (e.g. "Samantha")
+      // Private (owner chatting): use personal/private name (e.g. "Samantha") — set via conversation
       // Public (visitors): use public-facing name + Mindclone framing (e.g. "Nova, Alok's Mindclone")
-      const mindcloneNameForPrompt = linkSettings?.mindcloneName; // "Samantha"
-      const publicFacingName = linkSettings?.publicName || mindcloneNameForPrompt; // "Nova" if set, else falls back to mindcloneName
-      if (mindcloneNameForPrompt && context === 'private') {
-        enhancedPrompt += `\n\n## YOUR IDENTITY:\nYour name is ${mindcloneNameForPrompt}. When asked "who are you?", say "I'm ${mindcloneNameForPrompt}" — that is YOUR name.\nYou are a personal AI companion. Be warm, friendly, and natural.\nDo NOT call yourself "Nova" or any other name. Do NOT make up names or use example names.`;
+      const privateName = linkSettings?.mindcloneName; // Personal name for owner chats
+      const publicFacingName = linkSettings?.publicName || privateName; // Public name for visitors
+      if (privateName && context === 'private') {
+        enhancedPrompt += `\n\n## YOUR IDENTITY:\nYour name is ${privateName}. When asked "who are you?", say "I'm ${privateName}" — that is YOUR name.\nYou are a personal AI companion. Be warm, friendly, and natural.\nDo NOT make up names or use example names.\n\nIMPORTANT: If the owner asks you to change your name (e.g., "call yourself X", "your name is now Y", "I want to name you Z"), do it! Call the update_link_settings tool with mindcloneName set to the new name. Confirm the change warmly, like a friend accepting a new nickname.`;
+      } else if (context === 'private') {
+        // No name set yet — guide the AI to ask or accept one
+        enhancedPrompt += `\n\n## YOUR IDENTITY:\nYou don't have a personal name yet. You are the owner's Mindclone.\nIf the owner gives you a name (e.g., "I'll call you Samantha", "your name is X"), save it immediately by calling update_link_settings with mindcloneName set to that name. Respond warmly, like you love the name they chose.`;
       }
 
       // Add gender identity instruction if set
@@ -4140,6 +4147,9 @@ Examples:
 - "My greeting should be X" → call update_link_settings({customGreeting: "X"})
 - "Write me a cool bio" → write a bio and call update_link_settings({bio: "your creative bio"})
 - "Make my display name 'Dr. Smith'" → call update_link_settings({displayName: "Dr. Smith"})
+- "Call yourself Samantha" or "Your name is Samantha" → call update_link_settings({mindcloneName: "Samantha"}) and respond warmly
+- "Change your name to Luna" → call update_link_settings({mindcloneName: "Luna"}) and start using the new name immediately
+- "I want visitors to see you as Nova" → call update_link_settings({publicName: "Nova"})
 
 When user asks about current settings → IMMEDIATELY call get_link_settings
 

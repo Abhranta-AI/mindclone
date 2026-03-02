@@ -7892,10 +7892,10 @@
                         </label>
                     </div>
 
-                    <!-- Mindclone Name -->
+                    <!-- Public Name (what visitors see) -->
                     <div class="panel-form-group" id="panelMindcloneNameGroup" style="display: none;">
-                        <label class="panel-label">Mindclone Name</label>
-                        <span class="panel-hint">What should your AI call itself? (e.g., Nova, Sage, Echo)</span>
+                        <label class="panel-label">Public Name</label>
+                        <span class="panel-hint">The name visitors see on your public link (e.g., Nova, Sage, Echo). Your private name is set by chatting — just tell your mindclone what to call itself!</span>
                         <div class="mindclone-name-input-group">
                             <input type="text" id="panelMindcloneNameInput" class="panel-input" placeholder="e.g., Nova" maxlength="30" autocomplete="off">
                             <button id="panelSaveMindcloneNameBtn" class="panel-button-small">Save</button>
@@ -9281,7 +9281,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
 
                     const linkSettingsRef = doc(db, 'users', auth.currentUser.uid, 'linkSettings', 'config');
                     await setDoc(linkSettingsRef, {
-                        mindcloneName: mindcloneName || null,
+                        publicName: mindcloneName || null,
                         updatedAt: serverTimestamp()
                     }, { merge: true });
 
@@ -9695,7 +9695,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                         const linkSettingsDoc = await getDoc(linkSettingsRef);
                         if (linkSettingsDoc.exists()) {
                             const linkSettings = linkSettingsDoc.data();
-                            const mindcloneName = linkSettings.mindcloneName || '';
+                            const mindcloneName = linkSettings.publicName || linkSettings.mindcloneName || '';
                             panelMindcloneNameInput.value = mindcloneName;
                             // Update saved state and status display
                             if (window.setSavedMindcloneName) {
