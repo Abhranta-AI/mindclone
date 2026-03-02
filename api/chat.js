@@ -349,24 +349,51 @@ async function callGeminiFlashAPI(openaiRequestBody, geminiApiKey) {
   }
 
   // Convert OpenAI tools to Gemini tool format
-  // Gemini is strict about parameter schema — clean up OpenAI-specific quirks
+  // Gemini is VERY strict about JSON Schema — strip all non-standard fields recursively
   const cleanParamsForGemini = (params) => {
     if (!params || typeof params !== 'object') return { type: 'object', properties: {} };
-    const cleaned = { ...params };
-    // Gemini doesn't like empty required arrays
-    if (Array.isArray(cleaned.required) && cleaned.required.length === 0) {
-      delete cleaned.required;
-    }
-    // Ensure type is set
-    if (!cleaned.type) cleaned.type = 'object';
-    // Ensure properties exists
-    if (!cleaned.properties) cleaned.properties = {};
-    // Clean nested enum arrays — Gemini doesn't accept empty enums
-    for (const [key, prop] of Object.entries(cleaned.properties)) {
-      if (prop.enum && Array.isArray(prop.enum) && prop.enum.length === 0) {
-        delete cleaned.properties[key].enum;
+
+    // Deep clean a schema object recursively
+    const deepClean = (schema) => {
+      if (!schema || typeof schema !== 'object') return schema;
+      if (Array.isArray(schema)) return schema.map(deepClean);
+
+      const cleaned = {};
+      // Only keep Gemini-compatible fields
+      const allowedFields = ['type', 'properties', 'required', 'items', 'enum', 'description', 'format', 'nullable'];
+      for (const [key, value] of Object.entries(schema)) {
+        if (allowedFields.includes(key)) {
+          cleaned[key] = value;
+        }
       }
-    }
+      // Recursively clean properties
+      if (cleaned.properties && typeof cleaned.properties === 'object') {
+        const cleanedProps = {};
+        for (const [key, prop] of Object.entries(cleaned.properties)) {
+          cleanedProps[key] = deepClean(prop);
+        }
+        cleaned.properties = cleanedProps;
+      }
+      // Recursively clean items (for arrays)
+      if (cleaned.items && typeof cleaned.items === 'object') {
+        cleaned.items = deepClean(cleaned.items);
+      }
+      // Remove empty required arrays
+      if (Array.isArray(cleaned.required) && cleaned.required.length === 0) {
+        delete cleaned.required;
+      }
+      // Remove empty enums
+      if (Array.isArray(cleaned.enum) && cleaned.enum.length === 0) {
+        delete cleaned.enum;
+      }
+      // Ensure type is set
+      if (!cleaned.type && cleaned.properties) cleaned.type = 'object';
+      return cleaned;
+    };
+
+    const cleaned = deepClean(params);
+    if (!cleaned.type) cleaned.type = 'object';
+    if (!cleaned.properties) cleaned.properties = {};
     return cleaned;
   };
 
@@ -4541,8 +4568,8 @@ Use this to understand time references like "yesterday", "next week", "this mont
     }
 
     // === MODEL CONFIGURATION ===
-    // Primary: Gemini Flash (fast, cheap/free). Fallback: Claude Haiku (if Gemini fails)
-    const AI_MODELS = ['gemini-2.0-flash', 'claude-haiku-4-5-20251001'];
+    // Use Gemini Flash only (free/cheap). No Claude fallback needed.
+    const AI_MODELS = ['gemini-2.0-flash'];
     let currentModelIndex = 0;
     let currentModel = AI_MODELS[0];
     const useGemini = () => currentModel.startsWith('gemini');
