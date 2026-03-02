@@ -7,11 +7,29 @@ const db = admin.firestore();
 
 // Parse URL-encoded body (Twilio sends form data, not JSON)
 function parseFormBody(body) {
-  if (typeof body === 'object') return body; // Already parsed
-  if (typeof body !== 'string') return {};
+  // Handle Buffer (Vercel sometimes passes raw Buffer)
+  if (Buffer.isBuffer(body)) {
+    body = body.toString('utf-8');
+  }
+  // If already a plain object with expected Twilio fields, use it directly
+  if (typeof body === 'object' && body !== null && !Buffer.isBuffer(body)) {
+    if (body.Body || body.From || body.MessageSid) {
+      return body; // Already parsed by Vercel
+    }
+    // Could be some other object format, try to use as-is
+    return body;
+  }
+  // Parse URL-encoded string
+  if (typeof body !== 'string') {
+    console.log(`[WhatsApp Webhook] Unexpected body type: ${typeof body}`);
+    return {};
+  }
   const params = {};
   body.split('&').forEach(pair => {
-    const [key, val] = pair.split('=').map(decodeURIComponent);
+    const [key, val] = pair.split('=').map(s => {
+      try { return decodeURIComponent((s || '').replace(/\+/g, ' ')); }
+      catch(e) { return s || ''; }
+    });
     if (key) params[key] = val || '';
   });
   return params;
@@ -44,33 +62,54 @@ module.exports = async (req, res) => {
     }
 
     // Find which user owns this phone number
-    const usersSnap = await db.collectionGroup('whatsapp')
-      .where('phoneNumber', '==', fromNumber)
-      .limit(1)
-      .get();
-
+    // Primary: use MINDCLONE_OWNER_UID (fast, no index needed)
     let userId = null;
+    const ownerUid = process.env.MINDCLONE_OWNER_UID;
 
-    if (!usersSnap.empty) {
-      // Path is: users/{userId}/settings/whatsapp
-      const docPath = usersSnap.docs[0].ref.path;
-      userId = docPath.split('/')[1]; // Extract userId from path
-    }
-
-    // Fallback: check MINDCLONE_OWNER_UID if phone matches
-    if (!userId) {
-      const ownerUid = process.env.MINDCLONE_OWNER_UID;
-      if (ownerUid) {
+    if (ownerUid) {
+      // Check if the owner's phone number matches
+      try {
         const ownerConfig = await db.collection('users').doc(ownerUid)
           .collection('settings').doc('whatsapp').get();
-        if (ownerConfig.exists && ownerConfig.data().phoneNumber === fromNumber) {
+
+        if (ownerConfig.exists) {
+          const storedPhone = (ownerConfig.data().phoneNumber || '').replace(/\s/g, '');
+          const incomingPhone = fromNumber.replace(/\s/g, '');
+          console.log(`[WhatsApp Webhook] Comparing phones: stored="${storedPhone}" vs incoming="${incomingPhone}"`);
+
+          if (storedPhone === incomingPhone) {
+            userId = ownerUid;
+          }
+        } else {
+          console.log(`[WhatsApp Webhook] No WhatsApp config found for owner ${ownerUid}`);
+          // If no config exists but MINDCLONE_OWNER_UID is set, just use it (single-user app)
           userId = ownerUid;
         }
+      } catch (lookupErr) {
+        console.error(`[WhatsApp Webhook] Owner lookup error: ${lookupErr.message}`);
+        // Still use owner UID as fallback for single-user setup
+        userId = ownerUid;
+      }
+    }
+
+    // Secondary fallback: collectionGroup query (needs Firestore index)
+    if (!userId) {
+      try {
+        const usersSnap = await db.collectionGroup('whatsapp')
+          .where('phoneNumber', '==', fromNumber)
+          .limit(1)
+          .get();
+        if (!usersSnap.empty) {
+          const docPath = usersSnap.docs[0].ref.path;
+          userId = docPath.split('/')[1];
+        }
+      } catch (cgErr) {
+        console.error(`[WhatsApp Webhook] CollectionGroup query failed (index may be needed): ${cgErr.message}`);
       }
     }
 
     if (!userId) {
-      console.log(`[WhatsApp Webhook] No user found for number ${fromNumber}`);
+      console.log(`[WhatsApp Webhook] No user found for number ${fromNumber}. MINDCLONE_OWNER_UID=${ownerUid || 'NOT SET'}`);
       res.setHeader('Content-Type', 'text/xml');
       return res.status(200).send('<Response></Response>');
     }
@@ -153,9 +192,16 @@ async function callChatAPI(userId, messages) {
     // Build a WhatsApp-specific system prompt addition
     const whatsappContext = `\n\nIMPORTANT: You are responding via WhatsApp. Keep your responses concise and conversational — ideally 1-3 short paragraphs. No markdown formatting (no **bold**, no headers, no bullet points with -). Use plain text only. Use line breaks for readability. Remember: this is a quick WhatsApp chat, not a long email.`;
 
+    // Use AbortController for timeout (50s — Vercel functions have 60s max)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 50000);
+
+    console.log(`[WhatsApp Webhook] Calling: ${chatApiUrl}`);
+
     const response = await fetch(chatApiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         userId: userId,
         context: 'private',
@@ -164,6 +210,8 @@ async function callChatAPI(userId, messages) {
         systemPromptAddition: whatsappContext
       })
     });
+
+    clearTimeout(timeout);
 
     const responseText = await response.text();
     console.log(`[WhatsApp Webhook] Chat API status: ${response.status}, body length: ${responseText.length}`);
