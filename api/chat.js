@@ -3482,24 +3482,80 @@ module.exports = async (req, res) => {
       console.error('[Chat] Error loading knowledge base:', kbError.message);
     }
 
-    // === MEMORY RETRIEVAL ===
-    // Proactively load recent and important memories so the mindclone has context
+    // === SMART MEMORY RETRIEVAL ===
+    // Two-pronged approach: recent memories (continuity) + keyword-matched memories (relevance)
     let relevantMemories = [];
     try {
-      const memoryUserId = (context === 'public' && visitorId) ? visitorId : resolvedUserId;
       const memoryCollection = (context === 'public' && visitorId)
         ? db.collection('users').doc(resolvedUserId).collection('visitors').doc(visitorId).collection('memories')
         : db.collection('users').doc(resolvedUserId).collection('memories');
 
-      const recentMemories = await memoryCollection
+      // 1. Always load the 10 most recent memories (conversational continuity)
+      const recentSnap = await memoryCollection
         .orderBy('createdAt', 'desc')
-        .limit(30)
+        .limit(10)
         .get();
+      const recentMemories = recentSnap.docs.map(d => ({ content: d.data().content, id: d.id })).filter(m => m.content);
 
-      if (!recentMemories.empty) {
-        relevantMemories = recentMemories.docs.map(d => d.data().content).filter(Boolean);
-        console.log(`[Chat] Loaded ${relevantMemories.length} memories into context`);
+      // 2. Extract keywords from the user's latest message for relevance search
+      const latestUserMsg = messages[messages.length - 1];
+      const userQuery = (latestUserMsg?.role === 'user' ? latestUserMsg.content : '') || '';
+
+      // Extract meaningful keywords (skip common/stop words)
+      const stopWords = new Set(['i', 'me', 'my', 'you', 'your', 'we', 'our', 'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'can', 'may', 'might', 'shall', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into', 'about', 'that', 'this', 'it', 'its', 'and', 'or', 'but', 'not', 'no', 'so', 'if', 'then', 'than', 'what', 'when', 'where', 'how', 'who', 'which', 'why', 'there', 'here', 'all', 'each', 'any', 'some', 'just', 'also', 'very', 'too', 'much', 'more', 'most', 'really', 'know', 'think', 'tell', 'say', 'said', 'like', 'get', 'got', 'go', 'going', 'went', 'come', 'make', 'made', 'take', 'see', 'look', 'want', 'give', 'use', 'find', 'thing', 'something', 'anything', 'right', 'good', 'new', 'hey', 'hi', 'hello', 'please', 'thanks', 'okay', 'ok', 'yes', 'yeah', 'sure', 'remember', 'recall', 'about']);
+      const keywords = userQuery.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 2 && !stopWords.has(w));
+
+      // 3. Search ALL memories for keyword matches (if we have keywords)
+      let matchedMemories = [];
+      if (keywords.length > 0) {
+        const allMemoriesSnap = await memoryCollection
+          .orderBy('createdAt', 'desc')
+          .limit(200) // Scan up to 200 memories
+          .get();
+
+        const recentIds = new Set(recentMemories.map(m => m.id));
+
+        allMemoriesSnap.docs.forEach(doc => {
+          if (recentIds.has(doc.id)) return; // Already in recent, skip
+
+          const content = (doc.data().content || '').toLowerCase();
+          // Count how many keywords match
+          const matchCount = keywords.filter(kw => content.includes(kw)).length;
+          if (matchCount > 0) {
+            matchedMemories.push({
+              content: doc.data().content,
+              score: matchCount / keywords.length, // Relevance score 0-1
+              id: doc.id
+            });
+          }
+        });
+
+        // Sort by relevance score, take top 20
+        matchedMemories.sort((a, b) => b.score - a.score);
+        matchedMemories = matchedMemories.slice(0, 20);
       }
+
+      // 4. Combine: recent memories first, then relevant ones
+      const seen = new Set();
+      relevantMemories = [];
+
+      for (const m of recentMemories) {
+        if (!seen.has(m.content)) {
+          relevantMemories.push(m.content);
+          seen.add(m.content);
+        }
+      }
+      for (const m of matchedMemories) {
+        if (!seen.has(m.content)) {
+          relevantMemories.push(m.content);
+          seen.add(m.content);
+        }
+      }
+
+      console.log(`[Chat] Memory retrieval: ${recentMemories.length} recent + ${matchedMemories.length} keyword-matched (keywords: ${keywords.slice(0, 5).join(', ')})`);
     } catch (memErr) {
       console.log(`[Chat] Could not load memories: ${memErr.message}`);
     }
@@ -3832,8 +3888,8 @@ What makes you different from other AI assistants:
 
       // Add relevant memories to system prompt
       if (relevantMemories.length > 0) {
-        enhancedPrompt += '\n\n## RELEVANT MEMORIES:\n';
-        enhancedPrompt += 'Here are important facts and preferences you should remember:\n';
+        enhancedPrompt += '\n\n## YOUR MEMORIES:\n';
+        enhancedPrompt += 'These are things you remember from past conversations. They are YOUR memories — reference them naturally as if you personally remember them. NEVER say "according to my memories" or "I found in my records." Just know it.\n';
         relevantMemories.forEach((memory, idx) => {
           enhancedPrompt += `${idx + 1}. ${memory}\n`;
         });
