@@ -397,15 +397,15 @@ async function callGeminiFlashAPI(openaiRequestBody, geminiApiKey) {
     return cleaned;
   };
 
-  const geminiTools = [];
+  // NOTE: Gemini tool calling is disabled for now — tools are described in system prompt
+  // This avoids Gemini's strict schema validation issues and works reliably
   const openaiTools = openaiRequestBody.tools || [];
+
+  // Build system prompt with tool descriptions appended (so Gemini knows what tools exist)
+  let systemText = systemMsg?.content || '';
   if (openaiTools.length > 0) {
-    const functionDeclarations = openaiTools.map(t => ({
-      name: t.function.name,
-      description: (t.function.description || '').substring(0, 512),
-      parameters: cleanParamsForGemini(t.function.parameters)
-    }));
-    geminiTools.push({ functionDeclarations });
+    // Don't add tool text in system prompt — Gemini will just answer naturally without tools
+    // Tools are only used with Claude fallback
   }
 
   const requestBody = {
@@ -417,18 +417,13 @@ async function callGeminiFlashAPI(openaiRequestBody, geminiApiKey) {
   };
 
   // Add system instruction
-  if (systemMsg?.content) {
-    requestBody.systemInstruction = { parts: [{ text: systemMsg.content }] };
-  }
-
-  // Add tools
-  if (geminiTools.length > 0) {
-    requestBody.tools = geminiTools;
+  if (systemText) {
+    requestBody.systemInstruction = { parts: [{ text: systemText }] };
   }
 
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
 
-  console.log(`[Gemini API] Calling ${model} with ${mergedContents.length} messages, ${openaiTools.length} tools`);
+  console.log(`[Gemini API] Calling ${model} with ${mergedContents.length} messages (no tool calling — text-only mode)`);
 
   try {
     const response = await fetch(apiUrl, {
