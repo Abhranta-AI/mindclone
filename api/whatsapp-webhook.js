@@ -25,14 +25,19 @@ module.exports = async (req, res) => {
 
   try {
     // Parse Twilio's form-encoded webhook payload
+    console.log(`[WhatsApp Webhook] Request received. Content-Type: ${req.headers['content-type']}, Body type: ${typeof req.body}`);
+    console.log(`[WhatsApp Webhook] Raw body keys: ${typeof req.body === 'object' ? Object.keys(req.body).join(', ') : 'not object'}`);
+
     const params = parseFormBody(req.body);
     const fromNumber = (params.From || '').replace('whatsapp:', '');
     const messageBody = params.Body || '';
     const messageSid = params.MessageSid || '';
 
-    console.log(`[WhatsApp Webhook] Incoming from ${fromNumber}: "${messageBody.substring(0, 100)}"`);
+    console.log(`[WhatsApp Webhook] Parsed: from=${fromNumber}, body="${messageBody.substring(0, 100)}", sid=${messageSid}`);
 
     if (!fromNumber || !messageBody) {
+      console.log(`[WhatsApp Webhook] Missing from or body, returning empty TwiML`);
+
       // Return TwiML empty response (Twilio expects XML)
       res.setHeader('Content-Type', 'text/xml');
       return res.status(200).send('<Response></Response>');
@@ -160,15 +165,24 @@ async function callChatAPI(userId, messages) {
       })
     });
 
+    const responseText = await response.text();
+    console.log(`[WhatsApp Webhook] Chat API status: ${response.status}, body length: ${responseText.length}`);
+
     if (!response.ok) {
-      console.error(`[WhatsApp Webhook] Chat API error: ${response.status}`);
+      console.error(`[WhatsApp Webhook] Chat API error: ${response.status} - ${responseText.substring(0, 200)}`);
       return null;
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error(`[WhatsApp Webhook] Failed to parse chat response: ${responseText.substring(0, 200)}`);
+      return null;
+    }
 
-    // Extract text response (chat API returns in various formats)
-    let text = data.response || data.message || data.content || '';
+    // Chat API returns { success: true, content: "..." }
+    let text = data.content || data.response || data.message || '';
 
     if (typeof text !== 'string') {
       text = JSON.stringify(text);
