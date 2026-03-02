@@ -267,6 +267,173 @@ async function callClaudeAPI(openaiRequestBody, claudeApiKey) {
   return { ok: true, status: 200, data: openaiResponse };
 }
 
+// ===================== GEMINI API ADAPTER =====================
+// Calls Google Gemini API using OpenAI-format request/response for drop-in replacement
+async function callGeminiFlashAPI(openaiRequestBody, geminiApiKey) {
+  const model = 'gemini-2.0-flash';
+
+  // Extract system message
+  const systemMsg = openaiRequestBody.messages.find(m => m.role === 'system');
+  const nonSystemMsgs = openaiRequestBody.messages.filter(m => m.role !== 'system');
+
+  // Convert OpenAI messages to Gemini format
+  const geminiContents = [];
+  for (const msg of nonSystemMsgs) {
+    if (msg.role === 'tool') {
+      // Tool result → Gemini uses role: 'user' with functionResponse part
+      geminiContents.push({
+        role: 'user',
+        parts: [{
+          functionResponse: {
+            name: msg._toolName || 'unknown',
+            response: { result: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content) }
+          }
+        }]
+      });
+    } else if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
+      // Assistant with tool calls → Gemini uses role: 'model' with functionCall part
+      const parts = [];
+      if (msg.content) parts.push({ text: msg.content });
+      for (const tc of msg.tool_calls) {
+        parts.push({
+          functionCall: {
+            name: tc.function.name,
+            args: JSON.parse(tc.function.arguments || '{}')
+          }
+        });
+      }
+      geminiContents.push({ role: 'model', parts });
+    } else if (msg.role === 'assistant') {
+      geminiContents.push({ role: 'model', parts: [{ text: msg.content || '' }] });
+    } else {
+      // User message — handle both string and array content (images)
+      if (typeof msg.content === 'string') {
+        geminiContents.push({ role: 'user', parts: [{ text: msg.content || '' }] });
+      } else if (Array.isArray(msg.content)) {
+        // Content array (may include images)
+        const parts = [];
+        for (const block of msg.content) {
+          if (block.type === 'text') {
+            parts.push({ text: block.text || '' });
+          } else if (block.type === 'image' && block.source?.type === 'base64') {
+            parts.push({
+              inlineData: {
+                mimeType: block.source.media_type || 'image/jpeg',
+                data: block.source.data
+              }
+            });
+          }
+        }
+        if (parts.length === 0) parts.push({ text: '' });
+        geminiContents.push({ role: 'user', parts });
+      } else {
+        geminiContents.push({ role: 'user', parts: [{ text: String(msg.content || '') }] });
+      }
+    }
+  }
+
+  // Merge consecutive same-role messages (Gemini doesn't allow them)
+  const mergedContents = [];
+  for (const content of geminiContents) {
+    const prev = mergedContents[mergedContents.length - 1];
+    if (prev && prev.role === content.role) {
+      prev.parts = [...prev.parts, ...content.parts];
+    } else {
+      mergedContents.push(content);
+    }
+  }
+
+  // Ensure first message is from user (Gemini requirement)
+  if (mergedContents.length === 0 || mergedContents[0].role !== 'user') {
+    mergedContents.unshift({ role: 'user', parts: [{ text: 'Hello' }] });
+  }
+
+  // Convert OpenAI tools to Gemini tool format
+  const geminiTools = [];
+  const openaiTools = openaiRequestBody.tools || [];
+  if (openaiTools.length > 0) {
+    const functionDeclarations = openaiTools.map(t => ({
+      name: t.function.name,
+      description: t.function.description,
+      parameters: t.function.parameters
+    }));
+    geminiTools.push({ functionDeclarations });
+  }
+
+  const requestBody = {
+    contents: mergedContents,
+    generationConfig: {
+      maxOutputTokens: openaiRequestBody.max_tokens || 4096,
+      temperature: 0.7
+    }
+  };
+
+  // Add system instruction
+  if (systemMsg?.content) {
+    requestBody.systemInstruction = { parts: [{ text: systemMsg.content }] };
+  }
+
+  // Add tools
+  if (geminiTools.length > 0) {
+    requestBody.tools = geminiTools;
+  }
+
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
+
+  console.log(`[Gemini API] Calling ${model} with ${mergedContents.length} messages, ${openaiTools.length} tools`);
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errorMsg = data.error?.message || JSON.stringify(data.error) || JSON.stringify(data);
+      console.error(`[Gemini API] Error ${response.status}: ${errorMsg}`);
+      return { ok: false, status: response.status, data: { error: { message: errorMsg } } };
+    }
+
+    // Extract response from Gemini format
+    const candidate = data.candidates?.[0];
+    if (!candidate) {
+      console.error('[Gemini API] No candidates in response');
+      return { ok: false, status: 500, data: { error: { message: 'No response from Gemini' } } };
+    }
+
+    const parts = candidate.content?.parts || [];
+    const textParts = parts.filter(p => p.text).map(p => p.text).join('');
+    const functionCallPart = parts.find(p => p.functionCall);
+
+    // Convert to OpenAI format (same interface as callClaudeAPI)
+    const openaiResponse = {
+      choices: [{
+        message: {
+          content: textParts || null,
+          tool_calls: functionCallPart ? [{
+            id: `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type: 'function',
+            function: {
+              name: functionCallPart.functionCall.name,
+              arguments: JSON.stringify(functionCallPart.functionCall.args || {})
+            }
+          }] : null
+        },
+        finish_reason: functionCallPart ? 'tool_calls' : (candidate.finishReason === 'STOP' ? 'stop' : 'stop')
+      }]
+    };
+
+    return { ok: true, status: 200, data: openaiResponse };
+
+  } catch (fetchError) {
+    console.error(`[Gemini API] Fetch error: ${fetchError.message}`);
+    return { ok: false, status: 500, data: { error: { message: fetchError.message } } };
+  }
+}
+
 // ===================== FORMAT CONVERTERS FOR xAI API (LEGACY) =====================
 // Convert Gemini-style tools to OpenAI-style tools
 function convertToolsToOpenAI(geminiTools) {
@@ -4337,10 +4504,12 @@ Use this to understand time references like "yesterday", "next week", "this mont
       };
     }
 
-    // === CLAUDE MODEL CONFIGURATION ===
-    const CLAUDE_MODELS = ['claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001'];
+    // === MODEL CONFIGURATION ===
+    // Primary: Gemini Flash (fast, cheap/free). Fallback: Claude Haiku (if Gemini fails)
+    const AI_MODELS = ['gemini-2.0-flash', 'claude-haiku-4-5-20251001'];
     let currentModelIndex = 0;
-    let currentModel = CLAUDE_MODELS[0];
+    let currentModel = AI_MODELS[0];
+    const useGemini = () => currentModel.startsWith('gemini');
 
     // === TOOL FILTERING BASED ON CONTEXT ===
     let filteredToolsGemini = tools;
@@ -4373,6 +4542,24 @@ Use this to understand time references like "yesterday", "next week", "this mont
       validMessages.push({ role: 'user', content: 'Hello' });
     }
 
+    // Fetch and embed images in user messages (for both Gemini and Claude)
+    for (const msg of validMessages) {
+      if (msg.role === 'user' && typeof msg.content === 'string') {
+        const imageBlock = await fetchImagesFromText(msg.content);
+        if (imageBlock) {
+          const cleanText = msg.content
+            .replace(/\[Image:[^\]]*\]\s*/g, '')
+            .replace(/Image URL:\s*https?:\/\/[^\s\n]+/gi, '')
+            .trim();
+          msg.content = [
+            imageBlock,
+            { type: 'text', text: cleanText || 'What do you see in this image?' }
+          ];
+          console.log(`[Chat] Embedded image in message for vision`);
+        }
+      }
+    }
+
     console.log(`[Chat] Messages count: ${validMessages.length}`);
 
     // Build OpenAI request
@@ -4383,13 +4570,14 @@ Use this to understand time references like "yesterday", "next week", "this mont
       tools: openaiTools.length > 0 ? openaiTools : undefined
     };
 
-    // Get Anthropic API key
+    // Get API keys
+    const geminiApiKey = process.env.GEMINI_API_KEY;
     const claudeApiKey = process.env.ANTHROPIC_API_KEY;
-    if (!claudeApiKey) {
-      console.error('[Chat] ANTHROPIC_API_KEY is not set!');
-      throw new Error('ANTHROPIC_API_KEY not configured');
+    if (!geminiApiKey && !claudeApiKey) {
+      console.error('[Chat] Neither GEMINI_API_KEY nor ANTHROPIC_API_KEY is set!');
+      throw new Error('No AI API key configured');
     }
-    console.log(`[Chat] Claude API key present: yes, length: ${claudeApiKey?.length}`);
+    console.log(`[Chat] API keys: Gemini=${geminiApiKey ? 'yes' : 'no'}, Claude=${claudeApiKey ? 'yes' : 'no'}`);
 
     // Initial API call with model fallback AND retry logic
     let response, data;
@@ -4397,8 +4585,8 @@ Use this to understand time references like "yesterday", "next week", "this mont
     const MAX_RETRIES = 3;
     const RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
 
-    while (!apiCallSuccess && currentModelIndex < CLAUDE_MODELS.length) {
-      currentModel = CLAUDE_MODELS[currentModelIndex];
+    while (!apiCallSuccess && currentModelIndex < AI_MODELS.length) {
+      currentModel = AI_MODELS[currentModelIndex];
       requestBody.model = currentModel;
 
       // Retry loop for transient failures
@@ -4410,39 +4598,47 @@ Use this to understand time references like "yesterday", "next week", "this mont
         }
 
         // DETAILED LOGGING FOR DEBUGGING
-        console.log(`[Chat] ========== CLAUDE API REQUEST (attempt ${retryAttempt + 1}) ==========`);
+        console.log(`[Chat] ========== AI API REQUEST (attempt ${retryAttempt + 1}) ==========`);
         console.log(`[Chat] Model: ${currentModel}`);
         console.log(`[Chat] Messages count: ${requestBody.messages?.length}`);
         console.log(`[Chat] Tools count: ${requestBody.tools?.length || 0}`);
 
         try {
-          const claudeResult = await callClaudeAPI(requestBody, claudeApiKey);
+          // Call the appropriate API based on current model
+          let apiResult;
+          if (useGemini() && geminiApiKey) {
+            apiResult = await callGeminiFlashAPI(requestBody, geminiApiKey);
+          } else if (claudeApiKey) {
+            apiResult = await callClaudeAPI(requestBody, claudeApiKey);
+          } else {
+            throw new Error('No API key available for current model');
+          }
 
-          console.log(`[Chat] Response status: ${claudeResult.status}`);
+          console.log(`[Chat] Response status: ${apiResult.status}`);
 
-          data = claudeResult.data;
+          data = apiResult.data;
 
-          if (!claudeResult.ok) {
+          if (!apiResult.ok) {
             const errorMsg = data.error?.message || JSON.stringify(data.error) || '';
-            console.error(`[Chat] Claude API error: ${claudeResult.status} - ${errorMsg}`);
+            console.error(`[Chat] AI API error: ${apiResult.status} - ${errorMsg}`);
 
             // Check if retryable error
-            if (claudeResult.status === 529 || claudeResult.status === 503 || claudeResult.status === 500 ||
+            if (apiResult.status === 529 || apiResult.status === 503 || apiResult.status === 500 ||
                 errorMsg.includes('overloaded') || errorMsg.includes('temporarily')) {
               console.log(`[Chat] Retryable error, will retry...`);
               continue; // Retry
             }
 
-            if (errorMsg.includes('quota') || errorMsg.includes('rate') || claudeResult.status === 429) {
+            if (errorMsg.includes('quota') || errorMsg.includes('rate') || apiResult.status === 429) {
               console.log(`[Chat] Model ${currentModel} rate limited, trying next model...`);
               break; // Break retry loop, try next model
             }
 
-            throw new Error(`Claude API error (${claudeResult.status}): ${errorMsg.substring(0, 200)}`);
+            throw new Error(`AI API error (${apiResult.status}): ${errorMsg.substring(0, 200)}`);
           }
 
           apiCallSuccess = true;
-          console.log(`[Chat] Successfully using Gemini model: ${currentModel} (attempt ${retryAttempt + 1})`);
+          console.log(`[Chat] Successfully using model: ${currentModel} (attempt ${retryAttempt + 1})`);
         } catch (fetchError) {
           console.error(`[Chat] Fetch error (attempt ${retryAttempt + 1}):`, fetchError.message);
           if (retryAttempt === MAX_RETRIES - 1) {
@@ -4458,7 +4654,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
     }
 
     if (!apiCallSuccess) {
-      throw new Error('All Gemini models failed. Please try again later.');
+      throw new Error('All AI models failed. Please try again later.');
     }
 
     // Check if model wants to call a tool (OpenAI format)
@@ -4587,10 +4783,11 @@ Use this to understand time references like "yesterday", "next week", "this mont
         }]
       });
 
-      // Add tool response (OpenAI format)
+      // Add tool response (OpenAI format + _toolName for Gemini)
       validMessages.push({
         role: 'tool',
         tool_call_id: toolCall.id,
+        _toolName: funcName,
         content: JSON.stringify(toolResult)
       });
 
@@ -4598,30 +4795,37 @@ Use this to understand time references like "yesterday", "next week", "this mont
       requestBody.messages = validMessages;
       let toolCallSuccess = false;
 
-      while (!toolCallSuccess && currentModelIndex < CLAUDE_MODELS.length) {
-        currentModel = CLAUDE_MODELS[currentModelIndex];
+      while (!toolCallSuccess && currentModelIndex < AI_MODELS.length) {
+        currentModel = AI_MODELS[currentModelIndex];
         requestBody.model = currentModel;
 
-        const toolClaudeResult = await callClaudeAPI(requestBody, claudeApiKey);
+        let toolApiResult;
+        if (useGemini() && geminiApiKey) {
+          toolApiResult = await callGeminiFlashAPI(requestBody, geminiApiKey);
+        } else if (claudeApiKey) {
+          toolApiResult = await callClaudeAPI(requestBody, claudeApiKey);
+        } else {
+          throw new Error('No API key for tool call');
+        }
 
-        data = toolClaudeResult.data;
+        data = toolApiResult.data;
 
-        if (!toolClaudeResult.ok) {
+        if (!toolApiResult.ok) {
           const errorMsg = data.error?.message || data.error || '';
-          if (errorMsg.includes('quota') || errorMsg.includes('rate') || toolClaudeResult.status === 429 || errorMsg.includes('overloaded')) {
+          if (errorMsg.includes('quota') || errorMsg.includes('rate') || toolApiResult.status === 429 || errorMsg.includes('overloaded')) {
             console.log(`[Tool] Model ${currentModel} rate limited, trying next...`);
             currentModelIndex++;
             continue;
           }
           console.log(`[Tool] API error after tool call: ${errorMsg}`);
-          throw new Error(errorMsg || 'Claude API request failed after tool call');
+          throw new Error(errorMsg || 'AI API request failed after tool call');
         }
 
         toolCallSuccess = true;
       }
 
       if (!toolCallSuccess) {
-        throw new Error('All Claude models failed during tool call');
+        throw new Error('All AI models failed during tool call');
       }
 
       // Update choice for new response (OpenAI format)
@@ -4688,16 +4892,24 @@ Use this to understand time references like "yesterday", "next week", "this mont
       let retryResponse, retryData;
       let retrySuccess = false;
 
-      for (let i = currentModelIndex; i < CLAUDE_MODELS.length && !retrySuccess; i++) {
-        requestBody.model = CLAUDE_MODELS[i];
-        const retryClaudeResult = await callClaudeAPI(requestBody, claudeApiKey);
+      for (let i = currentModelIndex; i < AI_MODELS.length && !retrySuccess; i++) {
+        requestBody.model = AI_MODELS[i];
+        const isGeminiModel = AI_MODELS[i].startsWith('gemini');
+        let retryApiResult;
+        if (isGeminiModel && geminiApiKey) {
+          retryApiResult = await callGeminiFlashAPI(requestBody, geminiApiKey);
+        } else if (claudeApiKey) {
+          retryApiResult = await callClaudeAPI(requestBody, claudeApiKey);
+        } else {
+          break;
+        }
 
-        retryData = retryClaudeResult.data;
+        retryData = retryApiResult.data;
 
-        if (retryClaudeResult.ok) {
+        if (retryApiResult.ok) {
           retrySuccess = true;
-        } else if (retryData.error?.message?.includes('rate') || retryClaudeResult.status === 429) {
-          console.log(`[Auto-Retry] Model ${CLAUDE_MODELS[i]} rate limited, trying next...`);
+        } else if (retryData.error?.message?.includes('rate') || retryApiResult.status === 429) {
+          console.log(`[Auto-Retry] Model ${AI_MODELS[i]} rate limited, trying next...`);
           continue;
         } else {
           break;
