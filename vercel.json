@@ -108,6 +108,10 @@
       "dest": "/api/whatsapp-config.js"
     },
     {
+      "src": "^/api/whatsapp-webhook$",
+      "dest": "/api/whatsapp-webhook.js"
+    },
+    {
       "src": "^/settings$",
       "dest": "/settings.html"
     },
