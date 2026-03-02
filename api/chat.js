@@ -4563,32 +4563,10 @@ Use this to understand time references like "yesterday", "next week", "this mont
     }
 
     // === MODEL CONFIGURATION ===
-    // Use Gemini Flash only (free/cheap). No Claude fallback needed.
-    const AI_MODELS = ['gemini-2.0-flash'];
-    let currentModelIndex = 0;
-    let currentModel = AI_MODELS[0];
-    const useGemini = () => currentModel.startsWith('gemini');
-
-    // === TOOL FILTERING BASED ON CONTEXT ===
-    let filteredToolsGemini = tools;
-    if (context === 'public') {
-      const publicAllowedTools = ['web_search', 'analyze_image', 'search_memory', 'save_memory', 'update_mental_model', 'get_mental_model'];
-      filteredToolsGemini = tools.map(t => ({
-        function_declarations: t.function_declarations.filter(fd =>
-          publicAllowedTools.includes(fd.name)
-        )
-      })).filter(t => t.function_declarations.length > 0);
-      console.log(`[Chat] Public context - filtered tools`);
-    } else {
-      console.log(`[Chat] Private context - all tools available`);
-    }
-
-    // Get API key
+    // Primary: Gemini Flash (free/cheap). Fallback: Claude Haiku (very cheap).
     const geminiApiKey = process.env.GEMINI_API_KEY;
-    if (!geminiApiKey) {
-      console.error('[Chat] GEMINI_API_KEY is not set!');
-      throw new Error('GEMINI_API_KEY not configured');
-    }
+    const claudeApiKey = process.env.ANTHROPIC_API_KEY;
+    console.log(`[Chat] API keys available — Gemini: ${!!geminiApiKey}, Claude: ${!!claudeApiKey}`);
 
     // Clean contents for Gemini — strip any tool-related messages (functionCall/functionResponse)
     const cleanContents = [];
@@ -4623,71 +4601,113 @@ Use this to understand time references like "yesterday", "next week", "this mont
 
     console.log(`[Chat] Messages count: ${mergedContents.length} (cleaned for Gemini)`);
 
-    // === DIRECT GEMINI API CALL (simple, like DMN heartbeat) ===
-    const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
-
-    const geminiRequestBody = {
-      contents: mergedContents,
-      generationConfig: {
-        maxOutputTokens: 4096,
-        temperature: 0.7
-      }
-    };
-
-    // Add system instruction
-    const sysText = systemInstruction?.parts?.[0]?.text;
-    if (sysText) {
-      geminiRequestBody.systemInstruction = { parts: [{ text: sysText }] };
-    }
-
-    console.log(`[Chat] Calling Gemini Flash directly with ${mergedContents.length} messages`);
+    // Build system prompt text for both APIs
+    const sysText = systemInstruction?.parts?.[0]?.text || '';
 
     let data;
     let apiCallSuccess = false;
+    let usedModel = 'none';
 
-    for (let attempt = 0; attempt < 3 && !apiCallSuccess; attempt++) {
-      if (attempt > 0) {
-        await new Promise(r => setTimeout(r, attempt * 2000));
-        console.log(`[Chat] Retry attempt ${attempt + 1}/3...`);
+    // === TRY 1: GEMINI FLASH (free/cheap) ===
+    if (geminiApiKey) {
+      const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+      const geminiRequestBody = {
+        contents: mergedContents,
+        generationConfig: { maxOutputTokens: 4096, temperature: 0.7 }
+      };
+      if (sysText) {
+        geminiRequestBody.systemInstruction = { parts: [{ text: sysText }] };
       }
 
+      console.log(`[Chat] Trying Gemini Flash with ${mergedContents.length} messages...`);
+
+      for (let attempt = 0; attempt < 2 && !apiCallSuccess; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+        try {
+          const geminiResponse = await fetch(geminiApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(geminiRequestBody)
+          });
+
+          const responseText = await geminiResponse.text();
+
+          if (!geminiResponse.ok) {
+            console.error(`[Chat] Gemini error ${geminiResponse.status}: ${responseText.substring(0, 500)}`);
+            if (geminiResponse.status === 503 || geminiResponse.status === 429) continue;
+            console.log('[Chat] Gemini failed, will try Claude Haiku fallback...');
+            break;
+          }
+
+          const geminiData = JSON.parse(responseText);
+          const respText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+          if (respText && respText.trim().length > 3) {
+            data = { choices: [{ message: { content: respText, tool_calls: null }, finish_reason: 'stop' }] };
+            apiCallSuccess = true;
+            usedModel = 'gemini-2.0-flash';
+            console.log(`[Chat] Gemini response: ${respText.length} chars`);
+          } else {
+            console.log('[Chat] Gemini returned empty response, trying Claude Haiku...');
+            break;
+          }
+        } catch (err) {
+          console.error(`[Chat] Gemini attempt ${attempt + 1} failed: ${err.message}`);
+        }
+      }
+    }
+
+    // === TRY 2: CLAUDE HAIKU FALLBACK (very cheap — ~$0.25/M input, $1.25/M output) ===
+    if (!apiCallSuccess && claudeApiKey) {
+      console.log('[Chat] Falling back to Claude Haiku...');
+
+      // Convert mergedContents (Gemini format) to Claude messages format
+      const claudeMessages = mergedContents.map(msg => ({
+        role: msg.role === 'model' ? 'assistant' : 'user',
+        content: msg.parts.map(p => p.text).join('\n')
+      }));
+
       try {
-        const geminiResponse = await fetch(geminiApiUrl, {
+        const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(geminiRequestBody)
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': claudeApiKey,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 4096,
+            system: sysText || 'You are a helpful AI assistant.',
+            messages: claudeMessages
+          })
         });
 
-        const responseText = await geminiResponse.text();
+        const claudeText = await claudeResponse.text();
 
-        if (!geminiResponse.ok) {
-          console.error(`[Chat] Gemini error ${geminiResponse.status}: ${responseText.substring(0, 500)}`);
-          if (geminiResponse.status === 503 || geminiResponse.status === 429) continue; // Retry
-          throw new Error(`Gemini API error ${geminiResponse.status}: ${responseText.substring(0, 200)}`);
+        if (claudeResponse.ok) {
+          const claudeData = JSON.parse(claudeText);
+          const respText = claudeData.content?.[0]?.text || '';
+          if (respText && respText.trim().length > 3) {
+            data = { choices: [{ message: { content: respText, tool_calls: null }, finish_reason: 'stop' }] };
+            apiCallSuccess = true;
+            usedModel = 'claude-haiku-4.5';
+            console.log(`[Chat] Claude Haiku response: ${respText.length} chars`);
+          }
+        } else {
+          console.error(`[Chat] Claude Haiku error ${claudeResponse.status}: ${claudeText.substring(0, 500)}`);
         }
-
-        const geminiData = JSON.parse(responseText);
-        const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-        // Convert to OpenAI-compatible format for the rest of the code
-        data = {
-          choices: [{
-            message: { content: text, tool_calls: null },
-            finish_reason: 'stop'
-          }]
-        };
-
-        apiCallSuccess = true;
-        console.log(`[Chat] Gemini response received (${text.length} chars)`);
       } catch (err) {
-        console.error(`[Chat] Gemini attempt ${attempt + 1} failed: ${err.message}`);
-        if (attempt === 2) throw err;
+        console.error(`[Chat] Claude Haiku failed: ${err.message}`);
       }
     }
 
     if (!apiCallSuccess) {
+      console.error('[Chat] ALL models failed. Gemini key set: ' + !!geminiApiKey + ', Claude key set: ' + !!claudeApiKey);
       throw new Error('All AI models failed. Please try again later.');
     }
+
+    console.log(`[Chat] Using model: ${usedModel}`);
 
     // Check if model wants to call a tool (OpenAI format)
     // OpenAI returns { choices: [{ message: { content, tool_calls } }] }
@@ -4807,44 +4827,57 @@ Use this to understand time references like "yesterday", "next week", "this mont
       mergedContents.push({ role: 'model', parts: [{ text: choice.message?.content || `I'll use the ${funcName} tool to help with this.` }] });
       mergedContents.push({ role: 'user', parts: [{ text: `Tool result for ${funcName}: ${JSON.stringify(toolResult)}` }] });
 
-      // Call Gemini again with tool result included in conversation
+      // Call AI again with tool result included in conversation
       let toolCallSuccess = false;
-      for (let attempt = 0; attempt < 2 && !toolCallSuccess; attempt++) {
+
+      // Try Gemini first for tool follow-up
+      if (geminiApiKey) {
+        const toolGeminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
         try {
-          const toolGeminiBody = {
-            contents: mergedContents,
-            generationConfig: { maxOutputTokens: 4096, temperature: 0.7 }
-          };
-          if (sysText) {
-            toolGeminiBody.systemInstruction = { parts: [{ text: sysText }] };
+          const toolGeminiBody = { contents: mergedContents, generationConfig: { maxOutputTokens: 4096, temperature: 0.7 } };
+          if (sysText) toolGeminiBody.systemInstruction = { parts: [{ text: sysText }] };
+
+          const toolResponse = await fetch(toolGeminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toolGeminiBody) });
+          if (toolResponse.ok) {
+            const toolData = JSON.parse(await toolResponse.text());
+            const toolText = toolData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (toolText.trim()) {
+              data = { choices: [{ message: { content: toolText, tool_calls: null }, finish_reason: 'stop' }] };
+              toolCallSuccess = true;
+              console.log(`[Tool] Post-tool Gemini response: ${toolText.length} chars`);
+            }
           }
-
-          const toolResponse = await fetch(geminiApiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(toolGeminiBody)
-          });
-
-          const toolRespText = await toolResponse.text();
-          if (!toolResponse.ok) {
-            console.error(`[Tool] Gemini error after tool call: ${toolRespText.substring(0, 300)}`);
-            if (attempt === 0) continue;
-            throw new Error(`Gemini API error after tool call: ${toolResponse.status}`);
-          }
-
-          const toolData = JSON.parse(toolRespText);
-          const toolText = toolData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          data = { choices: [{ message: { content: toolText, tool_calls: null }, finish_reason: 'stop' }] };
-          toolCallSuccess = true;
-          console.log(`[Tool] Post-tool Gemini response: ${toolText.length} chars`);
         } catch (err) {
-          console.error(`[Tool] Gemini post-tool attempt ${attempt + 1} failed: ${err.message}`);
-          if (attempt === 1) throw err;
+          console.error(`[Tool] Gemini post-tool failed: ${err.message}`);
+        }
+      }
+
+      // Fallback to Claude Haiku for tool follow-up
+      if (!toolCallSuccess && claudeApiKey) {
+        try {
+          const claudeMsgs = mergedContents.map(m => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.parts.map(p => p.text).join('\n') }));
+          const claudeResp = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': claudeApiKey, 'anthropic-version': '2023-06-01' },
+            body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 4096, system: sysText || 'You are a helpful AI assistant.', messages: claudeMsgs })
+          });
+          if (claudeResp.ok) {
+            const claudeData = JSON.parse(await claudeResp.text());
+            const toolText = claudeData.content?.[0]?.text || '';
+            if (toolText.trim()) {
+              data = { choices: [{ message: { content: toolText, tool_calls: null }, finish_reason: 'stop' }] };
+              toolCallSuccess = true;
+              console.log(`[Tool] Post-tool Claude Haiku response: ${toolText.length} chars`);
+            }
+          }
+        } catch (err) {
+          console.error(`[Tool] Claude Haiku post-tool failed: ${err.message}`);
         }
       }
 
       if (!toolCallSuccess) {
-        throw new Error('Gemini failed during tool call');
+        console.error('[Tool] All models failed after tool call');
+        // Don't crash — use whatever we have
       }
 
       // Update choice for new response (OpenAI format)
@@ -4907,37 +4940,41 @@ Use this to understand time references like "yesterday", "next week", "this mont
         retryContents.push({ role: 'user', parts: [{ text: 'Please continue with your thoughts.' }] });
       }
 
-      try {
-        const retryBody = {
-          contents: retryContents,
-          generationConfig: { maxOutputTokens: 4096, temperature: 0.7 }
-        };
-        if (sysText) {
-          retryBody.systemInstruction = { parts: [{ text: sysText }] };
-        }
+      // Try Gemini retry
+      let retryDone = false;
+      if (geminiApiKey) {
+        try {
+          const retryGeminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+          const retryBody = { contents: retryContents, generationConfig: { maxOutputTokens: 4096, temperature: 0.7 } };
+          if (sysText) retryBody.systemInstruction = { parts: [{ text: sysText }] };
 
-        const retryResponse = await fetch(geminiApiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(retryBody)
-        });
-
-        if (retryResponse.ok) {
-          const retryData = JSON.parse(await retryResponse.text());
-          const retryText = sanitizeResponse(retryData.candidates?.[0]?.content?.parts?.[0]?.text || '');
-
-          if (retryText && retryText.trim().length > 5 && !retryText.includes('unable to generate')) {
-            console.log('[Auto-Retry] Retry successful, using new response');
-            text = retryText;
-          } else {
-            console.log('[Auto-Retry] Retry also returned empty/failed response');
+          const retryResponse = await fetch(retryGeminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(retryBody) });
+          if (retryResponse.ok) {
+            const retryData = JSON.parse(await retryResponse.text());
+            const retryText = sanitizeResponse(retryData.candidates?.[0]?.content?.parts?.[0]?.text || '');
+            if (retryText && retryText.trim().length > 5) { text = retryText; retryDone = true; console.log('[Auto-Retry] Gemini retry successful'); }
           }
-        } else {
-          console.log(`[Auto-Retry] Retry request failed: ${retryResponse.status}`);
-        }
-      } catch (retryErr) {
-        console.log('[Auto-Retry] Retry error:', retryErr.message);
+        } catch (e) { console.log('[Auto-Retry] Gemini retry error:', e.message); }
       }
+
+      // Try Claude Haiku retry
+      if (!retryDone && claudeApiKey) {
+        try {
+          const retryMsgs = retryContents.map(m => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.parts.map(p => p.text).join('\n') }));
+          const retryResp = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': claudeApiKey, 'anthropic-version': '2023-06-01' },
+            body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 4096, system: sysText || 'You are a helpful AI assistant.', messages: retryMsgs })
+          });
+          if (retryResp.ok) {
+            const retryData = JSON.parse(await retryResp.text());
+            const retryText = sanitizeResponse(retryData.content?.[0]?.text || '');
+            if (retryText && retryText.trim().length > 5) { text = retryText; retryDone = true; console.log('[Auto-Retry] Claude Haiku retry successful'); }
+          }
+        } catch (e) { console.log('[Auto-Retry] Claude Haiku retry error:', e.message); }
+      }
+
+      if (!retryDone) console.log('[Auto-Retry] All retries failed');
     }
 
     // === MEMORY-SPECIFIC FALLBACK ===
