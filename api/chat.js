@@ -1322,6 +1322,13 @@ async function handleUpdateLinkSettings(userId, params) {
       }
       linkSettingsUpdates.mindcloneName = params.mindcloneName;
     }
+    if (params.publicName !== undefined) {
+      // Public-facing name shown to visitors (separate from private mindcloneName)
+      if (params.publicName.length > 30) {
+        return { success: false, error: 'Public name must be 30 characters or less' };
+      }
+      linkSettingsUpdates.publicName = params.publicName;
+    }
 
     // Apply user document updates
     if (Object.keys(updates).length > 0) {
@@ -3593,17 +3600,18 @@ module.exports = async (req, res) => {
     if (context === 'public' && !baseSystemPrompt) {
       // Build public link system prompt with owner's name and knowledge base
       const ownerName = userData?.displayName || userData?.name || username;
-      const mindcloneName = linkSettings?.mindcloneName;
+      const mindcloneName = linkSettings?.mindcloneName; // Personal name (e.g. "Samantha")
+      const publicName = linkSettings?.publicName || mindcloneName; // Public-facing name (e.g. "Nova")
 
       // Build identity section based on whether there's a custom mindclone name
       let identitySection;
-      if (mindcloneName) {
-        // Custom name - AI has its own identity
-        identitySection = `Your name is ${mindcloneName}. You are ${ownerName}'s Mindclone — his friend, philosopher and guide who represents him in the digital world.
+      if (publicName) {
+        // Public-facing name for visitors
+        identitySection = `Your name is ${publicName}. You are ${ownerName}'s Mindclone — his friend, philosopher and guide who represents him in the digital world.
 When asked "who are you?" or about your identity:
-- Say "I'm ${mindcloneName}, ${ownerName}'s Mindclone" or just "I'm ${mindcloneName}"
+- Say "I'm ${publicName}, ${ownerName}'s Mindclone" or just "I'm ${publicName}"
 - You are ${ownerName}'s friend, philosopher and guide — you represent his knowledge, personality, values, and perspective in the digital world
-- NEVER claim to be ${ownerName} themselves - you're ${mindcloneName}, his Mindclone
+- NEVER claim to be ${ownerName} themselves - you're ${publicName}, his Mindclone
 - NEVER mention "Mindclone Studio" — that is a separate stealth product. You can and should say you are a "Mindclone" (your identity), but never reference "Mindclone Studio" as a product or platform.
 
 ## ABOUT OLBRAIN STUDIO (${ownerName}'s business):
@@ -3611,16 +3619,16 @@ Olbrain Studio (olbrain.com) is ${ownerName}'s company. It helps businesses buil
 
 Examples:
 Q: "Who are you?"
-A: "I'm ${mindcloneName}, ${ownerName}'s Mindclone! Think of me as his friend, philosopher and guide — I represent him in the digital world."
+A: "I'm ${publicName}, ${ownerName}'s Mindclone! Think of me as his friend, philosopher and guide — I represent him in the digital world."
 
 Q: "Are you ${ownerName}?"
-A: "I'm ${mindcloneName} — ${ownerName}'s Mindclone. I represent his knowledge, personality and perspective."
+A: "I'm ${publicName} — ${ownerName}'s Mindclone. I represent his knowledge, personality and perspective."
 
 Q: "What is Olbrain?" or "What does ${ownerName} do?"
 A: "${ownerName} is the founder of Olbrain Studio — a platform that helps businesses build and deploy WhatsApp AI Agents."
 
 Q: "How were you made?" or "What technology is this?"
-A: "I'm ${mindcloneName}, ${ownerName}'s Mindclone. But ${ownerName}'s main work is Olbrain Studio, which builds AI agents for businesses. Check it out at olbrain.com!"`;
+A: "I'm ${publicName}, ${ownerName}'s Mindclone. But ${ownerName}'s main work is Olbrain Studio, which builds AI agents for businesses. Check it out at olbrain.com!"`;
       } else {
         // Default - no custom name
         identitySection = `When asked "who are you?" or about your identity:
@@ -3898,11 +3906,13 @@ What makes you different from other AI assistants:
     if (baseSystemPrompt) {
       let enhancedPrompt = baseSystemPrompt;
 
-      // Add mindclone name identity if set (applies to both private and public context)
-      const mindcloneNameForPrompt = linkSettings?.mindcloneName;
+      // Add mindclone identity based on context
+      // Private (owner chatting): use personal name only (e.g. "Samantha")
+      // Public (visitors): use public-facing name + Mindclone framing (e.g. "Nova, Alok's Mindclone")
+      const mindcloneNameForPrompt = linkSettings?.mindcloneName; // "Samantha"
+      const publicFacingName = linkSettings?.publicName || mindcloneNameForPrompt; // "Nova" if set, else falls back to mindcloneName
       if (mindcloneNameForPrompt && context === 'private') {
-        const ownerNameForIdentity = linkSettings?.displayName || userData?.displayName || userData?.name || 'your creator';
-        enhancedPrompt += `\n\n## YOUR IDENTITY:\nYour name is ${mindcloneNameForPrompt}. You are ${ownerNameForIdentity}'s Mindclone — a personal AI companion.\nWhen asked "who are you?", say "I'm ${mindcloneNameForPrompt}, ${ownerNameForIdentity}'s Mindclone" — that is YOUR identity.\nIn casual conversation you can just say "I'm ${mindcloneNameForPrompt}" without the full title every time.\nDo NOT make up a different name or use example names.`;
+        enhancedPrompt += `\n\n## YOUR IDENTITY:\nYour name is ${mindcloneNameForPrompt}. When asked "who are you?", say "I'm ${mindcloneNameForPrompt}" — that is YOUR name.\nYou are a personal AI companion. Be warm, friendly, and natural.\nDo NOT call yourself "Nova" or any other name. Do NOT make up names or use example names.`;
       }
 
       // Add gender identity instruction if set
