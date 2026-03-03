@@ -144,12 +144,12 @@
       "dest": "/api/matching/conversation.js"
     },
     {
-      "src": "^/([a-z][a-z0-9_]{2,19})$",
-      "dest": "/link.html?username=$1"
-    },
-    {
       "src": "^/vc-grilling$",
       "dest": "/vc-grilling.html"
+    },
+    {
+      "src": "^/([a-z][a-z0-9_]{2,19})$",
+      "dest": "/link.html?username=$1"
     },
     {
       "src": "^/$",
