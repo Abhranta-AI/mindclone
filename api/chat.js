@@ -4585,15 +4585,13 @@ Use this to understand time references like "yesterday", "next week", "this mont
     }
 
     // === MODEL CONFIGURATION ===
-    // Private (owner chat): Claude Sonnet primary (accurate, good formatting)
-    // Public (visitor chat): Gemini Flash primary, Claude Haiku fallback (cheap)
+    // Claude Sonnet primary for BOTH private and public (investors use public link)
+    // Gemini Flash as fallback only if Claude fails or runs out of credits
     const geminiApiKey = process.env.GEMINI_API_KEY;
     const claudeApiKey = process.env.ANTHROPIC_API_KEY;
-    const useClaudePrimary = context === 'private' && claudeApiKey;
-    const claudeModel = context === 'private'
-      ? 'claude-sonnet-4-5-20250929'
-      : 'claude-haiku-4-5-20251001';
-    const claudeFallbackModel = claudeModel; // For tool/retry loops
+    const useClaudePrimary = !!claudeApiKey;
+    const claudeModel = 'claude-sonnet-4-5-20250929';
+    const claudeFallbackModel = claudeModel;
     console.log(`[Chat] Context: ${context}, Primary: ${useClaudePrimary ? 'Claude Sonnet' : 'Gemini Flash'}, Keys — Gemini: ${!!geminiApiKey}, Claude: ${!!claudeApiKey}`);
 
     // Clean contents for Gemini — strip any tool-related messages (functionCall/functionResponse)
