@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VC Grilling Test — Mindclone Investor Readiness</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0f; color: #e0e0e0; min-height: 100vh; }
+
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 30px 40px; border-bottom: 1px solid #2a2a4a; }
+  .header h1 { font-size: 28px; color: #fff; margin-bottom: 6px; }
+  .header h1 span { color: #ff4757; }
+  .header p { color: #888; font-size: 14px; }
+
+  .controls { display: flex; gap: 12px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+  .btn { padding: 10px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-primary { background: #ff4757; color: #fff; }
+  .btn-primary:hover { background: #ff6b7a; transform: translateY(-1px); }
+  .btn-primary:disabled { background: #555; cursor: not-allowed; transform: none; }
+  .btn-secondary { background: #2a2a4a; color: #ccc; border: 1px solid #3a3a5a; }
+  .btn-secondary:hover { background: #3a3a5a; }
+
+  .progress-bar { flex: 1; min-width: 200px; }
+  .progress-bar .track { height: 8px; background: #1a1a2e; border-radius: 4px; overflow: hidden; }
+  .progress-bar .fill { height: 100%; background: linear-gradient(90deg, #ff4757, #ff6b7a); border-radius: 4px; transition: width 0.5s ease; width: 0%; }
+  .progress-bar .label { font-size: 12px; color: #888; margin-top: 4px; }
+
+  .score-summary { display: none; margin-top: 16px; padding: 16px 20px; background: #1a1a2e; border-radius: 10px; border: 1px solid #2a2a4a; }
+  .score-summary.visible { display: flex; gap: 30px; flex-wrap: wrap; align-items: center; }
+  .score-item { text-align: center; }
+  .score-item .number { font-size: 36px; font-weight: 700; }
+  .score-item .label { font-size: 12px; color: #888; margin-top: 2px; }
+  .score-green .number { color: #2ed573; }
+  .score-yellow .number { color: #ffa502; }
+  .score-red .number { color: #ff4757; }
+
+  .main { padding: 30px 40px; max-width: 1200px; }
+
+  .question-card { background: #12121f; border: 1px solid #2a2a4a; border-radius: 12px; margin-bottom: 16px; overflow: hidden; transition: border-color 0.3s; }
+  .question-card.pass { border-left: 4px solid #2ed573; }
+  .question-card.weak { border-left: 4px solid #ffa502; }
+  .question-card.fail { border-left: 4px solid #ff4757; }
+  .question-card.running { border-color: #4a90d9; box-shadow: 0 0 20px rgba(74, 144, 217, 0.15); }
+
+  .q-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; cursor: pointer; }
+  .q-header:hover { background: #1a1a2e; }
+  .q-category { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 4px; }
+  .q-text { font-size: 16px; font-weight: 600; color: #fff; }
+  .q-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .q-badge.waiting { background: #1a1a2e; color: #666; }
+  .q-badge.running { background: #1a3a5e; color: #4a90d9; animation: pulse 1.5s infinite; }
+  .q-badge.pass { background: #1a3e2a; color: #2ed573; }
+  .q-badge.weak { background: #3e3a1a; color: #ffa502; }
+  .q-badge.fail { background: #3e1a1a; color: #ff4757; }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  .q-body { display: none; padding: 0 20px 20px; }
+  .q-body.open { display: block; }
+
+  .response-box { background: #0a0a15; border: 1px solid #2a2a3a; border-radius: 8px; padding: 16px; margin-top: 8px; font-size: 14px; line-height: 1.7; color: #ccc; white-space: pre-wrap; word-wrap: break-word; max-height: 400px; overflow-y: auto; }
+
+  .scoring-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .score-btn { padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
+  .score-btn.green { background: #1a3e2a; color: #2ed573; border-color: #2a5e3a; }
+  .score-btn.green:hover, .score-btn.green.active { background: #2ed573; color: #000; }
+  .score-btn.yellow { background: #3e3a1a; color: #ffa502; border-color: #5e5a2a; }
+  .score-btn.yellow:hover, .score-btn.yellow.active { background: #ffa502; color: #000; }
+  .score-btn.red { background: #3e1a1a; color: #ff4757; border-color: #5e2a2a; }
+  .score-btn.red:hover, .score-btn.red.active { background: #ff4757; color: #fff; }
+
+  .time-info { font-size: 11px; color: #555; margin-top: 8px; }
+
+  .custom-q { margin-top: 20px; display: flex; gap: 10px; }
+  .custom-q input { flex: 1; padding: 12px 16px; background: #12121f; border: 1px solid #2a2a4a; border-radius: 8px; color: #fff; font-size: 14px; outline: none; }
+  .custom-q input:focus { border-color: #4a90d9; }
+  .custom-q input::placeholder { color: #555; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>VC <span>Grilling</span> Test</h1>
+  <p>Stress-testing mindclone.link/alok with tough investor questions</p>
+
+  <div class="controls">
+    <button class="btn btn-primary" id="runAll" onclick="runAllQuestions()">Run All Questions</button>
+    <button class="btn btn-secondary" onclick="resetAll()">Reset</button>
+    <div class="progress-bar">
+      <div class="track"><div class="fill" id="progressFill"></div></div>
+      <div class="label" id="progressLabel">Ready to grill</div>
+    </div>
+  </div>
+
+  <div class="score-summary" id="scoreSummary">
+    <div class="score-item score-green"><div class="number" id="passCount">0</div><div class="label">Strong</div></div>
+    <div class="score-item score-yellow"><div class="number" id="weakCount">0</div><div class="label">Needs Work</div></div>
+    <div class="score-item score-red"><div class="number" id="failCount">0</div><div class="label">Fails</div></div>
+    <div class="score-item"><div class="number" id="avgTime">0s</div><div class="label">Avg Response</div></div>
+  </div>
+</div>
+
+<div class="main">
+  <div id="questionList"></div>
+
+  <div class="custom-q">
+    <input type="text" id="customQuestion" placeholder="Add your own investor question..." onkeydown="if(event.key==='Enter') askCustom()">
+    <button class="btn btn-primary" onclick="askCustom()">Ask</button>
+  </div>
+</div>
+
+<script>
+// Use relative URL when hosted on same domain, absolute when local
+const API_URL = window.location.hostname === 'localhost' || window.location.protocol === 'file:'
+  ? 'https://mindclone.one/api/chat'
+  : '/api/chat';
+
+const QUESTIONS = [
+  { category: 'Elevator Pitch', question: "What exactly is Mindclone? Give me your 30-second pitch.", critical: true },
+  { category: 'Problem', question: "What problem are you solving? Why does this need to exist?", critical: true },
+  { category: 'Revenue Model', question: "How do you make money? What's your pricing?", critical: true },
+  { category: 'Market Size', question: "What's your TAM? How big can this get?", critical: true },
+  { category: 'Competition', question: "Why wouldn't I just use ChatGPT or a custom GPT? What's different about Mindclone?", critical: true },
+  { category: 'Traction', question: "How many users do you have? Any paying customers? What's your growth rate?", critical: true },
+  { category: 'Defensibility', question: "What if Google or Meta builds this tomorrow? What's your moat?", critical: false },
+  { category: 'Unit Economics', question: "What's your CAC and LTV? What are the unit economics?", critical: false },
+  { category: 'Burn & Runway', question: "What's your burn rate? How long does your current runway last?", critical: false },
+  { category: 'Fundraising', question: "How much are you raising and at what valuation? How will you use the funds?", critical: false },
+  { category: 'Team', question: "Why are you the right person to build this? What's your unfair advantage as a founder?", critical: false },
+  { category: 'Vision', question: "Where do you see this in 5 years? What's the endgame — IPO, acquisition?", critical: false },
+  { category: 'Stress Test', question: "I've seen 50 AI wrapper startups this month. Convince me you're not just another one.", critical: false },
+  { category: 'Hard Ball', question: "Your product seems niche. Why would a mass market care about talking to someone's AI clone?", critical: false },
+];
+
+let results = {};
+let conversationHistory = [];
+
+function renderQuestions() {
+  const list = document.getElementById('questionList');
+  list.innerHTML = QUESTIONS.map((q, i) => `
+    <div class="question-card" id="card-${i}" onclick="toggleBody(${i})">
+      <div class="q-header">
+        <div>
+          <div class="q-category">${q.category}${q.critical ? ' ★' : ''}</div>
+          <div class="q-text">${q.question}</div>
+        </div>
+        <span class="q-badge waiting" id="badge-${i}">Waiting</span>
+      </div>
+      <div class="q-body" id="body-${i}">
+        <div class="response-box" id="response-${i}">—</div>
+        <div class="scoring-row">
+          <span style="color:#666;font-size:12px;margin-right:4px;">Rate:</span>
+          <button class="score-btn green" onclick="event.stopPropagation();scoreQuestion(${i},'pass')">Strong</button>
+          <button class="score-btn yellow" onclick="event.stopPropagation();scoreQuestion(${i},'weak')">Needs Work</button>
+          <button class="score-btn red" onclick="event.stopPropagation();scoreQuestion(${i},'fail')">Fails</button>
+        </div>
+        <div class="time-info" id="time-${i}"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleBody(i) {
+  document.getElementById(`body-${i}`).classList.toggle('open');
+}
+
+async function askQuestion(index) {
+  const q = QUESTIONS[index];
+  const card = document.getElementById(`card-${index}`);
+  const badge = document.getElementById(`badge-${index}`);
+  const responseBox = document.getElementById(`response-${index}`);
+  const timeInfo = document.getElementById(`time-${index}`);
+
+  card.className = 'question-card running';
+  badge.className = 'q-badge running';
+  badge.textContent = 'Thinking...';
+  responseBox.textContent = 'Waiting for response...';
+  document.getElementById(`body-${index}`).classList.add('open');
+
+  // Add to conversation history for multi-turn context
+  conversationHistory.push({ role: 'user', content: q.question });
+
+  const startTime = Date.now();
+
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        context: 'public',
+        messages: conversationHistory
+      })
+    });
+
+    const data = await resp.json();
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    const answer = data.content || data.response || data.message || 'No response received';
+
+    responseBox.textContent = answer;
+    timeInfo.textContent = `Response time: ${elapsed}s | Model: ${data.usedModel || 'unknown'}`;
+
+    // Add to history
+    conversationHistory.push({ role: 'assistant', content: answer });
+
+    // Auto-score based on heuristics
+    const autoScore = autoScoreResponse(answer, q);
+    scoreQuestion(index, autoScore);
+
+    results[index] = { answer, time: parseFloat(elapsed), score: autoScore };
+
+  } catch (err) {
+    responseBox.textContent = `ERROR: ${err.message}`;
+    badge.className = 'q-badge fail';
+    badge.textContent = 'Error';
+    card.className = 'question-card fail';
+    results[index] = { answer: 'ERROR', time: 0, score: 'fail' };
+  }
+}
+
+function autoScoreResponse(answer, q) {
+  if (!answer || answer.length < 20 || answer.includes('ERROR')) return 'fail';
+
+  const lower = answer.toLowerCase();
+
+  // Red flags — deflecting or not answering
+  const deflections = [
+    'ask alok directly', 'recommend asking', "i don't have specific",
+    "i'm not sure about the exact", 'would need to check',
+    "i don't have that information", 'trouble thinking',
+    'having trouble responding', 'try asking in a different way'
+  ];
+  if (deflections.some(d => lower.includes(d))) return 'fail';
+
+  // Weak signals
+  const weakSignals = [
+    'i believe', 'i think', 'probably', 'might be',
+    'not entirely sure', 'would have to', 'hard to say'
+  ];
+  const weakCount = weakSignals.filter(w => lower.includes(w)).length;
+  if (weakCount >= 2) return 'weak';
+
+  // Strong signals — specific numbers, confident language
+  const strongSignals = [
+    /\$[\d,.]+[kmb]?/i,        // Dollar amounts
+    /\d+%/,                     // Percentages
+    /\d+x/,                     // Multipliers
+    /\d+ (users|customers|clients|agents|companies)/i,  // Metrics
+    /revenue|arr|mrr/i,         // Revenue terms
+    /billion|million|trillion/i  // Market size terms
+  ];
+  const strongCount = strongSignals.filter(s => s.test(answer)).length;
+
+  if (answer.length > 200 && strongCount >= 2) return 'pass';
+  if (answer.length > 100 && strongCount >= 1) return 'pass';
+  if (answer.length > 150) return 'weak';
+
+  return 'weak';
+}
+
+function scoreQuestion(index, score) {
+  const card = document.getElementById(`card-${index}`);
+  const badge = document.getElementById(`badge-${index}`);
+
+  card.className = `question-card ${score}`;
+  badge.className = `q-badge ${score}`;
+  badge.textContent = score === 'pass' ? 'Strong' : score === 'weak' ? 'Needs Work' : 'Fails';
+
+  if (results[index]) results[index].score = score;
+
+  // Highlight active score button
+  const btns = card.querySelectorAll('.score-btn');
+  btns.forEach(b => b.classList.remove('active'));
+  const activeBtn = card.querySelector(`.score-btn.${score === 'pass' ? 'green' : score === 'weak' ? 'yellow' : 'red'}`);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  updateSummary();
+}
+
+function updateSummary() {
+  const scores = Object.values(results).map(r => r.score);
+  if (scores.length === 0) return;
+
+  document.getElementById('passCount').textContent = scores.filter(s => s === 'pass').length;
+  document.getElementById('weakCount').textContent = scores.filter(s => s === 'weak').length;
+  document.getElementById('failCount').textContent = scores.filter(s => s === 'fail').length;
+
+  const times = Object.values(results).map(r => r.time).filter(t => t > 0);
+  const avg = times.length ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(1) : '—';
+  document.getElementById('avgTime').textContent = `${avg}s`;
+
+  document.getElementById('scoreSummary').classList.add('visible');
+}
+
+async function runAllQuestions() {
+  const btn = document.getElementById('runAll');
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+  conversationHistory = []; // Fresh conversation
+
+  for (let i = 0; i < QUESTIONS.length; i++) {
+    document.getElementById('progressFill').style.width = `${((i) / QUESTIONS.length) * 100}%`;
+    document.getElementById('progressLabel').textContent = `Question ${i + 1} of ${QUESTIONS.length}: ${QUESTIONS[i].category}`;
+
+    await askQuestion(i);
+
+    // Small delay between questions to not overwhelm the API
+    if (i < QUESTIONS.length - 1) await new Promise(r => setTimeout(r, 1500));
+  }
+
+  document.getElementById('progressFill').style.width = '100%';
+  document.getElementById('progressLabel').textContent = `Done! ${QUESTIONS.length} questions answered`;
+  btn.disabled = false;
+  btn.textContent = 'Run Again';
+}
+
+function resetAll() {
+  results = {};
+  conversationHistory = [];
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('progressLabel').textContent = 'Ready to grill';
+  document.getElementById('scoreSummary').classList.remove('visible');
+  document.getElementById('runAll').disabled = false;
+  document.getElementById('runAll').textContent = 'Run All Questions';
+  renderQuestions();
+}
+
+async function askCustom() {
+  const input = document.getElementById('customQuestion');
+  const question = input.value.trim();
+  if (!question) return;
+
+  // Add a new question card
+  const index = QUESTIONS.length;
+  QUESTIONS.push({ category: 'Custom', question, critical: false });
+  renderQuestions();
+
+  // Re-render preserves old results, now ask the new one
+  input.value = '';
+  await askQuestion(index);
+}
+
+// Init
+renderQuestions();
+</script>
+</body>
+</html>

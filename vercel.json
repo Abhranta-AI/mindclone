@@ -148,6 +148,10 @@
       "dest": "/link.html?username=$1"
     },
     {
+      "src": "^/vc-grilling$",
+      "dest": "/vc-grilling.html"
+    },
+    {
       "src": "^/$",
       "dest": "/index.html"
     }
