@@ -1190,6 +1190,7 @@
         let conversationHistory = [];
         let isProcessing = false;
         let slideImages = []; // Store slide image URLs
+        const sessionStartTime = new Date().toISOString(); // Track when this session started
 
         // Visitor authentication state
         let visitorUser = null; // Firebase user object for signed-in visitor
@@ -1451,8 +1452,8 @@
             if (!format) return; // User cancelled
 
             try {
-                // Download the chat
-                const url = `/api/export-chat?username=${encodeURIComponent(username)}&visitorId=${encodeURIComponent(visitorId)}&format=${format}`;
+                // Download only THIS session's chat (not all historical messages)
+                const url = `/api/export-chat?username=${encodeURIComponent(username)}&visitorId=${encodeURIComponent(visitorId)}&format=${format}&sessionStart=${encodeURIComponent(sessionStartTime)}`;
 
                 // Create temporary link and trigger download
                 const a = document.createElement('a');

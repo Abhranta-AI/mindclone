@@ -80,7 +80,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { username, visitorId, format = 'json' } = req.query;
+    const { username, visitorId, format = 'json', sessionStart } = req.query;
 
     // Validate input
     if (!username || !visitorId) {
@@ -113,13 +113,22 @@ module.exports = async (req, res) => {
     const userData = userDoc.exists ? userDoc.data() : {};
     const ownerName = userData.displayName || userData.name || username;
 
-    // Load ALL messages (no limit)
-    console.log('[ExportChat] Loading all messages for visitor:', visitorId);
-    const messagesSnapshot = await db.collection('users').doc(userId)
+    // Load messages — filtered to current session if sessionStart provided
+    let messagesQuery = db.collection('users').doc(userId)
       .collection('visitors').doc(visitorId)
       .collection('messages')
-      .orderBy('timestamp', 'asc')
-      .get();
+      .orderBy('timestamp', 'asc');
+
+    if (sessionStart) {
+      // Only export messages from THIS session (privacy: don't leak old conversations)
+      const sessionDate = new Date(sessionStart);
+      console.log('[ExportChat] Filtering to session starting:', sessionStart);
+      messagesQuery = messagesQuery.where('timestamp', '>=', admin.firestore.Timestamp.fromDate(sessionDate));
+    } else {
+      console.log('[ExportChat] No session filter — exporting all messages for visitor:', visitorId);
+    }
+
+    const messagesSnapshot = await messagesQuery.get();
 
     if (messagesSnapshot.empty) {
       return res.status(404).json({
