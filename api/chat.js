@@ -4585,14 +4585,16 @@ Use this to understand time references like "yesterday", "next week", "this mont
     }
 
     // === MODEL CONFIGURATION ===
-    // Primary: Gemini Flash (free/cheap). Fallback: Claude (Haiku for public, Sonnet for private).
-    // Private context needs higher accuracy (real business conversations with real names).
+    // Private (owner chat): Claude Sonnet primary (accurate, good formatting)
+    // Public (visitor chat): Gemini Flash primary, Claude Haiku fallback (cheap)
     const geminiApiKey = process.env.GEMINI_API_KEY;
     const claudeApiKey = process.env.ANTHROPIC_API_KEY;
-    const claudeFallbackModel = context === 'private'
-      ? 'claude-sonnet-4-5-20250929'   // Private: Sonnet for accuracy (names, facts, business context)
-      : 'claude-haiku-4-5-20251001';    // Public: Haiku for cost efficiency
-    console.log(`[Chat] API keys — Gemini: ${!!geminiApiKey}, Claude: ${!!claudeApiKey}, fallback: ${claudeFallbackModel}`);
+    const useClaudePrimary = context === 'private' && claudeApiKey;
+    const claudeModel = context === 'private'
+      ? 'claude-sonnet-4-5-20250929'
+      : 'claude-haiku-4-5-20251001';
+    const claudeFallbackModel = claudeModel; // For tool/retry loops
+    console.log(`[Chat] Context: ${context}, Primary: ${useClaudePrimary ? 'Claude Sonnet' : 'Gemini Flash'}, Keys — Gemini: ${!!geminiApiKey}, Claude: ${!!claudeApiKey}`);
 
     // Clean contents for Gemini — strip any tool-related messages (functionCall/functionResponse)
     const cleanContents = [];
@@ -4634,106 +4636,113 @@ Use this to understand time references like "yesterday", "next week", "this mont
     let apiCallSuccess = false;
     let usedModel = 'none';
 
-    // === TRY 1: GEMINI FLASH (free/cheap) ===
-    if (geminiApiKey) {
-      const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
-      const geminiRequestBody = {
-        contents: mergedContents,
-        generationConfig: { maxOutputTokens: 4096, temperature: 0.7 }
-      };
-      if (sysText) {
-        geminiRequestBody.systemInstruction = { parts: [{ text: sysText }] };
-      }
+    // Helper: call Claude API
+    const callClaude = async (model, messages, system) => {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': claudeApiKey, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model, max_tokens: 4096, system: system || 'You are a helpful AI assistant.', messages })
+      });
+      const text = await resp.text();
+      if (!resp.ok) throw new Error(`Claude ${resp.status}: ${text.substring(0, 300)}`);
+      const d = JSON.parse(text);
+      return d.content?.[0]?.text || '';
+    };
 
-      console.log(`[Chat] Trying Gemini Flash with ${mergedContents.length} messages...`);
+    // Helper: call Gemini API
+    const callGemini = async (contents, system) => {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+      const body = { contents, generationConfig: { maxOutputTokens: 4096, temperature: 0.7 } };
+      if (system) body.systemInstruction = { parts: [{ text: system }] };
+      const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const text = await resp.text();
+      if (!resp.ok) throw new Error(`Gemini ${resp.status}: ${text.substring(0, 300)}`);
+      const d = JSON.parse(text);
+      return d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    };
 
-      for (let attempt = 0; attempt < 2 && !apiCallSuccess; attempt++) {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
-        try {
-          const geminiResponse = await fetch(geminiApiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(geminiRequestBody)
-          });
+    // Convert mergedContents to Claude format
+    const claudeMessages = mergedContents.map(msg => ({
+      role: msg.role === 'model' ? 'assistant' : 'user',
+      content: msg.parts.map(p => p.text).join('\n')
+    }));
 
-          const responseText = await geminiResponse.text();
-
-          if (!geminiResponse.ok) {
-            console.error(`[Chat] Gemini error ${geminiResponse.status}: ${responseText.substring(0, 500)}`);
-            if (geminiResponse.status === 503 || geminiResponse.status === 429) continue;
-            console.log('[Chat] Gemini failed, will try Claude Haiku fallback...');
-            break;
-          }
-
-          const geminiData = JSON.parse(responseText);
-          const respText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-          if (respText && respText.trim().length > 3) {
-            data = { choices: [{ message: { content: respText, tool_calls: null }, finish_reason: 'stop' }] };
-            apiCallSuccess = true;
-            usedModel = 'gemini-2.0-flash';
-            console.log(`[Chat] Gemini response: ${respText.length} chars`);
-          } else {
-            console.log('[Chat] Gemini returned empty response, trying Claude Haiku...');
-            break;
-          }
-        } catch (err) {
-          console.error(`[Chat] Gemini attempt ${attempt + 1} failed: ${err.message}`);
-        }
-      }
-    }
-
-    // === TRY 2: CLAUDE HAIKU FALLBACK (very cheap — ~$0.25/M input, $1.25/M output) ===
-    if (!apiCallSuccess && claudeApiKey) {
-      console.log('[Chat] Falling back to Claude Haiku...');
-
-      // Convert mergedContents (Gemini format) to Claude messages format
-      const claudeMessages = mergedContents.map(msg => ({
-        role: msg.role === 'model' ? 'assistant' : 'user',
-        content: msg.parts.map(p => p.text).join('\n')
-      }));
-
+    if (useClaudePrimary) {
+      // === PRIVATE CONTEXT: Claude Sonnet primary, Gemini fallback ===
+      console.log(`[Chat] Private mode — trying Claude Sonnet...`);
       try {
-        const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': claudeApiKey,
-            'anthropic-version': '2023-06-01'
-          },
-          body: JSON.stringify({
-            model: claudeFallbackModel,
-            max_tokens: 4096,
-            system: sysText || 'You are a helpful AI assistant.',
-            messages: claudeMessages
-          })
-        });
-
-        const claudeText = await claudeResponse.text();
-
-        if (claudeResponse.ok) {
-          const claudeData = JSON.parse(claudeText);
-          const respText = claudeData.content?.[0]?.text || '';
-          if (respText && respText.trim().length > 3) {
-            data = { choices: [{ message: { content: respText, tool_calls: null }, finish_reason: 'stop' }] };
-            apiCallSuccess = true;
-            usedModel = 'claude-haiku-4.5';
-            console.log(`[Chat] Claude Haiku response: ${respText.length} chars`);
-          }
-        } else {
-          console.error(`[Chat] Claude Haiku error ${claudeResponse.status}: ${claudeText.substring(0, 500)}`);
+        const respText = await callClaude(claudeModel, claudeMessages, sysText);
+        if (respText && respText.trim().length > 3) {
+          data = { choices: [{ message: { content: respText, tool_calls: null }, finish_reason: 'stop' }] };
+          apiCallSuccess = true;
+          usedModel = 'claude-sonnet';
+          console.log(`[Chat] Claude Sonnet response: ${respText.length} chars`);
         }
       } catch (err) {
-        console.error(`[Chat] Claude Haiku failed: ${err.message}`);
+        console.error(`[Chat] Claude Sonnet failed: ${err.message}`);
+      }
+
+      // Fallback to Gemini if Sonnet failed
+      if (!apiCallSuccess && geminiApiKey) {
+        console.log('[Chat] Falling back to Gemini Flash...');
+        try {
+          const respText = await callGemini(mergedContents, sysText);
+          if (respText && respText.trim().length > 3) {
+            data = { choices: [{ message: { content: respText, tool_calls: null }, finish_reason: 'stop' }] };
+            apiCallSuccess = true;
+            usedModel = 'gemini-flash-fallback';
+            console.log(`[Chat] Gemini fallback response: ${respText.length} chars`);
+          }
+        } catch (err) {
+          console.error(`[Chat] Gemini fallback failed: ${err.message}`);
+        }
+      }
+    } else {
+      // === PUBLIC CONTEXT: Gemini Flash primary, Claude Haiku fallback ===
+      if (geminiApiKey) {
+        console.log(`[Chat] Public mode — trying Gemini Flash...`);
+        for (let attempt = 0; attempt < 2 && !apiCallSuccess; attempt++) {
+          if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+          try {
+            const respText = await callGemini(mergedContents, sysText);
+            if (respText && respText.trim().length > 3) {
+              data = { choices: [{ message: { content: respText, tool_calls: null }, finish_reason: 'stop' }] };
+              apiCallSuccess = true;
+              usedModel = 'gemini-flash';
+              console.log(`[Chat] Gemini response: ${respText.length} chars`);
+            } else {
+              console.log('[Chat] Gemini returned empty, trying Claude Haiku...');
+              break;
+            }
+          } catch (err) {
+            console.error(`[Chat] Gemini attempt ${attempt + 1} failed: ${err.message}`);
+          }
+        }
+      }
+
+      // Fallback to Claude Haiku
+      if (!apiCallSuccess && claudeApiKey) {
+        console.log('[Chat] Falling back to Claude Haiku...');
+        try {
+          const respText = await callClaude(claudeModel, claudeMessages, sysText);
+          if (respText && respText.trim().length > 3) {
+            data = { choices: [{ message: { content: respText, tool_calls: null }, finish_reason: 'stop' }] };
+            apiCallSuccess = true;
+            usedModel = 'claude-haiku';
+            console.log(`[Chat] Claude Haiku response: ${respText.length} chars`);
+          }
+        } catch (err) {
+          console.error(`[Chat] Claude Haiku failed: ${err.message}`);
+        }
       }
     }
 
     if (!apiCallSuccess) {
-      console.error('[Chat] ALL models failed. Gemini key set: ' + !!geminiApiKey + ', Claude key set: ' + !!claudeApiKey);
+      console.error('[Chat] ALL models failed. Gemini: ' + !!geminiApiKey + ', Claude: ' + !!claudeApiKey);
       throw new Error('All AI models failed. Please try again later.');
     }
 
-    console.log(`[Chat] Using model: ${usedModel}`);
+    console.log(`[Chat] Response from: ${usedModel}`);
 
     // Check if model wants to call a tool (OpenAI format)
     // OpenAI returns { choices: [{ message: { content, tool_calls } }] }
