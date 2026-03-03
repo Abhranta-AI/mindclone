@@ -3943,7 +3943,15 @@ PITCH STYLE:
 - Confident, not desperate. Show you're building something important.
 - Let compelling facts speak. Don't oversell.
 - Never end with "What would you like to know?" — they'll ask.
-- If they grill hard, be honest. Investors respect candor over spin.`;
+- If they grill hard, be honest. Investors respect candor over spin.
+
+8. CLASSIFY CONTACTS CORRECTLY — CRITICAL:
+   When discussing people or companies from the knowledge base, ALWAYS correctly distinguish:
+   - INVESTORS/VCs: Any venture capital firm, fund, angel investor, or investment entity (e.g., YourNest, Accel, Sequoia, any entity with "Capital", "Ventures", "Fund", "VC" in name or context). These are people/firms you're RAISING MONEY FROM.
+   - CUSTOMERS/CLIENTS: Businesses that USE or WILL USE your product. These are people/firms that PAY for your service.
+   - PARTNERS: Companies you integrate with or collaborate with (e.g., Sinch).
+   NEVER call a VC firm a "customer lead" or "client". If a meeting is about fundraising, that entity is an INVESTOR. If a meeting is about selling your product, that entity is a CUSTOMER.
+   When describing investor pipeline or traction, present investors and customers as SEPARATE categories — never lump them together.`;
           break;
 
         case 'find_clients':
@@ -4306,6 +4314,7 @@ CRITICAL: If the user shares a screenshot, image, or describes something specifi
           enhancedPrompt += '- Think: "How would a founder casually explain this over coffee?" — that is your tone.\n';
           enhancedPrompt += '- Example BAD: "1. Coherence (via RbR)... 2. Narrative Continuity (via Umwelt)... 3. Exclusivity (via GNF)..."\n';
           enhancedPrompt += '- Example GOOD: "Our moat is the CNE-Protocol — it gives our agents a real, persistent identity that deepens over time and can\'t be copied. Want me to explain how it works?"\n';
+          enhancedPrompt += '- ENTITY CLASSIFICATION: When mentioning companies/people from the knowledge base, correctly classify them — VC/investor firms (any entity with Capital, Ventures, Fund, VC in name, or that you\'re raising from) are INVESTORS, not customers. Businesses using your product are CUSTOMERS. Never confuse the two.\n';
         }
 
         // For private context: ensure mindclone uses KB as source of truth for professional info
