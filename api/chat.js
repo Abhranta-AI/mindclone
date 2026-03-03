@@ -4585,10 +4585,14 @@ Use this to understand time references like "yesterday", "next week", "this mont
     }
 
     // === MODEL CONFIGURATION ===
-    // Primary: Gemini Flash (free/cheap). Fallback: Claude Haiku (very cheap).
+    // Primary: Gemini Flash (free/cheap). Fallback: Claude (Haiku for public, Sonnet for private).
+    // Private context needs higher accuracy (real business conversations with real names).
     const geminiApiKey = process.env.GEMINI_API_KEY;
     const claudeApiKey = process.env.ANTHROPIC_API_KEY;
-    console.log(`[Chat] API keys available — Gemini: ${!!geminiApiKey}, Claude: ${!!claudeApiKey}`);
+    const claudeFallbackModel = context === 'private'
+      ? 'claude-sonnet-4-5-20250929'   // Private: Sonnet for accuracy (names, facts, business context)
+      : 'claude-haiku-4-5-20251001';    // Public: Haiku for cost efficiency
+    console.log(`[Chat] API keys — Gemini: ${!!geminiApiKey}, Claude: ${!!claudeApiKey}, fallback: ${claudeFallbackModel}`);
 
     // Clean contents for Gemini — strip any tool-related messages (functionCall/functionResponse)
     const cleanContents = [];
@@ -4698,7 +4702,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
+            model: claudeFallbackModel,
             max_tokens: 4096,
             system: sysText || 'You are a helpful AI assistant.',
             messages: claudeMessages
@@ -4774,10 +4778,36 @@ Use this to understand time references like "yesterday", "next week", "this mont
       // Remove "tool_code" prefix without print
       text = text.replace(/tool_code\s+/g, '');
 
-      // Collapse all multiple newlines to single newline (compact formatting)
-      text = text.replace(/\n\s*\n\s*\n/g, '\n\n'); // 3+ blank lines → 1 blank line
-      text = text.replace(/\n\n(?=[-•*]\s)/g, '\n'); // Remove blank line before bullet points
-      text = text.replace(/(?<=[-•*]\s[^\n]+)\n\n(?=[-•*]\s)/g, '\n'); // Remove blank lines between bullets
+      // === STRIP ALL MARKDOWN FORMATTING ===
+      // Remove **bold** and __bold__
+      text = text.replace(/\*\*(.+?)\*\*/g, '$1');
+      text = text.replace(/__(.+?)__/g, '$1');
+
+      // Remove *italics* and _italics_ (but not underscores in words)
+      text = text.replace(/(?<!\w)\*([^*\n]+?)\*(?!\w)/g, '$1');
+      text = text.replace(/(?<!\w)_([^_\n]+?)_(?!\w)/g, '$1');
+
+      // Remove ### headers — keep the text, strip the #s
+      text = text.replace(/^#{1,6}\s+/gm, '');
+
+      // Convert bullet points (-, *, •) to plain dashes for cleaner look
+      text = text.replace(/^[\s]*[•]\s+/gm, '- ');
+
+      // Convert numbered lists (1. 2. 3.) to plain text with dash
+      text = text.replace(/^\s*\d+\.\s+/gm, '- ');
+
+      // === COLLAPSE SPACING ===
+      // Remove all blank lines between consecutive list items
+      text = text.replace(/(-\s[^\n]+)\n\s*\n+(\s*-\s)/g, '$1\n$2');
+
+      // Collapse 3+ newlines to max 2 (one blank line)
+      text = text.replace(/\n{3,}/g, '\n\n');
+
+      // Remove blank line before first list item
+      text = text.replace(/\n\n(\s*-\s)/g, '\n$1');
+
+      // Remove blank line after a colon followed by list items
+      text = text.replace(/:\s*\n\n(\s*-\s)/g, ':\n$1');
 
       // Trim whitespace
       text = text.trim();
@@ -4881,7 +4911,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
           const claudeResp = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-api-key': claudeApiKey, 'anthropic-version': '2023-06-01' },
-            body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 4096, system: sysText || 'You are a helpful AI assistant.', messages: claudeMsgs })
+            body: JSON.stringify({ model: claudeFallbackModel, max_tokens: 4096, system: sysText || 'You are a helpful AI assistant.', messages: claudeMsgs })
           });
           if (claudeResp.ok) {
             const claudeData = JSON.parse(await claudeResp.text());
@@ -4986,7 +5016,7 @@ Use this to understand time references like "yesterday", "next week", "this mont
           const retryResp = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-api-key': claudeApiKey, 'anthropic-version': '2023-06-01' },
-            body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 4096, system: sysText || 'You are a helpful AI assistant.', messages: retryMsgs })
+            body: JSON.stringify({ model: claudeFallbackModel, max_tokens: 4096, system: sysText || 'You are a helpful AI assistant.', messages: retryMsgs })
           });
           if (retryResp.ok) {
             const retryData = JSON.parse(await retryResp.text());
