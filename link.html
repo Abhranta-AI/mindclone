@@ -1920,8 +1920,22 @@
             contentDiv.className = 'message-content';
 
             if (type === 'ai') {
-                // Render markdown for AI messages
-                contentDiv.innerHTML = marked.parse(content);
+                // Strip markdown formatting before rendering
+                function cleanMarkdown(text) {
+                    if (!text) return text;
+                    text = text.replace(/\*\*(.+?)\*\*/g, '$1');
+                    text = text.replace(/__(.+?)__/g, '$1');
+                    text = text.replace(/(?<!\w)\*([^*\n]+?)\*(?!\w)/g, '$1');
+                    text = text.replace(/(?<!\w)_([^_\n]+?)_(?!\w)/g, '$1');
+                    text = text.replace(/^#{1,6}\s+/gm, '');
+                    text = text.replace(/^\s*[-*•]\s+/gm, '- ');
+                    text = text.replace(/^\s*\d+\.\s+/gm, '- ');
+                    text = text.replace(/(-\s[^\n]+)\n\s*\n+(\s*-\s)/g, '$1\n$2');
+                    text = text.replace(/\n{3,}/g, '\n\n');
+                    return text;
+                }
+                // Render cleaned content
+                contentDiv.innerHTML = marked.parse(cleanMarkdown(content));
 
                 // Add copy buttons to code blocks
                 const codeBlocks = contentDiv.querySelectorAll('pre code');

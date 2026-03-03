@@ -12075,8 +12075,23 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             if (type === 'ai' && typeof marked !== 'undefined') {
                 const actualContent = document.createElement('div');
 
+                // Strip markdown formatting before rendering — model sometimes ignores prompt rules
+                function cleanMarkdown(text) {
+                    if (!text) return text;
+                    text = text.replace(/\*\*(.+?)\*\*/g, '$1');      // **bold**
+                    text = text.replace(/__(.+?)__/g, '$1');           // __bold__
+                    text = text.replace(/(?<!\w)\*([^*\n]+?)\*(?!\w)/g, '$1'); // *italic*
+                    text = text.replace(/(?<!\w)_([^_\n]+?)_(?!\w)/g, '$1');   // _italic_
+                    text = text.replace(/^#{1,6}\s+/gm, '');           // ### headers
+                    text = text.replace(/^\s*[-*•]\s+/gm, '- ');       // normalize bullets
+                    text = text.replace(/^\s*\d+\.\s+/gm, '- ');      // numbered lists → dashes
+                    text = text.replace(/(-\s[^\n]+)\n\s*\n+(\s*-\s)/g, '$1\n$2'); // collapse gaps between list items
+                    text = text.replace(/\n{3,}/g, '\n\n');            // max 2 newlines
+                    return text;
+                }
+
                 // Check for generated image references and replace with placeholders
-                let processedContent = content;
+                let processedContent = cleanMarkdown(content);
                 const imageMatches = content.matchAll(/\[GENERATED_IMAGE:(img_[a-z0-9_]+)\]/gi);
                 const imageIds = [...imageMatches].map(m => m[1]);
 
