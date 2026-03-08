@@ -4283,14 +4283,14 @@ Use this to understand time references like "yesterday", "next week", "this mont
     }
 
     // === MODEL CONFIGURATION ===
-    // Claude Sonnet primary for BOTH private and public (investors use public link)
-    // Gemini Flash as fallback only if Claude fails or runs out of credits
+    // Gemini Flash primary (free/separate billing) — Claude as fallback only
+    // This prevents Anthropic credit drain from background calls (WhatsApp, bots, crons)
     const geminiApiKey = process.env.GEMINI_API_KEY;
     const claudeApiKey = process.env.ANTHROPIC_API_KEY;
-    const useClaudePrimary = !!claudeApiKey;
+    const useClaudePrimary = false; // Gemini primary to save Anthropic credits
     const claudeModel = 'claude-sonnet-4-5-20250929';
     const claudeFallbackModel = claudeModel;
-    console.log(`[Chat] Context: ${context}, Primary: ${useClaudePrimary ? 'Claude Sonnet' : 'Gemini Flash'}, Keys — Gemini: ${!!geminiApiKey}, Claude: ${!!claudeApiKey}`);
+    console.log(`[Chat] Context: ${context}, Primary: Gemini Flash, Fallback: Claude Sonnet, Keys — Gemini: ${!!geminiApiKey}, Claude: ${!!claudeApiKey}`);
 
     // Clean contents for Gemini — strip any tool-related messages (functionCall/functionResponse)
     const cleanContents = [];

@@ -1,8 +1,8 @@
-// Search Engine - Use Claude API with web search tool to find relevant news
-// Switched from Gemini grounding to Claude web search (uses Brave Search under the hood)
+// Search Engine - Use Gemini with Google Search grounding to find relevant news
+// Switched from Claude web search to Gemini to save Anthropic credits
 const crypto = require('crypto');
 
-const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 /**
  * Search for news using Claude's web search tool
@@ -76,33 +76,17 @@ function generateSearchQueries(profile) {
 }
 
 /**
- * Use Claude with web search tool to find news articles
+ * Use Gemini with Google Search grounding to find news articles
  */
 async function searchWithClaude(queries, profile) {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error('ANTHROPIC_API_KEY not configured');
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY not configured');
     }
 
     const queriesList = queries.map((q, i) => `${i + 1}. ${q}`).join('\n');
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: HAIKU_MODEL,
-        max_tokens: 3000,
-        tools: [{
-          type: 'web_search_20250305',
-          name: 'web_search',
-          max_uses: 5
-        }],
-        system: `You are a news research assistant. Search the web for recent, relevant news articles based on the given queries.
+    const systemPrompt = `You are a news research assistant. Search for recent, relevant news articles based on the given queries.
 
 For each article you find, provide the information in a JSON array. Each article should have:
 - title: The article headline
@@ -111,49 +95,38 @@ For each article you find, provide the information in a JSON array. Each article
 - source: The publisher/website name
 - publishedDate: The publication date if available (ISO format), or null
 
-Focus on:
-- Recent articles (last 7 days preferred, last 30 days acceptable)
-- Authoritative sources (major news sites, tech publications, industry blogs)
-- Articles that are genuinely relevant to the topics
+Focus on recent articles (last 7 days preferred). Return ONLY a valid JSON array. If no articles found, return: []`;
 
-Return ONLY a valid JSON array of articles. No other text. Example:
-[{"title": "...", "url": "...", "snippet": "...", "source": "...", "publishedDate": "..."}]
-
-If you find no relevant articles, return: []`,
-        messages: [{
-          role: 'user',
-          content: `Search for recent news articles matching these queries:\n${queriesList}\n\nUser interests for context: ${profile.topics?.join(', ') || 'general'}`
-        }]
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const response = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ parts: [{ text: `Search for recent news articles matching these queries:\n${queriesList}\n\nUser interests: ${profile.topics?.join(', ') || 'general'}` }] }],
+        tools: [{ googleSearch: {} }],
+        generationConfig: { maxOutputTokens: 3000, temperature: 0.3 }
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Claude API error: ${response.status} - ${errorText}`);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-
-    // Extract the final text response (after web search tool use)
-    let responseText = '';
-    for (const block of (data.content || [])) {
-      if (block.type === 'text') {
-        responseText += block.text;
-      }
-    }
+    const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     if (!responseText) {
-      console.log('[SearchEngine] No text response from Claude');
+      console.log('[SearchEngine] No text response from Gemini');
       return [];
     }
 
-    // Parse JSON from response
     const articles = parseArticlesFromResponse(responseText, queries);
-
     return articles;
 
   } catch (error) {
-    console.error(`[SearchEngine] Error in searchWithClaude:`, error);
+    console.error(`[SearchEngine] Error in search:`, error);
     return [];
   }
 }

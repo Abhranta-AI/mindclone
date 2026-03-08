@@ -1,8 +1,8 @@
 // Profile Builder - Extract user interests from Firestore memories
-// Uses Claude Haiku to parse memories into structured interest profiles
+// Uses Gemini Flash to parse memories into structured interest profiles (saves Anthropic credits)
 const { initializeFirebaseAdmin, admin } = require('../_firebase-admin');
 
-const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
@@ -94,34 +94,27 @@ Return ONLY a valid JSON object with this exact structure, no other text:
   "curiosities": ["curiosity1", "curiosity2"]
 }`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const response = await fetch(geminiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: HAIKU_MODEL,
-        max_tokens: 1500,
-        system: systemPrompt,
-        messages: [{
-          role: 'user',
-          content: `Analyze these memories and extract the user's interests:\n\n${memories.join('\n\n')}`
-        }]
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ parts: [{ text: `Analyze these memories and extract the user's interests:\n\n${memories.join('\n\n')}` }] }],
+        generationConfig: { maxOutputTokens: 1500, temperature: 0.3 }
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Claude API error: ${response.status} - ${errorText}`);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    const text = data.content?.[0]?.text;
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
-      throw new Error('No response from Claude');
+      throw new Error('No response from Gemini');
     }
 
     // Parse JSON response
