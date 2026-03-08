@@ -6,18 +6,6 @@
   },
   "crons": [
     {
-      "path": "/api/cron/news-curator",
-      "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/cron/matching-heartbeat",
-      "schedule": "*/30 * * * *"
-    },
-    {
-      "path": "/api/cron/dmn-heartbeat",
-      "schedule": "0 */6 * * *"
-    },
-    {
       "path": "/api/cron/whatsapp-queue",
       "schedule": "*/2 * * * *"
     }
