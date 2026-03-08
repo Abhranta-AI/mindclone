@@ -3993,15 +3993,28 @@ CRITICAL: If the user shares a screenshot, image, or describes something specifi
           }
         }
 
-        // Add processed document content (iterate all documents, not just hardcoded keys)
+        // Add processed document content with size cap to prevent prompt blowup
+        // Total KB budget: 30,000 chars (~7,500 tokens) — enough for key info, won't break model limits
         if (knowledgeBase.documents) {
           const docs = knowledgeBase.documents;
+          const KB_CHAR_BUDGET = 30000;
+          let kbCharsUsed = enhancedPrompt.length;
           for (const [docKey, docData] of Object.entries(docs)) {
             if (docData) {
               const displayName = docData.fileName || docKey.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-              const content = typeof docData === 'string' ? docData : (docData.text || JSON.stringify(docData));
+              let content = typeof docData === 'string' ? docData : (docData.text || JSON.stringify(docData));
+              // Cap each document at 5000 chars
+              if (content.length > 5000) {
+                content = content.substring(0, 5000) + '\n[... truncated for brevity]';
+              }
+              // Stop adding docs if we'd exceed budget
+              if (kbCharsUsed + content.length > KB_CHAR_BUDGET + enhancedPrompt.length) {
+                enhancedPrompt += `\n(Additional documents omitted for brevity)\n`;
+                break;
+              }
               enhancedPrompt += `### ${displayName}\n`;
               enhancedPrompt += content + '\n\n';
+              kbCharsUsed += content.length + displayName.length + 10;
             }
           }
         }
@@ -4276,6 +4289,14 @@ CRITICAL: Never show tool names, brackets, or "[silently call...]" in your respo
 Today is ${currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 Current time: ${currentDate.toLocaleTimeString('en-US')}
 Use this to understand time references like "yesterday", "next week", "this month", etc.`;
+
+      // Hard cap: Gemini Flash supports ~1M tokens but large prompts are slow and expensive
+      // Keep system prompt under 50K chars (~12K tokens) for fast, cheap responses
+      const MAX_PROMPT_CHARS = 50000;
+      if (enhancedPrompt.length > MAX_PROMPT_CHARS) {
+        console.warn(`[Chat] System prompt too large (${enhancedPrompt.length} chars), truncating to ${MAX_PROMPT_CHARS}`);
+        enhancedPrompt = enhancedPrompt.substring(0, MAX_PROMPT_CHARS) + '\n\n[System prompt truncated for performance]';
+      }
 
       systemInstruction = {
         parts: [{ text: enhancedPrompt }]
