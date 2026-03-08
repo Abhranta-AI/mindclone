@@ -4434,8 +4434,9 @@ Use this to understand time references like "yesterday", "next week", "this mont
     }
 
     if (!apiCallSuccess) {
-      console.error('[Chat] ALL models failed. Gemini: ' + !!geminiApiKey + ', Claude: ' + !!claudeApiKey);
-      throw new Error('All AI models failed. Please try again later.');
+      const debugInfo = `Gemini key: ${!!geminiApiKey}, Claude key: ${!!claudeApiKey}, primary: ${useClaudePrimary ? 'claude' : 'gemini'}, msgs: ${mergedContents.length}, sysLen: ${sysText?.length || 0}`;
+      console.error('[Chat] ALL models failed. ' + debugInfo);
+      throw new Error('All AI models failed (' + debugInfo + ')');
     }
 
     console.log(`[Chat] Response from: ${usedModel}`);
