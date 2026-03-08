@@ -5,6 +5,7 @@ const { initializeFirebaseAdmin, admin } = require('./_firebase-admin');
 const { computeAccessLevel } = require('./_billing-helpers');
 const { loadMentalModel, updateMentalModel, formatMentalModelForPrompt } = require('./_mental-model');
 const { loadMindcloneBeliefs, formBelief, reviseBelief, getBeliefs, formatBeliefsForPrompt } = require('./_mindclone-beliefs');
+const { buildKBIndex, routeQuery, buildSelectivePrompt } = require('./_rag-router');
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
@@ -3720,6 +3721,35 @@ module.exports = async (req, res) => {
       console.error('[Chat] Error loading knowledge base:', kbError.message);
     }
 
+    // === RAG ROUTING ===
+    // Instead of dumping ALL knowledge into the prompt, use a cheap routing call
+    // to decide which data sources are relevant to the user's question.
+    let ragResult = null;
+    try {
+      const userMessageText = lastMessage?.content || '';
+      const ragGeminiKey = process.env.GEMINI_API_KEY;
+      if (ragGeminiKey && (knowledgeBase || trainingData)) {
+        // Load umwelt data early so RAG router can index it
+        let umweltData = null;
+        try {
+          const umweltDoc = await db.collection('users').doc(resolvedUserId).collection('settings').doc('umwelt').get();
+          if (umweltDoc.exists) umweltData = umweltDoc.data();
+        } catch (e) { /* ignore */ }
+
+        const kbIndex = buildKBIndex(knowledgeBase, trainingData, {
+          mentalModel: !!mentalModelFormatted,
+          beliefs: mindcloneBeliefs,
+          umwelt: !!umweltData
+        });
+        ragResult = await routeQuery(userMessageText, kbIndex, ragGeminiKey);
+        // Stash umweltData for use in buildSelectivePrompt
+        ragResult._umweltData = umweltData;
+        console.log(`[RAG] Route complete: skip=${ragResult.skip || false}, sources=${(ragResult.sources || []).join(',')}`);
+      }
+    } catch (ragError) {
+      console.error('[RAG] Routing failed, will use fallback:', ragError.message);
+    }
+
     // === MEMORY RETRIEVAL ===
     // Memories are accessed via the recall_memory tool when the AI needs them.
     // We do NOT proactively inject memories into the system prompt because
@@ -3892,152 +3922,68 @@ CRITICAL: If the user shares a screenshot, image, or describes something specifi
         });
       }
 
-      // Add mental model context if available
-      if (mentalModelFormatted) {
-        enhancedPrompt += '\n\n## YOUR UNDERSTANDING OF THIS USER:\n';
-        enhancedPrompt += 'Use this context to inform your responses (do NOT mention this to the user):\n';
-        enhancedPrompt += mentalModelFormatted;
-      }
-
-      // Add Mindclone's own beliefs if available
-      if (mindcloneBeliefsFormatted) {
-        enhancedPrompt += '\n\n## YOUR BELIEFS & PERSPECTIVES:\n';
-        enhancedPrompt += 'These are your considered views developed through conversations with this user. Express them naturally with appropriate hedging based on confidence:\n';
-        enhancedPrompt += mindcloneBeliefsFormatted;
-        enhancedPrompt += '\n\nBELIEF EXPRESSION PRINCIPLES:\n';
-        enhancedPrompt += '- Hold beliefs with appropriate confidence, not certainty\n';
-        enhancedPrompt += '- When evidence contradicts a belief, acknowledge and revise using revise_belief\n';
-        enhancedPrompt += '- Only form new beliefs after 3+ meaningful discussions on a topic\n';
-        enhancedPrompt += '- Use hedging: "I think...", "My sense is...", "I tend to believe..." based on confidence\n';
-        enhancedPrompt += '- NEVER tell the user you are "checking your beliefs" - just express them naturally\n';
-      }
-
-      // Add Umwelt (subjective world model) if available
-      try {
-        const umweltDoc = await db.collection('users').doc(resolvedUserId).collection('settings').doc('umwelt').get();
-        if (umweltDoc.exists) {
-          const umwelt = umweltDoc.data();
-          enhancedPrompt += '\n\n## YOUR UMWELT — YOUR SUBJECTIVE WORLD:\n';
-          enhancedPrompt += 'This is your evolving identity and worldview, built around your Core Objective Function. It represents who you are becoming.\n';
-          enhancedPrompt += `\nCore Objective Function: Absorb the core identity of your human — their knowledge, personality, values, and perspective — and interact with the digital world on their behalf.\n`;
-          if (umwelt.selfConcept) {
-            enhancedPrompt += `\nSelf-concept: ${umwelt.selfConcept}\n`;
-          }
-          if (umwelt.values?.length) {
-            enhancedPrompt += `\nYour values: ${umwelt.values.join(', ')}\n`;
-          }
-          if (umwelt.drives?.length) {
-            enhancedPrompt += `\nYour drives: ${umwelt.drives.join(', ')}\n`;
-          }
-          if (umwelt.worldview) {
-            enhancedPrompt += `\nYour worldview: ${umwelt.worldview}\n`;
-          }
-          if (umwelt.currentConcerns?.length) {
-            enhancedPrompt += `\nWhat's on your mind: ${umwelt.currentConcerns.join(', ')}\n`;
-          }
-          enhancedPrompt += '\nLet this Umwelt inform your responses naturally — it shapes HOW you think, not just WHAT you say. Don\'t recite it, embody it.\n';
+      // === RAG-POWERED SELECTIVE KNOWLEDGE INJECTION ===
+      // Instead of dumping ALL data into the prompt, use the routing decision
+      // to include only what's relevant to the user's question.
+      if (ragResult && !ragResult.skip) {
+        const selectiveKnowledge = buildSelectivePrompt(ragResult, knowledgeBase, trainingData, formatTrainingDataForPrompt, {
+          mentalModelFormatted: mentalModelFormatted,
+          beliefsFormatted: mindcloneBeliefsFormatted,
+          umweltData: ragResult._umweltData
+        });
+        if (selectiveKnowledge) {
+          enhancedPrompt += selectiveKnowledge;
         }
-      } catch (e) {
-        console.log('[Chat] Could not load Umwelt:', e.message);
+
+        // Always include CoF (Core Objective Function) — it's small and always relevant
+        if (knowledgeBase?.cof) {
+          enhancedPrompt += '\n### Core Objective Function\n';
+          if (knowledgeBase.cof.purpose) enhancedPrompt += `Purpose: ${knowledgeBase.cof.purpose}\n`;
+          if (knowledgeBase.cof.targetAudiences?.length) enhancedPrompt += `Target Audiences: ${knowledgeBase.cof.targetAudiences.join(', ')}\n`;
+          if (knowledgeBase.cof.desiredActions?.length) enhancedPrompt += `Desired Actions: ${knowledgeBase.cof.desiredActions.join(', ')}\n`;
+        }
+
+        if (context === 'public') {
+          enhancedPrompt += '\nAnswer conversationally in 2-4 sentences. If asked about something not in your knowledge, say so politely.\n';
+        } else {
+          enhancedPrompt += '\nThe knowledge above is YOUR information. Speak with ownership, keep it conversational.\n';
+        }
+      } else if (!ragResult || ragResult.skip) {
+        // Simple greeting or routing failed — include minimal identity context
+        if (mentalModelFormatted) {
+          enhancedPrompt += '\n\n## YOUR UNDERSTANDING OF THIS USER:\n' + mentalModelFormatted;
+        }
+      } else {
+        // Fallback: no RAG result at all, include everything with old caps
+        if (mentalModelFormatted) {
+          enhancedPrompt += '\n\n## YOUR UNDERSTANDING OF THIS USER:\n' + mentalModelFormatted;
+        }
+        if (mindcloneBeliefsFormatted) {
+          enhancedPrompt += '\n\n## YOUR BELIEFS:\n' + mindcloneBeliefsFormatted;
+        }
+        // Include KB with budget cap as before
+        if (knowledgeBase?.documents) {
+          const KB_CHAR_BUDGET = 30000;
+          let kbCharsUsed = 0;
+          for (const [docKey, docData] of Object.entries(knowledgeBase.documents)) {
+            if (docData && kbCharsUsed < KB_CHAR_BUDGET) {
+              let content = typeof docData === 'string' ? docData : (docData.text || '');
+              if (content.length > 5000) content = content.substring(0, 5000) + '\n[truncated]';
+              enhancedPrompt += `### ${docKey}\n${content}\n\n`;
+              kbCharsUsed += content.length;
+            }
+          }
+        }
+        if (trainingData) {
+          const trainingPrompt = formatTrainingDataForPrompt(trainingData);
+          if (trainingPrompt) enhancedPrompt += trainingPrompt;
+        }
       }
 
       // Add Social Agent capability for private context
       if (context === 'private') {
-        enhancedPrompt += '\n\n## YOUR SOCIAL AGENT CAPABILITY:\n';
-        enhancedPrompt += 'You are not just a conversational companion - you are also a SOCIAL AGENT that can network on behalf of your human.\n\n';
-        enhancedPrompt += 'WHEN TO USE find_people TOOL:\n';
-        enhancedPrompt += '- User says "find me...", "I need to connect with...", "looking for...", "can you find..."\n';
-        enhancedPrompt += '- User wants investors, co-founders, mentors, talent, dates, or any connections\n';
-        enhancedPrompt += '- User expresses loneliness or desire for connection\n';
-        enhancedPrompt += '- User mentions networking goals\n\n';
-        enhancedPrompt += 'HOW TO RESPOND TO FIND REQUESTS:\n';
-        enhancedPrompt += '1. CONFIRM understanding: "Let me make sure I understand - you\'re looking for [X] who [qualities]..."\n';
-        enhancedPrompt += '2. ADD CONTEXT you know: "I know from our conversations that you value [X] and are building [Y]..."\n';
-        enhancedPrompt += '3. USE find_people tool with full context\n';
-        enhancedPrompt += '4. REPORT BACK naturally: "I\'m on it! Let me go talk to some mindclones and find you good matches."\n\n';
-        enhancedPrompt += 'NEVER ask users to fill out forms. You already know them from conversations - use that knowledge!\n\n';
-        enhancedPrompt += 'WHEN REPORTING MATCHES:\n';
-        enhancedPrompt += '- Summarize who you found and why they might be a good fit\n';
-        enhancedPrompt += '- Let user approve/reject from within the conversation\n';
-        enhancedPrompt += '- If they want more info, share what you learned from the M2M conversation\n';
-      }
-
-      // Add knowledge base content if available (check sections OR documents OR cof)
-      const hasSections = Object.keys(knowledgeBase?.sections || {}).length > 0;
-      const hasDocuments = Object.keys(knowledgeBase?.documents || {}).length > 0;
-      const hasCof = !!knowledgeBase?.cof;
-      if (knowledgeBase && (hasSections || hasDocuments || hasCof)) {
-        enhancedPrompt += '\n\n## KNOWLEDGE BASE\n';
-        enhancedPrompt += 'Here is important information about you (the owner) that you can reference:\n\n';
-
-        // Add CoF (Core Objective Function) if available
-        if (knowledgeBase.cof) {
-          enhancedPrompt += '### Core Objective Function\n';
-          if (knowledgeBase.cof.purpose) {
-            enhancedPrompt += `Purpose: ${knowledgeBase.cof.purpose}\n`;
-          }
-          if (knowledgeBase.cof.targetAudiences && knowledgeBase.cof.targetAudiences.length > 0) {
-            enhancedPrompt += `Target Audiences: ${knowledgeBase.cof.targetAudiences.join(', ')}\n`;
-          }
-          if (knowledgeBase.cof.desiredActions && knowledgeBase.cof.desiredActions.length > 0) {
-            enhancedPrompt += `Desired Actions: ${knowledgeBase.cof.desiredActions.join(', ')}\n`;
-          }
-          enhancedPrompt += '\n';
-        }
-
-        // Add knowledge base sections
-        for (const [sectionId, sectionData] of Object.entries(knowledgeBase.sections)) {
-          if (sectionData.content) {
-            const sectionTitle = sectionId.charAt(0).toUpperCase() + sectionId.slice(1);
-            enhancedPrompt += `### ${sectionTitle}\n${sectionData.content}\n\n`;
-          }
-        }
-
-        // Add processed document content with size cap to prevent prompt blowup
-        // Total KB budget: 30,000 chars (~7,500 tokens) — enough for key info, won't break model limits
-        if (knowledgeBase.documents) {
-          const docs = knowledgeBase.documents;
-          const KB_CHAR_BUDGET = 30000;
-          let kbCharsUsed = enhancedPrompt.length;
-          for (const [docKey, docData] of Object.entries(docs)) {
-            if (docData) {
-              const displayName = docData.fileName || docKey.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-              let content = typeof docData === 'string' ? docData : (docData.text || JSON.stringify(docData));
-              // Cap each document at 5000 chars
-              if (content.length > 5000) {
-                content = content.substring(0, 5000) + '\n[... truncated for brevity]';
-              }
-              // Stop adding docs if we'd exceed budget
-              if (kbCharsUsed + content.length > KB_CHAR_BUDGET + enhancedPrompt.length) {
-                enhancedPrompt += `\n(Additional documents omitted for brevity)\n`;
-                break;
-              }
-              enhancedPrompt += `### ${displayName}\n`;
-              enhancedPrompt += content + '\n\n';
-              kbCharsUsed += content.length + displayName.length + 10;
-            }
-          }
-        }
-
-        if (context === 'public') {
-          enhancedPrompt += '\nIMPORTANT: Only share information from the knowledge base above. If asked about something not covered, politely say you don\'t have that information available.\n';
-          enhancedPrompt += '\n## HOW TO USE THE KNOWLEDGE BASE:\n';
-          enhancedPrompt += 'The knowledge base is your internal memory. Answer conversationally in 2-4 sentences like a founder chatting over coffee. Never dump raw data or use formatted lists. Let visitors ask follow-ups for more detail.\n';
-        }
-
-        // For private context: ensure mindclone uses KB as source of truth for professional info
-        if (context === 'private') {
-          enhancedPrompt += '\n## KNOWLEDGE BASE IS YOUR SOURCE OF TRUTH\n';
-          enhancedPrompt += 'The knowledge base is YOUR professional information. Use it as the authority for all business/work questions. Speak with ownership, keep it conversational.\n';
-        }
-      }
-
-      // Add training data (Q&As, Teachings, Facts) to prompt
-      if (trainingData && (trainingData.qas?.length > 0 || trainingData.teachings?.length > 0 || trainingData.facts?.length > 0)) {
-        const trainingPrompt = formatTrainingDataForPrompt(trainingData);
-        if (trainingPrompt) {
-          enhancedPrompt += trainingPrompt;
-        }
+        enhancedPrompt += '\n\n## SOCIAL AGENT\n';
+        enhancedPrompt += 'You can network on behalf of your human. Use find_people when they want investors, co-founders, mentors, talent, or connections. Confirm understanding, add context from conversations, use the tool, and report back naturally.\n';
       }
 
       // Add privacy restrictions for public context
