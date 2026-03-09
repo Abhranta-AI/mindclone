@@ -3456,7 +3456,7 @@ module.exports = async (req, res) => {
     if (MAINTENANCE_MODE && context === 'public') {
       return res.status(200).json({
         success: true,
-        choices: [{ message: { content: "Hey! I'm currently getting a brain upgrade — learning new things and becoming smarter. I'll be back online shortly. In the meantime, feel free to reach out to Alok directly at alok@olbrain.com", tool_calls: null }, finish_reason: 'stop' }],
+        content: "Hey! I'm currently getting a brain upgrade — learning new things and becoming smarter. I'll be back online shortly.\n\nIn the meantime, feel free to reach out to Alok directly at alok@olbrain.com",
         model: 'maintenance'
       });
     }
