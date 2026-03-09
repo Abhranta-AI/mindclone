@@ -4401,9 +4401,28 @@ Use this to understand time references like "yesterday", "next week", "this mont
     }
 
     if (!apiCallSuccess) {
-      const debugInfo = `Gemini key: ${!!geminiApiKey}, Claude key: ${!!claudeApiKey}, primary: ${useClaudePrimary ? 'claude' : 'gemini'}, msgs: ${mergedContents.length}, sysLen: ${sysText?.length || 0}`;
-      console.error('[Chat] ALL models failed. ' + debugInfo);
-      throw new Error('All AI models failed (' + debugInfo + ')');
+      // One more attempt: try Gemini with minimal prompt as last resort
+      let lastResortError = '';
+      try {
+        console.log('[Chat] Last resort — trying Gemini with minimal system prompt...');
+        const minimalSys = sysText ? sysText.substring(0, 5000) : 'You are a helpful AI assistant.';
+        const respText = await callGemini(mergedContents, minimalSys);
+        if (respText && respText.trim().length > 3) {
+          data = { choices: [{ message: { content: respText, tool_calls: null }, finish_reason: 'stop' }] };
+          apiCallSuccess = true;
+          usedModel = 'gemini-flash-minimal';
+          console.log(`[Chat] Gemini minimal response: ${respText.length} chars`);
+        }
+      } catch (err) {
+        lastResortError = err.message;
+        console.error(`[Chat] Last resort failed: ${err.message}`);
+      }
+
+      if (!apiCallSuccess) {
+        const debugInfo = `Gemini key: ${!!geminiApiKey}, Claude key: ${!!claudeApiKey}, primary: ${useClaudePrimary ? 'claude' : 'gemini'}, msgs: ${mergedContents.length}, sysLen: ${sysText?.length || 0}, lastErr: ${lastResortError.substring(0, 200)}`;
+        console.error('[Chat] ALL models failed. ' + debugInfo);
+        throw new Error('All AI models failed (' + debugInfo + ')');
+      }
     }
 
     console.log(`[Chat] Response from: ${usedModel}`);
