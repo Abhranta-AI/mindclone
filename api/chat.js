@@ -3599,34 +3599,9 @@ module.exports = async (req, res) => {
       console.error('[Chat] Error loading knowledge base:', kbError.message);
     }
 
-    // === RAG ROUTING ===
-    // Instead of dumping ALL knowledge into the prompt, use a cheap routing call
-    // to decide which data sources are relevant to the user's question.
-    let ragResult = null;
-    try {
-      const userMessageText = lastMessage?.content || '';
-      const ragGeminiKey = process.env.GEMINI_API_KEY;
-      if (ragGeminiKey && (knowledgeBase || trainingData)) {
-        // Load umwelt data early so RAG router can index it
-        let umweltData = null;
-        try {
-          const umweltDoc = await db.collection('users').doc(resolvedUserId).collection('settings').doc('umwelt').get();
-          if (umweltDoc.exists) umweltData = umweltDoc.data();
-        } catch (e) { /* ignore */ }
-
-        const kbIndex = buildKBIndex(knowledgeBase, trainingData, {
-          mentalModel: !!mentalModelFormatted,
-          beliefs: mindcloneBeliefs,
-          umwelt: !!umweltData
-        });
-        ragResult = await routeQuery(userMessageText, kbIndex, ragGeminiKey);
-        // Stash umweltData for use in buildSelectivePrompt
-        ragResult._umweltData = umweltData;
-        console.log(`[RAG] Route complete: skip=${ragResult.skip || false}, sources=${(ragResult.sources || []).join(',')}`);
-      }
-    } catch (ragError) {
-      console.error('[RAG] Routing failed, will use fallback:', ragError.message);
-    }
+    // RAG routing disabled — base prompt is now small enough (~6K) to include
+    // all knowledge directly with a 25K budget. This avoids the extra API call
+    // and ensures knowledge is always available (no routing failures).
 
     // === MEMORY RETRIEVAL ===
     // Memories are accessed via the recall_memory tool when the AI needs them.
@@ -3755,63 +3730,76 @@ CRITICAL: If the user shares a screenshot, image, or describes something specifi
         });
       }
 
-      // === RAG-POWERED SELECTIVE KNOWLEDGE INJECTION ===
-      // Instead of dumping ALL data into the prompt, use the routing decision
-      // to include only what's relevant to the user's question.
-      if (ragResult && !ragResult.skip) {
-        const selectiveKnowledge = buildSelectivePrompt(ragResult, knowledgeBase, trainingData, formatTrainingDataForPrompt, {
-          mentalModelFormatted: mentalModelFormatted,
-          beliefsFormatted: mindcloneBeliefsFormatted,
-          umweltData: ragResult._umweltData
-        });
-        if (selectiveKnowledge) {
-          enhancedPrompt += selectiveKnowledge;
-        }
+      // === KNOWLEDGE INJECTION ===
+      // Include ALL knowledge with size caps. Base prompt is ~6K so we have
+      // budget for ~25K of knowledge data within our 35K total target.
+      const KB_BUDGET = 25000;
+      let kbCharsUsed = 0;
 
-        // Always include CoF (Core Objective Function) — it's small and always relevant
-        if (knowledgeBase?.cof) {
-          enhancedPrompt += '\n### Core Objective Function\n';
-          if (knowledgeBase.cof.purpose) enhancedPrompt += `Purpose: ${knowledgeBase.cof.purpose}\n`;
-          if (knowledgeBase.cof.targetAudiences?.length) enhancedPrompt += `Target Audiences: ${knowledgeBase.cof.targetAudiences.join(', ')}\n`;
-          if (knowledgeBase.cof.desiredActions?.length) enhancedPrompt += `Desired Actions: ${knowledgeBase.cof.desiredActions.join(', ')}\n`;
-        }
+      // Always include CoF
+      if (knowledgeBase?.cof) {
+        enhancedPrompt += '\n\n## CORE OBJECTIVE\n';
+        if (knowledgeBase.cof.purpose) enhancedPrompt += `Purpose: ${knowledgeBase.cof.purpose}\n`;
+        if (knowledgeBase.cof.targetAudiences?.length) enhancedPrompt += `Target Audiences: ${knowledgeBase.cof.targetAudiences.join(', ')}\n`;
+        if (knowledgeBase.cof.desiredActions?.length) enhancedPrompt += `Desired Actions: ${knowledgeBase.cof.desiredActions.join(', ')}\n`;
+      }
 
-        if (context === 'public') {
-          enhancedPrompt += '\nAnswer conversationally in 2-4 sentences. If asked about something not in your knowledge, say so politely.\n';
-        } else {
-          enhancedPrompt += '\nThe knowledge above is YOUR information. Speak with ownership, keep it conversational.\n';
-        }
-      } else if (!ragResult || ragResult.skip) {
-        // Simple greeting or routing failed — include minimal identity context
-        if (mentalModelFormatted) {
-          enhancedPrompt += '\n\n## YOUR UNDERSTANDING OF THIS USER:\n' + mentalModelFormatted;
-        }
-      } else {
-        // Fallback: no RAG result at all, include everything with old caps
-        if (mentalModelFormatted) {
-          enhancedPrompt += '\n\n## YOUR UNDERSTANDING OF THIS USER:\n' + mentalModelFormatted;
-        }
-        if (mindcloneBeliefsFormatted) {
-          enhancedPrompt += '\n\n## YOUR BELIEFS:\n' + mindcloneBeliefsFormatted;
-        }
-        // Include KB with budget cap as before
-        if (knowledgeBase?.documents) {
-          const KB_CHAR_BUDGET = 30000;
-          let kbCharsUsed = 0;
-          for (const [docKey, docData] of Object.entries(knowledgeBase.documents)) {
-            if (docData && kbCharsUsed < KB_CHAR_BUDGET) {
-              let content = typeof docData === 'string' ? docData : (docData.text || '');
-              if (content.length > 5000) content = content.substring(0, 5000) + '\n[truncated]';
-              enhancedPrompt += `### ${docKey}\n${content}\n\n`;
-              kbCharsUsed += content.length;
-            }
+      // Include KB sections
+      if (knowledgeBase?.sections) {
+        for (const [id, data] of Object.entries(knowledgeBase.sections)) {
+          if (data?.content && kbCharsUsed < KB_BUDGET) {
+            let content = data.content;
+            if (content.length > 5000) content = content.substring(0, 5000) + '\n[truncated]';
+            enhancedPrompt += `\n### ${id}\n${content}\n`;
+            kbCharsUsed += content.length;
           }
         }
-        if (trainingData) {
-          const trainingPrompt = formatTrainingDataForPrompt(trainingData);
-          if (trainingPrompt) enhancedPrompt += trainingPrompt;
+      }
+
+      // Include KB documents
+      if (knowledgeBase?.documents) {
+        for (const [docKey, docData] of Object.entries(knowledgeBase.documents)) {
+          if (docData && kbCharsUsed < KB_BUDGET) {
+            const name = docData.fileName || docKey.replace(/_/g, ' ');
+            let content = typeof docData === 'string' ? docData : (docData.text || JSON.stringify(docData));
+            if (content.length > 5000) content = content.substring(0, 5000) + '\n[truncated]';
+            enhancedPrompt += `\n### ${name}\n${content}\n`;
+            kbCharsUsed += content.length;
+          }
         }
       }
+
+      // Include training data
+      if (trainingData && (trainingData.qas?.length || trainingData.teachings?.length || trainingData.facts?.length)) {
+        const trainingPrompt = formatTrainingDataForPrompt(trainingData);
+        if (trainingPrompt && kbCharsUsed + trainingPrompt.length < KB_BUDGET) {
+          enhancedPrompt += trainingPrompt;
+          kbCharsUsed += trainingPrompt.length;
+        }
+      }
+
+      // Include mental model
+      if (mentalModelFormatted && kbCharsUsed + mentalModelFormatted.length < KB_BUDGET) {
+        enhancedPrompt += '\n\n## YOUR UNDERSTANDING OF THIS USER:\n' + mentalModelFormatted;
+        kbCharsUsed += mentalModelFormatted.length;
+      }
+
+      // Include beliefs
+      if (mindcloneBeliefsFormatted && kbCharsUsed + mindcloneBeliefsFormatted.length < KB_BUDGET) {
+        enhancedPrompt += '\n\n## YOUR BELIEFS:\n' + mindcloneBeliefsFormatted;
+        kbCharsUsed += mindcloneBeliefsFormatted.length;
+      }
+
+      // Knowledge usage instructions
+      if (kbCharsUsed > 0) {
+        if (context === 'public') {
+          enhancedPrompt += '\n\nCRITICAL: ONLY use facts from the knowledge above. If asked something not covered, say "I\'d recommend asking directly about that." NEVER make up numbers, figures, or details.\n';
+        } else {
+          enhancedPrompt += '\nThe knowledge above is YOUR information. Speak with ownership. NEVER make up numbers or details not in the knowledge base.\n';
+        }
+      }
+
+      console.log(`[Chat] Knowledge injected: ${kbCharsUsed} chars`);
 
       // Add Social Agent capability for private context
       if (context === 'private') {
