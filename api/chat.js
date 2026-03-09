@@ -4421,6 +4421,12 @@ Use this to understand time references like "yesterday", "next week", "this mont
       if (!apiCallSuccess) {
         const debugInfo = `Gemini key: ${!!geminiApiKey}, Claude key: ${!!claudeApiKey}, primary: ${useClaudePrimary ? 'claude' : 'gemini'}, msgs: ${mergedContents.length}, sysLen: ${sysText?.length || 0}, lastErr: ${lastResortError.substring(0, 200)}`;
         console.error('[Chat] ALL models failed. ' + debugInfo);
+        // Show user-friendly message instead of raw debug info
+        const isQuotaError = lastResortError.includes('429') || lastResortError.includes('quota');
+        const isCreditError = lastResortError.includes('402') || lastResortError.includes('credit') || lastResortError.includes('insufficient');
+        if (isQuotaError || isCreditError) {
+          throw new Error("I'm taking a short break — my AI services have hit their usage limits. I'll be back soon! Please try again in a few minutes.");
+        }
         throw new Error('All AI models failed (' + debugInfo + ')');
       }
     }
