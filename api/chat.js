@@ -3450,6 +3450,17 @@ module.exports = async (req, res) => {
 
     const { messages, systemPrompt, userId, context = 'private', visitorId, username } = req.body;
 
+    // === MAINTENANCE MODE ===
+    // Set to true to disable public link while fixing issues
+    const MAINTENANCE_MODE = true;
+    if (MAINTENANCE_MODE && context === 'public') {
+      return res.status(200).json({
+        success: true,
+        message: "I'm currently being upgraded with new capabilities! Please check back in a little while. 🚀",
+        model: 'maintenance'
+      });
+    }
+
     // Validate messages
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({
