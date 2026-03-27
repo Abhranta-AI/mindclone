@@ -3452,7 +3452,7 @@ module.exports = async (req, res) => {
 
     // === MAINTENANCE MODE ===
     // Set to true to disable public link while fixing issues
-    const MAINTENANCE_MODE = true;
+    const MAINTENANCE_MODE = false;
     if (MAINTENANCE_MODE && context === 'public') {
       return res.status(200).json({
         success: true,
