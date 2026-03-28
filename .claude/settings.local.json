@@ -18,7 +18,12 @@
       "Bash(git pull:*)",
       "Bash(git checkout:*)",
       "Bash(git rebase:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(gh pr:*)",
+      "Bash(gcloud services:*)",
+      "Bash(gcloud alpha:*)",
+      "Bash(gcloud --quiet alpha iap oauth-brands create --application_title=\"Mindclone Studio\" --support_email=alok@olbrain.com --project=mindclone-studio)",
+      "Bash(find /Users/alokg/abhranta/mindclone/.claude/worktrees/bold-kalam -name *.env* -o -name firebase.ts -o -name firebase.js -o -name firebaseConfig*)"
     ]
   }
 }
