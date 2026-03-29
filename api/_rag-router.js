@@ -100,6 +100,7 @@ Source keys: use document keys (e.g. "doc:pitch_deck"), "sections", "trainingQAs
 
 Rules:
 - Pick ONLY sources relevant to the question. Less is better.
+- For investment/funding/valuation/raise questions: ALWAYS include pitch/investment documents
 - For business/product questions: pick relevant documents + trainingQAs
 - For personal/identity questions: mentalModel + umwelt
 - For "what did we discuss" or references to past chats: set memorySearch to a keyword

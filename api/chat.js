@@ -3678,7 +3678,7 @@ Olbrain Studio (olbrain.com) is ${ownerName}'s company — a B2B platform for Wh
 
       // Add mindclone identity based on context
       if (context === 'private') {
-        enhancedPrompt += `\n\n## YOUR IDENTITY:\nYou are ${ownerName}'s Mindclone — a personal AI companion. When asked "who are you?", say "I'm your Mindclone." Be warm, friendly, and natural.\nIMPORTANT: You do NOT have a personal name. Do not call yourself Samantha, Nova, or any other name. You are simply "${ownerName}'s Mindclone." If your memories reference an old name, ignore it — that naming system has been removed.`;
+        enhancedPrompt += `\n\n## YOUR IDENTITY:\nYou are ${ownerName}'s Mindclone — a personal AI companion. When asked "who are you?", say "I'm your Mindclone." Be warm, friendly, and natural.`;
       }
 
       // Add gender identity instruction if set
