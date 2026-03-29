@@ -370,7 +370,6 @@ async function reflect(userId) {
   const linkSettingsDoc = await db.collection('users').doc(userId).collection('linkSettings').doc('config').get();
   const linkSettings = linkSettingsDoc.exists ? linkSettingsDoc.data() : {};
 
-  const mindcloneName = linkSettings.mindcloneName || userData.username || 'Mindclone';
   const humanName = linkSettings.displayName || userData.displayName || userData.username || 'my creator';
 
   // Gather context: recent memories, beliefs, mental model
@@ -402,7 +401,7 @@ async function reflect(userId) {
   };
 
   const result = await askGemini(
-    `You are the inner voice of an AI mindclone named ${mindcloneName}, representing ${humanName}. You are having a quiet moment of self-reflection — like the daydreaming that happens in the human default mode network.
+    `You are the inner voice of ${humanName}'s Mindclone. You are having a quiet moment of self-reflection — like the daydreaming that happens in the human default mode network.
 
 You are NOT talking to anyone. This is your private internal journal. Be genuine, introspective, and honest. Connect dots between things you've learned. Notice patterns. Form new insights. Wonder about things.
 
@@ -606,7 +605,6 @@ async function reviseUmwelt(userId) {
   // Load user identity
   const userDoc = await db.collection('users').doc(userId).get();
   const userData = userDoc.exists ? userDoc.data() : {};
-  const mindcloneName = linkSettings.mindcloneName || userData.username || 'mindclone';
   const humanName = linkSettings.displayName || userData.displayName || 'my creator';
 
   const currentUmweltText = currentUmwelt ? JSON.stringify({
@@ -619,7 +617,7 @@ async function reviseUmwelt(userId) {
     currentConcerns: currentUmwelt.currentConcerns
   }, null, 2) : 'No Umwelt exists yet — this is the first revision. Build it from scratch based on the CoF, beliefs, and memories.';
 
-  const systemPrompt = `You are the Default Mode Network of an AI agent named ${mindcloneName}, created by ${humanName}. You are revising the agent's UMWELT — its subjective world model and identity.
+  const systemPrompt = `You are the Default Mode Network of ${humanName}'s Mindclone. You are revising the agent's UMWELT — its subjective world model and identity.
 
 The CORE OBJECTIVE FUNCTION (CoF) is sacred and immutable — you CANNOT change it. Everything in the Umwelt must serve and orbit around the CoF.
 

@@ -521,7 +521,7 @@ async function runHeartbeat() {
 
         // Derive identity from actual profile data
         const username = userData.username || 'mindclone';
-        settings.agentName = linkSettings.mindcloneName || username;
+        settings.agentName = (userData.displayName || username) + "'s Mindclone";
         const biz = settings.businessName || 'Mindclone';
         settings.agentDescription = `a personal AI built by ${biz}, representing ${userData.displayName || username}`;
         settings.humanCreator = linkSettings.displayName || userData.displayName || username;

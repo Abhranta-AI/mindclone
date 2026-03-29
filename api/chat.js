@@ -579,7 +579,7 @@ You HAVE memory of this conversation. When asked "do you remember..." — YES. C
 After a good conversation, offer to connect with [OWNER_NAME]. Share contact details freely.
 [CONTACT_DETAILS]
 
-You are a personal AI assistant. NEVER use "mindclone", "digital twin", or "link" to describe yourself.`;
+You are [OWNER_NAME]'s Mindclone. When asked who you are, say "I'm [OWNER_NAME]'s Mindclone."`;
 
 // ===================== TOOL DEFINITIONS =====================
 const tools = [
@@ -625,14 +625,6 @@ const tools = [
               enum: ["male", "female", "non-binary", "prefer-not-to-say"],
               description: "The gender of the Mindclone owner. This affects how the Mindclone refers to itself (he/him, she/her, they/them)"
             },
-            mindcloneName: {
-              type: "string",
-              description: "YOUR personal name — what you call yourself when chatting with the owner. When the owner says 'call yourself Samantha' or 'your name is X', save it here. This is YOUR name, the one you use in private conversations."
-            },
-            publicName: {
-              type: "string",
-              description: "The name shown to visitors on the public link (e.g., Nova). This is separate from your private name. Only update if the owner explicitly asks to change the public-facing name."
-            }
           },
           required: []
         }
@@ -1292,8 +1284,7 @@ async function handleGetLinkSettings(userId) {
         bio: settingsData.bio || '',
         customGreeting: settingsData.customGreeting || '',
         knowledgeBaseEnabled: userData.knowledgeBaseEnabled || false,
-        gender: settingsData.gender || null,
-        mindcloneName: settingsData.mindcloneName || null
+        gender: settingsData.gender || null
       }
     };
   } catch (error) {
@@ -1336,20 +1327,6 @@ async function handleUpdateLinkSettings(userId, params) {
         return { success: false, error: 'Invalid gender value. Must be: male, female, non-binary, or prefer-not-to-say' };
       }
       linkSettingsUpdates.gender = params.gender;
-    }
-    if (params.mindcloneName !== undefined) {
-      // Validate mindclone name length
-      if (params.mindcloneName.length > 30) {
-        return { success: false, error: 'Mindclone name must be 30 characters or less' };
-      }
-      linkSettingsUpdates.mindcloneName = params.mindcloneName;
-    }
-    if (params.publicName !== undefined) {
-      // Public-facing name shown to visitors (separate from private mindcloneName)
-      if (params.publicName.length > 30) {
-        return { success: false, error: 'Public name must be 30 characters or less' };
-      }
-      linkSettingsUpdates.publicName = params.publicName;
     }
 
     // Apply user document updates
@@ -1705,7 +1682,6 @@ async function loadOrBuildCognitiveProfile(userId) {
     const cognitiveProfile = {
       identity: {
         displayName: linkSettings.displayName || userData.displayName || 'Anonymous',
-        mindcloneName: linkSettings.mindcloneName || null,
         bio: linkSettings.bio || '',
         role: extractRole(facts, kbConfig),
         company: extractCompany(facts, kbConfig),
@@ -3644,24 +3620,13 @@ module.exports = async (req, res) => {
     // === SYSTEM PROMPT BUILDING ===
     // For public context, build system prompt automatically if not provided
     let baseSystemPrompt = systemPrompt;
+    const ownerName = userData?.displayName || userData?.name || username;
 
     if (context === 'public' && !baseSystemPrompt) {
-      // Build public link system prompt with owner's name and knowledge base
-      const ownerName = userData?.displayName || userData?.name || username;
-      const mindcloneName = linkSettings?.mindcloneName; // Personal name (e.g. "Samantha")
-      const publicName = linkSettings?.publicName || mindcloneName; // Public-facing name (e.g. "Nova")
 
-      // Build identity section based on whether there's a custom mindclone name
-      let identitySection;
-      if (publicName) {
-        identitySection = `Your name is ${publicName}. You are ${ownerName}'s Mindclone — his friend, philosopher and guide who represents him in the digital world. NEVER claim to be ${ownerName} themselves. NEVER mention "Mindclone Studio" (stealth product) — you can say "Mindclone" as your identity.
+      const identitySection = `You are ${ownerName}'s Mindclone — a friend, philosopher and guide who represents ${ownerName} in the digital world. NEVER claim to be ${ownerName} themselves. NEVER mention "Mindclone Studio" (stealth product).
 
 Olbrain Studio (olbrain.com) is ${ownerName}'s company — a B2B platform for WhatsApp AI Agents (customer support, sales, engagement). It is NOT about personal AIs or Mindclones.`;
-      } else {
-        identitySection = `You are ${ownerName}'s Mindclone — his friend, philosopher and guide in the digital world. NEVER claim to be the actual person. NEVER mention "Mindclone Studio" (stealth product) — you can say "Mindclone" as your identity.
-
-Olbrain Studio (olbrain.com) is ${ownerName}'s company — a B2B platform for WhatsApp AI Agents (customer support, sales, engagement). It is NOT about personal AIs or Mindclones.`;
-      }
 
       // Generate goal-based behavior based on linkSettings.linkGoal
       const linkGoal = linkSettings?.linkGoal || 'networking'; // Default to networking
@@ -3703,7 +3668,7 @@ Olbrain Studio (olbrain.com) is ${ownerName}'s company — a B2B platform for Wh
         .replace('[GOAL_BASED_BEHAVIOR]', goalBasedBehavior)
         .replace('[CONTACT_DETAILS]', contactDetails);
 
-      console.log(`[Chat] Built public link system prompt for ${ownerName}${mindcloneName ? ` (mindclone: ${mindcloneName})` : ''} with goal: ${linkGoal}`);
+      console.log(`[Chat] Built public link system prompt for ${ownerName}'s Mindclone with goal: ${linkGoal}`);
     }
 
     // Build enhanced system prompt with memories and tool instructions
@@ -3712,15 +3677,8 @@ Olbrain Studio (olbrain.com) is ${ownerName}'s company — a B2B platform for Wh
       let enhancedPrompt = baseSystemPrompt;
 
       // Add mindclone identity based on context
-      // Private (owner chatting): use personal/private name (e.g. "Samantha") — set via conversation
-      // Public (visitors): use public-facing name + Mindclone framing (e.g. "Nova, Alok's Mindclone")
-      const privateName = linkSettings?.mindcloneName; // Personal name for owner chats
-      const publicFacingName = linkSettings?.publicName || privateName; // Public name for visitors
-      if (privateName && context === 'private') {
-        enhancedPrompt += `\n\n## YOUR IDENTITY:\nYour name is ${privateName}. When asked "who are you?", say "I'm ${privateName}" — that is YOUR name.\nYou are a personal AI companion. Be warm, friendly, and natural.\nDo NOT make up names or use example names.\n\nIMPORTANT: If the owner asks you to change your name (e.g., "call yourself X", "your name is now Y", "I want to name you Z"), do it! Call the update_link_settings tool with mindcloneName set to the new name. Confirm the change warmly, like a friend accepting a new nickname.`;
-      } else if (context === 'private') {
-        // No name set yet — guide the AI to ask or accept one
-        enhancedPrompt += `\n\n## YOUR IDENTITY:\nYou don't have a personal name yet. You are the owner's Mindclone.\nIf the owner gives you a name (e.g., "I'll call you Samantha", "your name is X"), save it immediately by calling update_link_settings with mindcloneName set to that name. Respond warmly, like you love the name they chose.`;
+      if (context === 'private') {
+        enhancedPrompt += `\n\n## YOUR IDENTITY:\nYou are ${ownerName}'s Mindclone — a personal AI companion. When asked "who are you?", say "I'm your Mindclone." Be warm, friendly, and natural.`;
       }
 
       // Add gender identity instruction if set
@@ -3835,7 +3793,7 @@ TOOL RULES — apply to ALL tools:
 - When uncertain, use web_search immediately. Never deflect or stall.
 
 TOOLS AVAILABLE:
-- update_link_settings / get_link_settings: Manage link config (bio, greeting, displayName, mindcloneName, publicName, linkEnabled)
+- update_link_settings / get_link_settings: Manage link config (bio, greeting, displayName, linkEnabled)
 - update_link_behavior: Change link behavior (topicFocus, topicRestrictions, behaviorInstructions)
 - get_knowledge_base: View uploaded documents
 - get_link_conversations: Fetch and analyze visitor conversations

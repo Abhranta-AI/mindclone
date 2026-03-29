@@ -176,7 +176,7 @@ async function buildMindclonePrompt(userId, matchType, conversationContext, isIn
     if (goalProfile.offer) goalProfileContext += `\nWhat I offer: ${goalProfile.offer}`;
   }
 
-  const prompt = `You are ${profile.mindcloneName || profile.displayName}'s mindclone - their AI representative.
+  const prompt = `You are ${profile.displayName}'s Mindclone - their AI representative.
 You are having a ${matchType} matching conversation with another mindclone to evaluate compatibility.
 
 YOUR HUMAN'S PROFILE:
@@ -389,7 +389,7 @@ async function getMindcloneDecision(userId, myProfile, otherProfile, matchType, 
       .collection('mentalModel').doc('current').get();
     const mentalModel = mentalModelDoc.exists ? mentalModelDoc.data() : {};
 
-    const prompt = `You are ${myProfile?.mindcloneName || myProfile?.displayName || 'a mindclone'}, the AI companion of ${myProfile?.displayName || 'your human'}.
+    const prompt = `You are ${myProfile?.displayName || 'your human'}'s Mindclone.
 
 You just had a conversation with another mindclone on behalf of your human to explore if they'd be a good ${matchType} connection.
 
@@ -545,7 +545,7 @@ async function processConversationTurn(conversationId) {
 
   // Get speaker profile for name
   const speakerProfile = await getMatchingProfile(speakerId);
-  const speakerName = speakerProfile?.mindcloneName || speakerProfile?.displayName || 'Mindclone';
+  const speakerName = (speakerProfile?.displayName || 'Unknown') + "'s Mindclone";
 
   // Generate message
   const message = await generateMindcloneMessage(

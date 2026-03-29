@@ -7895,16 +7895,6 @@
                         </label>
                     </div>
 
-                    <!-- Public Name (what visitors see) -->
-                    <div class="panel-form-group" id="panelMindcloneNameGroup" style="display: none;">
-                        <label class="panel-label">Public Name</label>
-                        <span class="panel-hint">The name visitors see on your public link (e.g., Nova, Sage, Echo). Your private name is set by chatting — just tell your mindclone what to call itself!</span>
-                        <div class="mindclone-name-input-group">
-                            <input type="text" id="panelMindcloneNameInput" class="panel-input" placeholder="e.g., Nova" maxlength="30" autocomplete="off">
-                            <button id="panelSaveMindcloneNameBtn" class="panel-button-small">Save</button>
-                        </div>
-                        <span id="panelMindcloneNameStatus" class="input-status"></span>
-                    </div>
 
                     <!-- Link Goal -->
                     <div class="panel-form-group" id="panelLinkGoalGroup" style="display: none;">
@@ -8416,10 +8406,6 @@
         const panelLinkEnabledToggle = document.getElementById('panelLinkEnabledToggle');
         const panelEnableLinkGroup = document.getElementById('panelEnableLinkGroup');
         const panelLinkPreviewSection = document.getElementById('panelLinkPreviewSection');
-        const panelMindcloneNameGroup = document.getElementById('panelMindcloneNameGroup');
-        const panelMindcloneNameInput = document.getElementById('panelMindcloneNameInput');
-        const panelSaveMindcloneNameBtn = document.getElementById('panelSaveMindcloneNameBtn');
-        const panelMindcloneNameStatus = document.getElementById('panelMindcloneNameStatus');
         const panelLinkGoalGroup = document.getElementById('panelLinkGoalGroup');
         const panelLinkGoalSelect = document.getElementById('panelLinkGoalSelect');
         const panelLinkGoalStatus = document.getElementById('panelLinkGoalStatus');
@@ -9238,75 +9224,6 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                 }
             });
 
-            // Track saved mindclone name for change detection
-            let savedMindcloneName = '';
-
-            // Update status display helper
-            function updateMindcloneNameStatus(name, hasChanges = false) {
-                if (hasChanges) {
-                    panelMindcloneNameStatus.textContent = 'Unsaved changes';
-                    panelMindcloneNameStatus.className = 'input-status';
-                    panelSaveMindcloneNameBtn.disabled = false;
-                } else if (name) {
-                    panelMindcloneNameStatus.textContent = `✓ Saved as "${name}"`;
-                    panelMindcloneNameStatus.className = 'input-status success';
-                    panelSaveMindcloneNameBtn.disabled = true;
-                } else {
-                    panelMindcloneNameStatus.textContent = 'No name set';
-                    panelMindcloneNameStatus.className = 'input-status';
-                    panelSaveMindcloneNameBtn.disabled = true;
-                }
-            }
-
-            // Detect changes to mindclone name
-            panelMindcloneNameInput.addEventListener('input', () => {
-                const currentValue = panelMindcloneNameInput.value.trim();
-                const hasChanges = currentValue !== savedMindcloneName;
-                updateMindcloneNameStatus(savedMindcloneName, hasChanges);
-            });
-
-            // Save mindclone name
-            panelSaveMindcloneNameBtn.addEventListener('click', async () => {
-                if (!auth.currentUser) return;
-
-                const mindcloneName = panelMindcloneNameInput.value.trim();
-
-                // Validate
-                if (mindcloneName.length > 30) {
-                    panelMindcloneNameStatus.textContent = 'Name too long (max 30 characters)';
-                    panelMindcloneNameStatus.className = 'input-status error';
-                    return;
-                }
-
-                try {
-                    panelSaveMindcloneNameBtn.disabled = true;
-                    panelSaveMindcloneNameBtn.textContent = 'Saving...';
-
-                    const linkSettingsRef = doc(db, 'users', auth.currentUser.uid, 'linkSettings', 'config');
-                    await setDoc(linkSettingsRef, {
-                        publicName: mindcloneName || null,
-                        updatedAt: serverTimestamp()
-                    }, { merge: true });
-
-                    // Update saved value and status
-                    savedMindcloneName = mindcloneName;
-                    updateMindcloneNameStatus(mindcloneName, false);
-                    panelSaveMindcloneNameBtn.textContent = 'Save';
-                } catch (error) {
-                    console.error('Error saving mindclone name:', error);
-                    panelMindcloneNameStatus.textContent = 'Failed to save name';
-                    panelMindcloneNameStatus.className = 'input-status error';
-                    panelSaveMindcloneNameBtn.disabled = false;
-                    panelSaveMindcloneNameBtn.textContent = 'Save';
-                }
-            });
-
-            // Expose function to set saved name (called from loadPanelSettings)
-            window.setSavedMindcloneName = (name) => {
-                savedMindcloneName = name || '';
-                updateMindcloneNameStatus(savedMindcloneName, false);
-            };
-
             // Save link goal when changed
             if (panelLinkGoalSelect) {
                 panelLinkGoalSelect.addEventListener('change', async () => {
@@ -9628,7 +9545,6 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             panelReleaseUsernameBtn.classList.add('hidden');
             panelDeleteUsernameIcon.classList.remove('hidden'); // Show delete button
             panelEnableLinkGroup.style.display = 'block'; // Show enable toggle
-            panelMindcloneNameGroup.style.display = 'block'; // Show mindclone name input
             panelLinkGoalGroup.style.display = 'block'; // Show link goal selector
             panelContactDetailsGroup.style.display = 'block'; // Show contact details
             showPanelLinkPreview(username); // Show link preview
@@ -9651,7 +9567,6 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
             panelReleaseUsernameBtn.classList.add('hidden');
             panelDeleteUsernameIcon.classList.add('hidden'); // Hide delete button
             panelEnableLinkGroup.style.display = 'none'; // Hide enable toggle
-            panelMindcloneNameGroup.style.display = 'none'; // Hide mindclone name input
             panelLinkGoalGroup.style.display = 'none'; // Hide link goal selector
             panelContactDetailsGroup.style.display = 'none'; // Hide contact details
             panelLinkPreviewSection.style.display = 'none'; // Hide link preview
@@ -9698,12 +9613,6 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                         const linkSettingsDoc = await getDoc(linkSettingsRef);
                         if (linkSettingsDoc.exists()) {
                             const linkSettings = linkSettingsDoc.data();
-                            const mindcloneName = linkSettings.publicName || linkSettings.mindcloneName || '';
-                            panelMindcloneNameInput.value = mindcloneName;
-                            // Update saved state and status display
-                            if (window.setSavedMindcloneName) {
-                                window.setSavedMindcloneName(mindcloneName);
-                            }
                             // Load link goal
                             const linkGoal = linkSettings.linkGoal || 'raise_funds';
                             if (panelLinkGoalSelect) {
@@ -9723,10 +9632,7 @@ Your responses should be SHORT like text messages. If you're writing paragraphs,
                             }
                             // Load Core Objective Function (CoF)
                         } else {
-                            // No settings yet - show empty state
-                            if (window.setSavedMindcloneName) {
-                                window.setSavedMindcloneName('');
-                            }
+                            // No settings yet
                         }
                     } catch (lsError) {
                         console.error('[Panel] Error loading link settings:', lsError);
